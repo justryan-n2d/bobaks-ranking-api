@@ -28,7 +28,7 @@ export async function collectOnce(): Promise<void> {
   try {
     const universeIds = await discoverUniverseIds();
     const infos = await getUniverseInfo(universeIds);
-    const thumbnails = await getUniverseThumbnails(infos.map(info => String(info.id ?? info.universeId ?? "")).filter(id => /^\\d+$/.test(id)));
+    const thumbnails = await getUniverseThumbnails(infos.map(info => String(info.id ?? info.universeId ?? "")).filter(id => /^\d+$/.test(id)));
     gamesChecked = infos.length;
 
     for (const info of infos) {
