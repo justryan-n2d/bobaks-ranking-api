@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../services/db";
 import { jsonSafe } from "../utils/json";
 import { parseRankingPeriod, type RankingPeriod } from "../utils/ranking";
+import { parseCollectorIntervalMinutes } from "../utils/collector";
 
 export const rankingsRouter = Router();
 
@@ -23,10 +24,19 @@ async function getRanking(period: RankingPeriod, res: any) {
       include: { game: true }
     });
 
+    const updatedAt = rows[0]?.calculatedAt ?? null;
+    const refreshIntervalSeconds =
+      parseCollectorIntervalMinutes(process.env.COLLECTOR_INTERVAL_MINUTES) * 60;
+    const nextRefreshAt = updatedAt
+      ? new Date(updatedAt.getTime() + refreshIntervalSeconds * 1000)
+      : null;
+
     res.json(
       jsonSafe({
         period,
-        updatedAt: rows[0]?.calculatedAt ?? null,
+        updatedAt,
+        refreshIntervalSeconds,
+        nextRefreshAt,
         data: rows
       })
     );
