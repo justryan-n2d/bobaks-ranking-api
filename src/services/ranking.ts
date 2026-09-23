@@ -6,6 +6,10 @@ const PERIODS = [
   { name: "yearly", days: 365 }
 ] as const;
 
+function compareGameIds(a: bigint, b: bigint): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 export async function refreshRankings(db = prisma): Promise<void> {
   const now = new Date();
 
@@ -20,20 +24,28 @@ export async function refreshRankings(db = prisma): Promise<void> {
         where: { period: { in: ["live", "weekly", "monthly", "yearly"] } }
       });
 
-      const latestSnapshots = await tx.gameSnapshot.findMany({
-        orderBy: { timestamp: "desc" },
-        select: { gameId: true, playerCount: true, timestamp: true }
-      });
+      const latestSnapshots = await tx.$queryRaw<Array<{
+        gameId: bigint;
+        playerCount: number;
+      }>>`
+        SELECT DISTINCT ON ("gameId")
+          "gameId",
+          "playerCount"
+        FROM "GameSnapshot"
+        ORDER BY "gameId", "timestamp" DESC, "id" DESC
+      `;
 
-      const latest = new Map<string, { playerCount: number; timestamp: Date }>();
+      const latest = new Map<string, number>();
       for (const row of latestSnapshots) {
-        const key = row.gameId.toString();
-        if (!latest.has(key)) latest.set(key, { playerCount: row.playerCount, timestamp: row.timestamp });
+        latest.set(row.gameId.toString(), Number(row.playerCount));
       }
 
       const liveRows = games
-        .map((game) => ({ gameId: game.id, playerCount: latest.get(game.id.toString())?.playerCount ?? 0 }))
-        .sort((a, b) => b.playerCount - a.playerCount)
+        .map((game) => ({
+          gameId: game.id,
+          playerCount: latest.get(game.id.toString()) ?? 0
+        }))
+        .sort((a, b) => b.playerCount - a.playerCount || compareGameIds(a.gameId, b.gameId))
         .slice(0, 100)
         .map((row, index) => ({
           gameId: row.gameId,
@@ -47,26 +59,29 @@ export async function refreshRankings(db = prisma): Promise<void> {
 
       for (const period of PERIODS) {
         const since = new Date(now.getTime() - period.days * 24 * 60 * 60 * 1000);
-        const snapshots = await tx.gameSnapshot.findMany({
-          where: { timestamp: { gte: since } },
-          select: { gameId: true, playerCount: true }
-        });
+        const snapshots = await tx.$queryRaw<Array<{
+          gameId: bigint;
+          score: number;
+        }>>`
+          SELECT
+            "gameId",
+            AVG("playerCount") AS "score"
+          FROM "GameSnapshot"
+          WHERE "timestamp" >= ${since}
+          GROUP BY "gameId"
+        `;
 
-        const sums = new Map<string, { sum: number; count: number }>();
+        const sums = new Map<string, number>();
         for (const row of snapshots) {
-          const key = row.gameId.toString();
-          const current = sums.get(key) ?? { sum: 0, count: 0 };
-          current.sum += row.playerCount;
-          current.count += 1;
-          sums.set(key, current);
+          sums.set(row.gameId.toString(), Number(row.score));
         }
 
         const rows = games
-          .map((game) => {
-            const stats = sums.get(game.id.toString());
-            return { gameId: game.id, score: stats && stats.count ? stats.sum / stats.count : 0 };
-          })
-          .sort((a, b) => b.score - a.score)
+          .map((game) => ({
+            gameId: game.id,
+            score: sums.get(game.id.toString()) ?? 0
+          }))
+          .sort((a, b) => b.score - a.score || compareGameIds(a.gameId, b.gameId))
           .slice(0, 100)
           .map((row, index) => ({
             gameId: row.gameId,
