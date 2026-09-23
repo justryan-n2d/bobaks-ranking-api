@@ -1,9 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bobaks-ranking-api",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-09-23",
   "assets": {
     "directory": "./frontend"
   },
+  "triggers": {
+    "crons": [
+      "*/10 * * * *"
+    ]
+  },
   "previews": {}
+  // Hyperdrive binding will be added after the real resource is created.
 }
