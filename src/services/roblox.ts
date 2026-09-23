@@ -116,7 +116,7 @@ export async function getUniverseThumbnails(universeIds: string[]): Promise<Map<
     if (!batch.length) continue;
 
     const query = batch.join(",");
-    const params = "?universeIds=" + encodeURIComponent(query) + "&size=420x420&format=Png&isCircular=false";
+    const params = "?universeIds=" + encodeURIComponent(query) + "&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
 
     try {
       const response = await fetchWithFallback(
