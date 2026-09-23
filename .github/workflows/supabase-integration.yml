@@ -1,0 +1,30 @@
+name: Supabase Integration
+
+on:
+  push:
+    branches:
+      - feat/supabase-api-prep
+  workflow_dispatch:
+
+jobs:
+  supabase-read-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Worker
+        run: npm run build:worker
+
+      - name: Run read-only Supabase API smoke test
+        env:
+          BOBAKS_SUPABASE_DATABASE_URL: ${{ secrets.BOBAKS_SUPABASE_DATABASE_URL }}
+        run: npm run test:supabase
