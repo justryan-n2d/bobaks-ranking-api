@@ -11,6 +11,10 @@ searchRouter.get("/", async (req, res) => {
     return res.status(400).json({ error: "Missing q parameter" });
   }
 
+  if (q.length > 100) {
+    return res.status(400).json({ error: "Invalid q parameter. Maximum length is 100 characters." });
+  }
+
   try {
     const games = await prisma.game.findMany({
       where: {
