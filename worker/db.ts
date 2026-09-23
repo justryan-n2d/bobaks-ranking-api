@@ -110,6 +110,16 @@ export function createPgCollectorDatabase(client: Client): ScheduledCollectorDb 
   };
 }
 
+export async function withPgCollectorDatabase<T>(
+  env: WorkerEnv,
+  callback: (db: ScheduledCollectorDb) => Promise<T>
+): Promise<T> {
+  const client = new Client({ connectionString: env.HYPERDRIVE.connectionString });
+  await client.connect();
+  try { return await callback(createPgCollectorDatabase(client)); }
+  finally { await client.end(); }
+}
+
 export async function withPgDatabase<T>(env: WorkerEnv, callback: (db: WorkerDb) => Promise<T>): Promise<T> {
   const client = new Client({ connectionString: env.HYPERDRIVE.connectionString });
   await client.connect();
