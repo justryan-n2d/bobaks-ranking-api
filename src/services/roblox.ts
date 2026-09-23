@@ -4,6 +4,8 @@ const OFFICIAL_BASE = "https://apis.roblox.com";
 const OFFICIAL_GAMES = "https://games.roblox.com/v1/games";
 const PROXY_BASE = "https://apis.roproxy.com";
 const PROXY_GAMES = "https://games.roproxy.com/v1/games";
+const OFFICIAL_THUMBNAILS = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails";
+const PROXY_THUMBNAILS = "https://thumbnails.roproxy.com/v1/games/multiget/thumbnails";
 const REQUEST_TIMEOUT_MS = 15000;
 
 type Json = Record<string, unknown>;
@@ -104,6 +106,38 @@ export async function discoverUniverseIds(): Promise<string[]> {
   }
 
   return [...ids].slice(0, 300);
+}
+
+export async function getUniverseThumbnails(universeIds: string[]): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+
+  for (let i = 0; i < universeIds.length; i += 100) {
+    const batch = universeIds.slice(i, i + 100);
+    if (!batch.length) continue;
+
+    const query = batch.join(",");
+    const params = "?universeIds=" + encodeURIComponent(query) + "&size=420x420&format=Png&isCircular=false";
+
+    try {
+      const response = await fetchWithFallback(
+        OFFICIAL_THUMBNAILS + params,
+        PROXY_THUMBNAILS + params
+      );
+      const data = Array.isArray(response.data) ? response.data : [];
+
+      for (const item of data) {
+        if (!item || typeof item !== "object") continue;
+        const row = item as Record<string, unknown>;
+        const targetId = String(row.targetId ?? "");
+        const imageUrl = String(row.imageUrl ?? "").trim();
+        if (/^\\d+$/.test(targetId) && imageUrl) result.set(targetId, imageUrl);
+      }
+    } catch (error) {
+      console.warn("Could not fetch Roblox game thumbnails:", error);
+    }
+  }
+
+  return result;
 }
 
 export async function getUniverseInfo(universeIds: string[]) {
