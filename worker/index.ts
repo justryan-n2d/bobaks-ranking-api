@@ -12,4 +12,4 @@ export default {
       return new Response(JSON.stringify({ error: "Database unavailable" }), { status: 503, headers: { "content-type": "application/json; charset=utf-8" } });
     }
   }
-} satisfies ExportedHandler<Env>;
+};
