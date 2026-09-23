@@ -4,19 +4,28 @@ const OFFICIAL_BASE = "https://apis.roblox.com";
 const OFFICIAL_GAMES = "https://games.roblox.com/v1/games";
 const PROXY_BASE = "https://apis.roproxy.com";
 const PROXY_GAMES = "https://games.roproxy.com/v1/games";
+const REQUEST_TIMEOUT_MS = 15000;
 
 type Json = Record<string, unknown>;
 
 async function getJson(url: string): Promise<Json> {
-  const response = await fetch(url, {
-    headers: { "User-Agent": "BobaksRanking/1.0" }
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  if (!response.ok) {
-    throw new Error(`Roblox HTTP ${response.status} for ${url}`);
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "BobaksRanking/1.0" },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Roblox HTTP ${response.status} for ${url}`);
+    }
+
+    return (await response.json()) as Json;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return (await response.json()) as Json;
 }
 
 function extractUniverseIds(value: unknown, output = new Set<string>()): Set<string> {
