@@ -238,7 +238,7 @@ git commit -m "feat: run collector from Cloudflare Cron"
 
 ---
 
-### Task 3: Test the Worker locally against Supabase without touching Railway
+### Task 4: Test the Worker locally against Supabase without touching Railway
 
 **Files:**
 - Modify: `test/` with focused integration/verification tests as needed
@@ -246,7 +246,7 @@ git commit -m "feat: run collector from Cloudflare Cron"
 - No Railway files or production configuration should be modified
 
 **Interfaces:**
-- Consumes: Worker API and scheduled handler from Tasks 1 and 2, Supabase schema, Hyperdrive-compatible database configuration.
+- Consumes: Worker API and scheduled handler from Tasks 1, 2, and 3, Supabase schema, Hyperdrive-compatible database configuration.
 - Produces: verified local Worker behavior and a repeatable test path for the API and Cron Trigger.
 
 - [ ] **Step 1: Add focused integration checks**
@@ -309,7 +309,7 @@ The documentation should only be modified if an actual implementation detail dif
 - No Railway production configuration changes
 
 **Interfaces:**
-- Consumes: all Worker API, Cron, database, and test deliverables from Tasks 1 through 3.
+- Consumes: all Worker API, retention, Cron, database, and test deliverables from Tasks 1 through 4.
 - Produces: a verified implementation ready for the separate Railway data migration stage.
 
 - [ ] **Step 1: Run the complete verification suite**
