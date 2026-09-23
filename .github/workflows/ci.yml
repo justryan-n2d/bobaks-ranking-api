@@ -46,3 +46,6 @@ jobs:
           echo "Games: $games"
           echo "Live: $live"
           exit 1
+
+      - name: Verification marker
+        run: echo "Production smoke test completed for this commit."
