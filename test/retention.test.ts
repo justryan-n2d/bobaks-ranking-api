@@ -15,7 +15,8 @@ function makeDb(snapshots: Snapshot[]) {
 
   const db = {
     gameSnapshot: {
-      findMany: async () => snapshots,
+      findMany: async ({ where }: { where: { timestamp: { lt: Date } } }) =>
+        snapshots.filter((snapshot) => snapshot.timestamp < where.timestamp.lt),
       deleteMany: async ({ where }: { where: { id: { in: bigint[] } } }) => {
         deletedIds.push(...where.id.in);
         return { count: where.id.in.length };
