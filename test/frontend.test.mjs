@@ -34,7 +34,7 @@ test("frontend uses the current rankings API contract", () => {
 
   assert.match(html, /\/api\/search\?q=/);
   assert.match(html, /\/api\/games\//);
-  assert.match(html, /\/history\?days=365/);
+  assert.match(html, /\/history\?days=365/);\n  assert.match(html, /\/api\/games\/.*\/peak/);\n  assert.match(html, /peakPlayers/);
 
   assert.doesNotMatch(html, /\/api\/rankings\/(live|weekly|monthly|yearly)/);
 });
