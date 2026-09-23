@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { prisma } from "./services/db";
 import { rankingsRouter } from "./routes/rankings";
 import { gamesRouter } from "./routes/games";
 import { searchRouter } from "./routes/search";
@@ -27,6 +28,16 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`Bobaks Ranking API listening on port ${port}`);
+  try {
+    const [games, snapshots, rankings] = await Promise.all([
+      prisma.game.count(),
+      prisma.gameSnapshot.count(),
+      prisma.ranking.count()
+    ]);
+    console.log(`DB verification: games=${games}, snapshots=${snapshots}, rankings=${rankings}`);
+  } catch (error) {
+    console.error("DB verification failed:", error);
+  }
 });
