@@ -1,9 +1,11 @@
 import { createApiHandler } from "./api";
 import { withPgDatabase, type WorkerEnv } from "./db";
+import { scheduled } from "./scheduled";
 
 export type Env = WorkerEnv;
 
 export default {
+  scheduled,
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
       return await withPgDatabase(env, async (db) => createApiHandler(db, { collectorIntervalMinutes: env.COLLECTOR_INTERVAL_MINUTES })(request));
