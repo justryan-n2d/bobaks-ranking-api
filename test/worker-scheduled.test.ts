@@ -26,6 +26,26 @@ test("scheduled invocation runs the collector exactly once", async () => {
   assert.equal(collected, 1);
 });
 
+test("daily Cron invocation runs retention instead of collection", async () => {
+  let collected = 0;
+  let retained = 0;
+
+  const handler = createScheduledHandler(
+    async (_env, callback) => callback(fakeDb()),
+    async () => {
+      collected++;
+    },
+    async () => {
+      retained++;
+    }
+  );
+
+  await handler({ cron: "0 0 * * *" }, { HYPERDRIVE: { connectionString: "test" } }, { waitUntil() {} });
+
+  assert.equal(collected, 0);
+  assert.equal(retained, 1);
+});
+
 test("collector rejection is caught by the scheduled handler", async () => {
   const errors: unknown[] = [];
   const original = console.error;
