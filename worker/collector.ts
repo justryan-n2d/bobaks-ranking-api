@@ -1,8 +1,5 @@
 import { discoverUniverseIds, getUniverseInfo, getUniverseThumbnails } from "../src/services/roblox";
-import { refreshRankings } from "../src/services/ranking";
-import { recordPeak } from "../src/services/peak";
 import { parsePlayerCount, parseRobloxDate } from "../src/utils/roblox";
-import { retainSnapshots } from "../src/services/retention";
 
 export type ScheduledCollectorDb = {
   upsertGame(data: {
@@ -71,8 +68,6 @@ export async function collectOnceWithDb(db: ScheduledCollectorDb): Promise<void>
     }
 
     await db.refreshRankings();
-    await db.retainSnapshots();
-
     await db.recordCollectionLog({
       startedAt,
       finishedAt: new Date(),
