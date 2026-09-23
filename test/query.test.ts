@@ -12,7 +12,11 @@ test("accepts an integer from 1 to 365", () => {
 });
 
 test("rejects invalid history day values", () => {
-  for (const value of ["abc", "0", "366", "1.5", "-7"]) {
+  for (const value of ["abc", "NaN", "Infinity", "0", "366", "1.5", "-7", " 1.5 "]) {
     assert.throws(() => parseHistoryDays(value), /Invalid days/);
   }
+});
+
+test("rejects a query array with more than one days value", () => {
+  assert.throws(() => parseHistoryDays(["7", "30"]), /Invalid days/);
 });
