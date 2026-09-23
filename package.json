@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "collect": "tsx src/collector.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push"
   },
