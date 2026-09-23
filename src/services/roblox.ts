@@ -4,8 +4,8 @@ const OFFICIAL_BASE = "https://apis.roblox.com";
 const OFFICIAL_GAMES = "https://games.roblox.com/v1/games";
 const PROXY_BASE = "https://apis.roproxy.com";
 const PROXY_GAMES = "https://games.roproxy.com/v1/games";
-const OFFICIAL_THUMBNAILS = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails";
-const PROXY_THUMBNAILS = "https://thumbnails.roproxy.com/v1/games/multiget/thumbnails";
+const OFFICIAL_GAME_ICONS = "https://thumbnails.roblox.com/v1/games/icons";
+const PROXY_GAME_ICONS = "https://thumbnails.roproxy.com/v1/games/icons";
 const REQUEST_TIMEOUT_MS = 15000;
 
 type Json = Record<string, unknown>;
@@ -120,8 +120,8 @@ export async function getUniverseThumbnails(universeIds: string[]): Promise<Map<
 
     try {
       const response = await fetchWithFallback(
-        OFFICIAL_THUMBNAILS + params,
-        PROXY_THUMBNAILS + params
+        OFFICIAL_GAME_ICONS + params,
+        PROXY_GAME_ICONS + params
       );
       const data = Array.isArray(response.data) ? response.data : [];
 
