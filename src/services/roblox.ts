@@ -108,6 +108,7 @@ export async function discoverUniverseIds(): Promise<string[]> {
 
 export async function getUniverseInfo(universeIds: string[]) {
   const result: Array<Record<string, unknown>> = [];
+  const seenUniverseIds = new Set<string>();
 
   for (let i = 0; i < universeIds.length; i += 10) {
     const batch = universeIds.slice(i, i + 10);
@@ -117,8 +118,20 @@ export async function getUniverseInfo(universeIds: string[]) {
     const response = await fetchWithFallback(official, proxy);
     const data = Array.isArray(response.data) ? response.data : [];
 
+    if (!Array.isArray(response.data)) {
+      throw new Error("Roblox universe info response had invalid data");
+    }
+
     for (const item of data) {
-      if (item && typeof item === "object") result.push(item as Record<string, unknown>);
+      if (item && typeof item === "object") {
+        const row = item as Record<string, unknown>;
+        const id = row.id ?? row.universeId;
+        if (id == null) continue;
+        const textId = String(id);
+        if (!/^\\d+$/.test(textId) || textId === "0" || seenUniverseIds.has(textId)) continue;
+        seenUniverseIds.add(textId);
+        result.push(row);
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 150));
