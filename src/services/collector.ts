@@ -2,7 +2,22 @@ import { prisma } from "./db";
 import { discoverUniverseIds, getUniverseInfo } from "./roblox";
 import { refreshRankings } from "./ranking";
 
+let collectionInProgress = false;
+
+function parseBigIntOrNull(value: unknown): bigint | null {
+  if (value == null || value === "") return null;
+  const text = String(value).trim();
+  if (!/^\d+$/.test(text)) return null;
+  return BigInt(text);
+}
+
 export async function collectOnce(): Promise<void> {
+  if (collectionInProgress) {
+    console.warn("Collector already running; skipping this cycle");
+    return;
+  }
+
+  collectionInProgress = true;
   const startedAt = new Date();
   let gamesChecked = 0;
   let gamesUpdated = 0;
@@ -21,7 +36,7 @@ export async function collectOnce(): Promise<void> {
       }
 
       const playerCount = Number(info.playing ?? 0);
-      const placeId = info.rootPlaceId == null ? null : BigInt(String(info.rootPlaceId));
+      const placeId = parseBigIntOrNull(info.rootPlaceId);
       const creator = info.creator && typeof info.creator === "object"
         ? info.creator as Record<string, unknown>
         : null;
@@ -32,7 +47,7 @@ export async function collectOnce(): Promise<void> {
           placeId,
           name: String(info.name ?? "Unknown Game"),
           creatorName: creator ? String(creator.name ?? "") || null : null,
-          creatorId: creator?.id == null ? null : BigInt(String(creator.id)),
+          creatorId: parseBigIntOrNull(creator?.id),
           description: info.description == null ? null : String(info.description),
           createdAt: info.created == null ? null : new Date(String(info.created)),
           updatedAt: info.updated == null ? null : new Date(String(info.updated)),
@@ -43,7 +58,7 @@ export async function collectOnce(): Promise<void> {
           placeId,
           name: String(info.name ?? "Unknown Game"),
           creatorName: creator ? String(creator.name ?? "") || null : null,
-          creatorId: creator?.id == null ? null : BigInt(String(creator.id)),
+          creatorId: parseBigIntOrNull(creator?.id),
           description: info.description == null ? null : String(info.description),
           createdAt: info.created == null ? null : new Date(String(info.created)),
           updatedAt: info.updated == null ? null : new Date(String(info.updated)),
@@ -51,8 +66,12 @@ export async function collectOnce(): Promise<void> {
         }
       });
 
+      const safePlayerCount = Number.isFinite(playerCount) ? Math.max(0, Math.round(playerCount)) : 0;
       await prisma.gameSnapshot.create({
-        data: { gameId: game.id, playerCount: Number.isFinite(playerCount) ? Math.max(0, Math.round(playerCount)) : 0 }
+        data: {
+          gameId: game.id,
+          playerCount: safePlayerCount
+        }
       });
 
       gamesUpdated++;
@@ -86,6 +105,8 @@ export async function collectOnce(): Promise<void> {
         status: "failed"
       }
     });
+  } finally {
+    collectionInProgress = false;
   }
 }
 
