@@ -103,16 +103,22 @@ export async function collectOnce(): Promise<void> {
     errors++;
     console.error("Collector failed:", error);
 
-    await prisma.dataCollectionLog.create({
-      data: {
-        startedAt,
-        finishedAt: new Date(),
-        gamesChecked,
-        gamesUpdated,
-        errors,
-        status: "failed"
-      }
-    });
+    try {
+      await prisma.dataCollectionLog.create({
+        data: {
+          startedAt,
+          finishedAt: new Date(),
+          gamesChecked,
+          gamesUpdated,
+          errors,
+          status: "failed"
+        }
+      });
+    } catch (logError) {
+      console.error("Failed to record collector failure:", logError);
+    }
+
+    throw error;
   } finally {
     collectionInProgress = false;
   }
@@ -122,8 +128,14 @@ export function startCollector(): void {
   const intervalMinutes = parseCollectorIntervalMinutes(process.env.COLLECTOR_INTERVAL_MINUTES);
   const intervalMs = intervalMinutes * 60 * 1000;
 
-  void collectOnce();
-  setInterval(() => void collectOnce(), intervalMs);
+  const runCollection = () => {
+    void collectOnce().catch(error => {
+      console.error("Scheduled collector cycle failed:", error);
+    });
+  };
+
+  runCollection();
+  setInterval(runCollection, intervalMs);
 
   console.log(`Roblox collector scheduled every ${intervalMinutes} minutes`);
 }
