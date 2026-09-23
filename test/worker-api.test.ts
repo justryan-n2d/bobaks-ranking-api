@@ -27,10 +27,10 @@ function makeDb(): WorkerDb {
       }
     }],
     listGames: async () => [],
-    getGame: async () => null,
-    getGameHistory: async () => [],
-    getGamePeak: async () => null,
-    searchGames: async () => []
+    getGame: async () => ({ id: 10n, universeId: 20n, name: "Test Game", isActive: true }),
+    getGameHistory: async () => [{ id: 1n, gameId: 10n, playerCount: 123, timestamp: new Date("2026-09-24T00:00:00.000Z") }],
+    getGamePeak: async () => ({ id: 1n, gameId: 10n, peakPlayers: 456, peakAt: new Date("2026-09-24T00:00:00.000Z") }),
+    searchGames: async () => [{ id: 10n, universeId: 20n, name: "Test Game", isActive: true }]
   };
 }
 
@@ -76,4 +76,40 @@ test("worker API returns 404 for unknown routes", async () => {
   const response = await handler(new Request("https://example.com/api/unknown"));
 
   assert.equal(response.status, 404);
+});
+
+
+test("worker API serves game, peak, history, and search routes", async () => {
+  const handler = createApiHandler(makeDb());
+
+  const game = await handler(new Request("https://example.com/api/games/10"));
+  assert.equal(game.status, 200);
+  assert.equal((await game.json()).data.id, "10");
+
+  const peak = await handler(new Request("https://example.com/api/games/10/peak"));
+  assert.equal(peak.status, 200);
+  assert.equal((await peak.json()).data.peakPlayers, 456);
+
+  const history = await handler(new Request("https://example.com/api/games/10/history?days=30"));
+  assert.equal(history.status, 200);
+  const historyBody = await history.json();
+  assert.equal(historyBody.days, 30);
+  assert.equal(historyBody.data[0].playerCount, 123);
+
+  const search = await handler(new Request("https://example.com/api/search?q=Test"));
+  assert.equal(search.status, 200);
+  assert.equal((await search.json()).data[0].name, "Test Game");
+});
+
+test("worker API rejects invalid game ids and history days", async () => {
+  const handler = createApiHandler(makeDb());
+
+  const invalidId = await handler(new Request("https://example.com/api/games/not-a-number"));
+  assert.equal(invalidId.status, 400);
+
+  const invalidDays = await handler(new Request("https://example.com/api/games/10/history?days=0"));
+  assert.equal(invalidDays.status, 400);
+
+  const missingSearch = await handler(new Request("https://example.com/api/search"));
+  assert.equal(missingSearch.status, 400);
 });
