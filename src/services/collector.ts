@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { discoverUniverseIds, getUniverseInfo } from "./roblox";
 import { refreshRankings } from "./ranking";
 import { parseCollectorIntervalMinutes } from "../utils/collector";
+import { parsePlayerCount, parseRobloxDate, parseUniverseId } from "../utils/roblox";
 
 let collectionInProgress = false;
 
@@ -36,7 +37,7 @@ export async function collectOnce(): Promise<void> {
         continue;
       }
 
-      const playerCount = Number(info.playing ?? 0);
+      const playerCount = parsePlayerCount(info.playing);
       const placeId = parseBigIntOrNull(info.rootPlaceId);
       const creator = info.creator && typeof info.creator === "object"
         ? info.creator as Record<string, unknown>
@@ -50,8 +51,8 @@ export async function collectOnce(): Promise<void> {
           creatorName: creator ? String(creator.name ?? "") || null : null,
           creatorId: parseBigIntOrNull(creator?.id),
           description: info.description == null ? null : String(info.description),
-          createdAt: info.created == null ? null : new Date(String(info.created)),
-          updatedAt: info.updated == null ? null : new Date(String(info.updated)),
+          createdAt: parseRobloxDate(info.created),
+          updatedAt: parseRobloxDate(info.updated),
           isActive: true
         },
         create: {
@@ -61,13 +62,13 @@ export async function collectOnce(): Promise<void> {
           creatorName: creator ? String(creator.name ?? "") || null : null,
           creatorId: parseBigIntOrNull(creator?.id),
           description: info.description == null ? null : String(info.description),
-          createdAt: info.created == null ? null : new Date(String(info.created)),
-          updatedAt: info.updated == null ? null : new Date(String(info.updated)),
+          createdAt: parseRobloxDate(info.created),
+          updatedAt: parseRobloxDate(info.updated),
           isActive: true
         }
       });
 
-      const safePlayerCount = Number.isFinite(playerCount) ? Math.max(0, Math.round(playerCount)) : 0;
+      const safePlayerCount = playerCount;
       await prisma.gameSnapshot.create({
         data: {
           gameId: game.id,
