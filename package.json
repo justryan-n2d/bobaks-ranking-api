@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "collect": "tsx src/collector.ts",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
