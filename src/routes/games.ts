@@ -22,7 +22,7 @@ gamesRouter.get("/", async (_req, res) => {
 gamesRouter.get("/:id", async (req, res) => {
   try {
     const gameId = BigInt(req.params.id);
-    const game = await prisma.game.findUnique({ where: { id: gameId } });
+    const game = await prisma.game.findFirst({ where: { id: gameId, isActive: true } });
     if (!game) return res.status(404).json({ error: "Game not found" });
     res.json(jsonSafe({ data: game }));
   } catch {
@@ -52,7 +52,8 @@ gamesRouter.get("/:id/history", async (req, res) => {
       orderBy: { timestamp: "asc" }
     });
     res.json(jsonSafe({ gameId, days, data: snapshots }));
-  } catch {
-    res.status(400).json({ error: "Invalid game id" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Database unavailable" });
   }
 });
