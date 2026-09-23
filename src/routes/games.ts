@@ -11,7 +11,6 @@ gamesRouter.get("/", async (_req, res) => {
       orderBy: { name: "asc" },
       take: 100
     });
-
     res.json(jsonSafe({ data: games }));
   } catch (error) {
     console.error(error);
@@ -19,28 +18,28 @@ gamesRouter.get("/", async (_req, res) => {
   }
 });
 
-gamesRouter.get("/:id/history", async (req, res) => {
-  const gameId = Number(req.params.id);
-
-  if (!Number.isSafeInteger(gameId) || gameId < 1) {
-    return res.status(400).json({ error: "Invalid game id" });
-  }
-
+gamesRouter.get("/:id", async (req, res) => {
   try {
+    const gameId = BigInt(req.params.id);
+    const game = await prisma.game.findUnique({ where: { id: gameId } });
+    if (!game) return res.status(404).json({ error: "Game not found" });
+    res.json(jsonSafe({ data: game }));
+  } catch {
+    res.status(400).json({ error: "Invalid game id" });
+  }
+});
+
+gamesRouter.get("/:id/history", async (req, res) => {
+  try {
+    const gameId = BigInt(req.params.id);
     const days = Math.min(Math.max(Number(req.query.days || 7), 1), 365);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
     const snapshots = await prisma.gameSnapshot.findMany({
-      where: {
-        gameId: BigInt(gameId),
-        timestamp: { gte: since }
-      },
+      where: { gameId, timestamp: { gte: since } },
       orderBy: { timestamp: "asc" }
     });
-
     res.json(jsonSafe({ gameId, days, data: snapshots }));
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Database unavailable" });
+  } catch {
+    res.status(400).json({ error: "Invalid game id" });
   }
 });
