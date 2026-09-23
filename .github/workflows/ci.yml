@@ -18,9 +18,11 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
-      - name: Run tests
+      - name: Run backend tests
         run: npm test
-      - name: Build
+      - name: Run frontend verification
+        run: npm run test:frontend
+      - name: Build backend
         run: npm run build
       - name: Verification marker
-        run: echo "Unit tests and build completed for this commit."
+        run: echo "Backend tests, frontend verification, and build completed for this commit."
