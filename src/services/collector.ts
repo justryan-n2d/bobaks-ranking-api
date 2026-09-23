@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { discoverUniverseIds, getUniverseInfo } from "./roblox";
+import { discoverUniverseIds, getUniverseInfo, getUniverseThumbnails } from "./roblox";
 import { refreshRankings } from "./ranking";
 import { parseCollectorIntervalMinutes } from "../utils/collector";
 import { parsePlayerCount, parseRobloxDate, parseUniverseId } from "../utils/roblox";
@@ -28,6 +28,7 @@ export async function collectOnce(): Promise<void> {
   try {
     const universeIds = await discoverUniverseIds();
     const infos = await getUniverseInfo(universeIds);
+    const thumbnails = await getUniverseThumbnails(infos.map(info => String(info.id ?? info.universeId ?? "")).filter(id => /^\\d+$/.test(id)));
     gamesChecked = infos.length;
 
     for (const info of infos) {
@@ -53,7 +54,8 @@ export async function collectOnce(): Promise<void> {
           description: info.description == null ? null : String(info.description),
           createdAt: parseRobloxDate(info.created),
           updatedAt: parseRobloxDate(info.updated),
-          isActive: true
+          isActive: true,
+          iconUrl: thumbnails.get(universeId) ?? undefined
         },
         create: {
           universeId: BigInt(universeId),
@@ -64,7 +66,8 @@ export async function collectOnce(): Promise<void> {
           description: info.description == null ? null : String(info.description),
           createdAt: parseRobloxDate(info.created),
           updatedAt: parseRobloxDate(info.updated),
-          isActive: true
+          isActive: true,
+          iconUrl: thumbnails.get(universeId) ?? null
         }
       });
 
