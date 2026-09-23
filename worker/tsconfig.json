@@ -5,7 +5,7 @@
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["@cloudflare/workers-types", "node"]
+    "types": ["node"]
   },
   "include": ["./**/*.ts", "../src/utils/**/*.ts"]
 }
