@@ -29,6 +29,9 @@ export async function collectOnce(): Promise<void> {
     const universeIds = await discoverUniverseIds();
     const infos = await getUniverseInfo(universeIds);
     const thumbnails = await getUniverseThumbnails(infos.map(info => String(info.id ?? info.universeId ?? "")).filter(id => /^\d+$/.test(id)));
+    console.log(
+      `[Roblox thumbnail diagnostic] collector received iconMapSize=${thumbnails.size} of ${infos.length} games`
+    );
     gamesChecked = infos.length;
 
     for (const info of infos) {
