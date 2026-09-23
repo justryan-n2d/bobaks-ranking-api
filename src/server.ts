@@ -40,9 +40,11 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
+let collectorInterval: NodeJS.Timeout;
+
 const server = app.listen(port, () => {
   console.log(`Bobaks Ranking API listening on port ${port}`);
-  startCollector();
+  collectorInterval = startCollector();
 });
 
 let shuttingDown = false;
@@ -52,6 +54,7 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
 
   console.log(`Received ${signal}; shutting down gracefully`);
+  clearInterval(collectorInterval);
 
   server.close(async () => {
     await prisma.$disconnect();
