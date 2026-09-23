@@ -30,8 +30,7 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "wrangler": "^4.137.0",
-    "@types/pg": "^8.15.5",
-    "@cloudflare/workers-types": "^4.20260923.0"
+    "@types/pg": "^8.15.5"
   },
   "engines": {
     "node": ">=20"
