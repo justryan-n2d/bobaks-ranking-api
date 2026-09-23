@@ -22,3 +22,27 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Verify production API data
+        run: |
+          set -e
+          for i in $(seq 1 24); do
+            health=$(curl -fsS https://bobaks-api-production.up.railway.app/api/health || true)
+            games=$(curl -fsS https://bobaks-api-production.up.railway.app/api/games || true)
+            live=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/live || true)
+
+            if echo "$health" | grep -q '"status":"ok"' &&                echo "$games" | grep -q '\[' &&                echo "$live" | grep -q '\[' &&                ! echo "$games" | grep -q 'P2021' &&                ! echo "$live" | grep -q 'P2021'; then
+              echo "Production API is responding with database-backed JSON."
+              echo "Games: $games"
+              echo "Live rankings: $live"
+              exit 0
+            fi
+
+            echo "Production API not ready yet (attempt $i/24). Retrying in 10s..."
+            sleep 10
+          done
+
+          echo "Production API did not return usable game/ranking data within 4 minutes."
+          echo "Health: $health"
+          echo "Games: $games"
+          echo "Live: $live"
+          exit 1
