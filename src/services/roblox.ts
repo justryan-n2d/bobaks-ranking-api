@@ -130,7 +130,7 @@ export async function getUniverseThumbnails(universeIds: string[]): Promise<Map<
         const row = item as Record<string, unknown>;
         const targetId = String(row.targetId ?? "");
         const imageUrl = String(row.imageUrl ?? "").trim();
-        if (/^\\d+$/.test(targetId) && imageUrl) result.set(targetId, imageUrl);
+        if (/^\d+$/.test(targetId) && imageUrl) result.set(targetId, imageUrl);
       }
     } catch (error) {
       console.warn("Could not fetch Roblox game thumbnails:", error);
