@@ -110,7 +110,7 @@ The Worker configuration will define:
 - Worker-compatible Node.js runtime support required by the selected PostgreSQL driver.
 
 The collector schedule is initially intended to be every 5 minutes:
-    * / 5 * * * *
+    */5 * * * *
 
 Cron schedules are interpreted in UTC.
 The actual Hyperdrive ID will be configured only after the Hyperdrive resource exists. No database credentials or IDs will be hard-coded in source.
