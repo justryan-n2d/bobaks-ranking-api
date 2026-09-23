@@ -29,15 +29,21 @@ jobs:
             health=$(curl -fsS https://bobaks-api-production.up.railway.app/api/health || true)
             games=$(curl -fsS https://bobaks-api-production.up.railway.app/api/games || true)
             live=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/live || true)
+            weekly=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/weekly || true)
+            monthly=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/monthly || true)
+            yearly=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/yearly || true)
 
-            if echo "$health" | grep -q '"status":"ok"' &&                echo "$games" | grep -q '\[' &&                echo "$live" | grep -q '\[' &&                ! echo "$games" | grep -q 'P2021' &&                ! echo "$live" | grep -q 'P2021'; then
-              echo "Production API is responding with database-backed JSON."
+            if echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null 2>&1 &&                echo "$games" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$live" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$weekly" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$monthly" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$yearly" | jq -e '.data | length > 0' >/dev/null 2>&1; then
+              echo "Production API is returning real database-backed game and ranking data."
               echo "Games: $games"
               echo "Live rankings: $live"
+              echo "Weekly rankings: $weekly"
+              echo "Monthly rankings: $monthly"
+              echo "Yearly rankings: $yearly"
               exit 0
             fi
 
-            echo "Production API not ready yet (attempt $i/24). Retrying in 10s..."
+            echo "Production API data not ready yet (attempt $i/24). Retrying in 10s..."
             sleep 10
           done
 
@@ -45,6 +51,9 @@ jobs:
           echo "Health: $health"
           echo "Games: $games"
           echo "Live: $live"
+          echo "Weekly: $weekly"
+          echo "Monthly: $monthly"
+          echo "Yearly: $yearly"
           exit 1
 
       - name: Verification marker
