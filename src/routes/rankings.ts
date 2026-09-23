@@ -1,13 +1,23 @@
 import { Router } from "express";
 import { prisma } from "../services/db";
 import { jsonSafe } from "../utils/json";
+import { parseRankingPeriod, type RankingPeriod } from "../utils/ranking";
 
 export const rankingsRouter = Router();
 
-async function getRanking(period: string, res: any) {
+async function getRanking(period: RankingPeriod, res: any) {
   try {
     const rows = await prisma.ranking.findMany({
-      where: { period },
+      where: {
+        period:
+          period === "live"
+            ? "live"
+            : period === "week"
+              ? "weekly"
+              : period === "month"
+                ? "monthly"
+                : "yearly"
+      },
       orderBy: { rank: "asc" },
       take: 100,
       include: { game: true }
@@ -26,7 +36,13 @@ async function getRanking(period: string, res: any) {
   }
 }
 
-rankingsRouter.get("/live", async (_req, res) => getRanking("live", res));
-rankingsRouter.get("/weekly", async (_req, res) => getRanking("weekly", res));
-rankingsRouter.get("/monthly", async (_req, res) => getRanking("monthly", res));
-rankingsRouter.get("/yearly", async (_req, res) => getRanking("yearly", res));
+rankingsRouter.get("/", async (req, res) => {
+  try {
+    const period = parseRankingPeriod(req.query.period);
+    return getRanking(period, res);
+  } catch {
+    return res.status(400).json({
+      error: "Invalid period. Use live, week, month, or year."
+    });
+  }
+});
