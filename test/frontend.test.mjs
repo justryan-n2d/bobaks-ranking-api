@@ -46,6 +46,9 @@ test("frontend exposes and uses the server refresh schedule", () => {
   assert.match(html, /nextRefreshAt=p\.nextRefreshAt/);
   assert.match(html, /refreshIntervalSeconds=Number\(p\.refreshIntervalSeconds\)/);
   assert.match(html, /new Date\(s\)\.getTime\(\)-Date\.now\(\)/);
+  assert.match(html, /countdown\(state\.nextRefreshAt\)/);
+  assert.doesNotMatch(html, /countdown\(state\.updatedAt\)/);
   assert.doesNotMatch(html, /getTime\(\)\+300000/);
   assert.match(html, /new Date\(state\.nextRefreshAt\)\.getTime\(\)/);
+  assert.match(html, /!state\.loading&&state\.nextRefreshAt/);
 });
