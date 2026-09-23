@@ -24,5 +24,7 @@ jobs:
         run: npm run test:frontend
       - name: Build backend
         run: npm run build
+      - name: Build Cloudflare Worker
+        run: npm run build:worker
       - name: Verification marker
         run: echo "Backend tests, frontend verification, and build completed for this commit."

@@ -11,14 +11,17 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "test": "tsx --test test/*.test.ts",
-    "test:frontend": "node --test test/frontend.test.mjs"
+    "test:frontend": "node --test test/frontend.test.mjs",
+    "build:worker": "tsc --noEmit -p worker/tsconfig.json",
+    "test:supabase": "node --import tsx --test test/worker-supabase.integration.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
-    "zod": "^4.1.5"
+    "zod": "^4.1.5",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -27,7 +30,8 @@
     "prisma": "^6.16.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
-    "wrangler": "^4.137.0"
+    "wrangler": "^4.137.0",
+    "@types/pg": "^8.15.5"
   },
   "engines": {
     "node": ">=20"
