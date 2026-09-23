@@ -124,7 +124,7 @@ export async function collectOnce(): Promise<void> {
   }
 }
 
-export function startCollector(): void {
+export function startCollector(): NodeJS.Timeout {
   const intervalMinutes = parseCollectorIntervalMinutes(process.env.COLLECTOR_INTERVAL_MINUTES);
   const intervalMs = intervalMinutes * 60 * 1000;
 
@@ -135,7 +135,8 @@ export function startCollector(): void {
   };
 
   runCollection();
-  setInterval(runCollection, intervalMs);
+  const interval = setInterval(runCollection, intervalMs);
 
   console.log(`Roblox collector scheduled every ${intervalMinutes} minutes`);
+  return interval;
 }
