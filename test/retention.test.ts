@@ -45,7 +45,7 @@ function makeDb(snapshots: Snapshot[]) {
 test("keeps snapshots from the last 30 days", async () => {
   const now = new Date("2026-09-24T00:00:00.000Z");
   const snapshots: Snapshot[] = [
-    { id: 1n, gameId: 1n, playerCount: 100, timestamp: new Date("2026-08-25T00:00:00.000Z") },
+    { id: 1n, gameId: 1n, playerCount: 100, timestamp: new Date("2026-08-24T00:00:00.000Z") },
     { id: 2n, gameId: 1n, playerCount: 120, timestamp: new Date("2026-08-24T23:59:59.000Z") }
   ];
   const { db, deletedIds, dailyStats } = makeDb(snapshots);
