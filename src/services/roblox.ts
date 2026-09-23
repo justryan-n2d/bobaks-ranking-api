@@ -108,6 +108,44 @@ export async function discoverUniverseIds(): Promise<string[]> {
   return [...ids].slice(0, 300);
 }
 
+async function fetchThumbnailEndpoint(
+  label: string,
+  url: string
+): Promise<Json | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "BobaksRanking/1.0" },
+      signal: controller.signal
+    });
+    const contentType = response.headers.get("content-type") ?? "";
+    const body = await response.text();
+
+    console.log(
+      `[Roblox thumbnail diagnostic] endpoint=${label} status=${response.status} contentType=${contentType} body=${body}`
+    );
+
+    try {
+      return JSON.parse(body) as Json;
+    } catch {
+      console.warn(
+        `[Roblox thumbnail diagnostic] endpoint=${label} returned non-JSON body`
+      );
+      return null;
+    }
+  } catch (error) {
+    console.error(
+      `[Roblox thumbnail diagnostic] endpoint=${label} request failed:`,
+      error
+    );
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function getUniverseThumbnails(universeIds: string[]): Promise<Map<string, string>> {
   const result = new Map<string, string>();
 
@@ -117,25 +155,34 @@ export async function getUniverseThumbnails(universeIds: string[]): Promise<Map<
 
     const query = batch.join(",");
     const params = "?universeIds=" + encodeURIComponent(query) + "&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
+    const officialUrl = OFFICIAL_GAME_ICONS + params;
+    const proxyUrl = PROXY_GAME_ICONS + params;
 
-    try {
-      const response = await fetchWithFallback(
-        OFFICIAL_GAME_ICONS + params,
-        PROXY_GAME_ICONS + params
-      );
-      const data = Array.isArray(response.data) ? response.data : [];
+    console.log(
+      `[Roblox thumbnail diagnostic] batch=${i / 100 + 1} ids=${batch.length} firstUniverseId=${batch[0]}`
+    );
 
-      for (const item of data) {
-        if (!item || typeof item !== "object") continue;
-        const row = item as Record<string, unknown>;
-        const targetId = String(row.targetId ?? "");
-        const imageUrl = String(row.imageUrl ?? "").trim();
-        if (/^\d+$/.test(targetId) && imageUrl) result.set(targetId, imageUrl);
-      }
-    } catch (error) {
-      console.warn("Could not fetch Roblox game thumbnails:", error);
+    const official = await fetchThumbnailEndpoint("official", officialUrl);
+    const proxy = official ? null : await fetchThumbnailEndpoint("proxy", proxyUrl);
+    const response = official ?? proxy;
+    const data = Array.isArray(response?.data) ? response.data : [];
+
+    console.log(
+      `[Roblox thumbnail diagnostic] selected=${official ? "official" : proxy ? "proxy" : "none"} dataCount=${data.length}`
+    );
+
+    for (const item of data) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const targetId = String(row.targetId ?? "");
+      const imageUrl = String(row.imageUrl ?? "").trim();
+      if (/^\d+$/.test(targetId) && imageUrl) result.set(targetId, imageUrl);
     }
   }
+
+  console.log(
+    `[Roblox thumbnail diagnostic] final iconMapSize=${result.size}`
+  );
 
   return result;
 }
