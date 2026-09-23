@@ -22,6 +22,11 @@ function makeDb(snapshots: Snapshot[]) {
       }
     },
     dailyGameStat: {
+      findUnique: async ({ where }: { where: { gameId_date: { gameId: bigint; date: Date } } }) => {
+        return dailyStats.find(
+          (row) => row.gameId === where.gameId_date.gameId && row.date instanceof Date && (row.date as Date).getTime() === where.gameId_date.date.getTime()
+        ) as never ?? null;
+      },
       upsert: async ({ create, update }: { create: Record<string, unknown>; update: Record<string, unknown> }) => {
         const existing = dailyStats.find(
           (row) => row.gameId === create.gameId && row.date instanceof Date && (row.date as Date).getTime() === (create.date as Date).getTime()
