@@ -105,3 +105,12 @@ test("does not delete raw snapshots when daily aggregation fails", async () => {
   await assert.rejects(retainSnapshots(db as never, now), /simulated aggregation failure/);
   assert.deepEqual(deletedIds, []);
 });
+
+
+test("rejects invalid retention periods", async () => {
+  const { db } = makeDb([]);
+  await assert.rejects(
+    retainSnapshots(db as never, new Date("2026-09-24T00:00:00.000Z"), 0),
+    /retentionDays must be a positive integer/
+  );
+});
