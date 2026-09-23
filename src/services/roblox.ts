@@ -128,7 +128,7 @@ export async function getUniverseInfo(universeIds: string[]) {
         const id = row.id ?? row.universeId;
         if (id == null) continue;
         const textId = String(id);
-        if (!/^\\d+$/.test(textId) || textId === "0" || seenUniverseIds.has(textId)) continue;
+        if (!/^\d+$/.test(textId) || textId === "0" || seenUniverseIds.has(textId)) continue;
         seenUniverseIds.add(textId);
         result.push(row);
       }
