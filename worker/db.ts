@@ -1,6 +1,7 @@
 import { Client } from "pg";
 import type { RankingPeriod } from "../src/utils/ranking";
 import type { WorkerDb, WorkerRankingRow } from "./api";
+import type { ScheduledCollectorDb } from "./collector";
 
 export type HyperdriveBinding = { connectionString: string };
 export type WorkerEnv = { HYPERDRIVE: HyperdriveBinding; COLLECTOR_INTERVAL_MINUTES?: string };
@@ -51,6 +52,60 @@ export function createPgDatabase(client: Client): WorkerDb {
       const escaped = query.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
       const result = await client.query("SELECT id, \"universeId\" AS \"universeId\", \"placeId\" AS \"placeId\", name, \"creatorName\" AS \"creatorName\", \"creatorId\" AS \"creatorId\", \"iconUrl\" AS \"iconUrl\", description, \"createdAt\" AS \"createdAt\", \"updatedAt\" AS \"updatedAt\", \"isActive\" AS \"isActive\" FROM public.\"Game\" WHERE \"isActive\" = true AND name ILIKE $1 ORDER BY name ASC LIMIT 50", ["%" + escaped + "%"]);
       return result.rows.map(mapGame);
+    }
+  };
+}
+
+export function createPgCollectorDatabase(client: Client): ScheduledCollectorDb {
+  return {
+    async upsertGame(data) {
+      const result = await client.query(
+        'INSERT INTO public."Game" ("universeId","placeId","name","creatorName","creatorId","description","createdAt","updatedAt","isActive","iconUrl") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT ("universeId") DO UPDATE SET "placeId"=EXCLUDED."placeId","name"=EXCLUDED."name","creatorName"=EXCLUDED."creatorName","creatorId"=EXCLUDED."creatorId","description"=EXCLUDED."description","createdAt"=EXCLUDED."createdAt","updatedAt"=EXCLUDED."updatedAt","isActive"=EXCLUDED."isActive","iconUrl"=COALESCE(EXCLUDED."iconUrl",public."Game"."iconUrl") RETURNING id',
+        [data.universeId.toString(), data.placeId?.toString() ?? null, data.name, data.creatorName, data.creatorId?.toString() ?? null, data.description, data.createdAt, data.updatedAt, data.isActive, data.iconUrl ?? null]
+      );
+      return { id: BigInt(result.rows[0].id) };
+    },
+    async createSnapshot(gameId, playerCount, timestamp) {
+      await client.query('INSERT INTO public."GameSnapshot" ("gameId","playerCount","timestamp") VALUES ($1,$2,$3)', [gameId.toString(), playerCount, timestamp]);
+    },
+    async recordPeak(gameId, playerCount, timestamp) {
+      await client.query(
+        'INSERT INTO public."GamePeak" ("gameId","peakPlayers","peakAt") VALUES ($1,$2,$3) ON CONFLICT ("gameId") DO UPDATE SET "peakPlayers"=EXCLUDED."peakPlayers","peakAt"=EXCLUDED."peakAt" WHERE EXCLUDED."peakPlayers" > public."GamePeak"."peakPlayers"',
+        [gameId.toString(), playerCount, timestamp]
+      );
+    },
+    async refreshRankings() {
+      const now = new Date();
+      await client.query("BEGIN");
+      try {
+        await client.query('DELETE FROM public."Ranking" WHERE period IN (\'live\',\'weekly\',\'monthly\',\'yearly\')');
+        await client.query(
+          'INSERT INTO public."Ranking" ("gameId",period,rank,score,"calculatedAt") SELECT "gameId",\'live\',ROW_NUMBER() OVER (ORDER BY "playerCount" DESC,"gameId" ASC), "playerCount",$1 FROM (SELECT DISTINCT ON ("gameId") "gameId","playerCount" FROM public."GameSnapshot" ORDER BY "gameId",timestamp DESC,id DESC) latest JOIN public."Game" g ON g.id=latest."gameId" WHERE g."isActive"=true ORDER BY "playerCount" DESC,"gameId" ASC LIMIT 100',
+          [now]
+        );
+        for (const [period, days] of [["weekly",7],["monthly",30],["yearly",365]] as const) {
+          const since = new Date(now.getTime() - days * 86400000);
+          await client.query(
+            'INSERT INTO public."Ranking" ("gameId",period,rank,score,"calculatedAt") SELECT "gameId",$1,ROW_NUMBER() OVER (ORDER BY score DESC,"gameId" ASC),score,$3 FROM (SELECT g.id AS "gameId",COALESCE(AVG(s."playerCount"),0) AS score FROM public."Game" g LEFT JOIN public."GameSnapshot" s ON s."gameId"=g.id AND s.timestamp >= $2 WHERE g."isActive"=true GROUP BY g.id) ranked ORDER BY score DESC,"gameId" ASC LIMIT 100',
+            [period, since, now]
+          );
+        }
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    },
+    async recordCollectionLog(data) {
+      await client.query('INSERT INTO public."DataCollectionLog" ("startedAt","finishedAt","gamesChecked","gamesUpdated","errors","status") VALUES ($1,$2,$3,$4,$5,$6)', [data.startedAt,data.finishedAt,data.gamesChecked,data.gamesUpdated,data.errors,data.status]);
+    },
+    async retainSnapshots(now = new Date()) {
+      const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - 30 * 86400000);
+      const result = await client.query(
+        'WITH grouped AS (SELECT "gameId", DATE_TRUNC(\'day\',timestamp AT TIME ZONE \'UTC\') AS day, AVG("playerCount") AS avg_players, MAX("playerCount") AS peak_players, MIN("playerCount") AS lowest_players, COUNT(*) AS total_samples FROM public."GameSnapshot" WHERE timestamp < $1 GROUP BY "gameId",day), upserted AS (INSERT INTO public."DailyGameStat" ("gameId",date,"averagePlayers","peakPlayers","lowestPlayers","totalSamples") SELECT "gameId",day,avg_players,peak_players,lowest_players,total_samples FROM grouped ON CONFLICT ("gameId",date) DO UPDATE SET "averagePlayers"=EXCLUDED."averagePlayers","peakPlayers"=EXCLUDED."peakPlayers","lowestPlayers"=EXCLUDED."lowestPlayers","totalSamples"=EXCLUDED."totalSamples" RETURNING "gameId",date) DELETE FROM public."GameSnapshot" s USING upserted u WHERE s."gameId"=u."gameId" AND s.timestamp < $1 AND DATE_TRUNC(\'day\',s.timestamp AT TIME ZONE \'UTC\')=u.date RETURNING s.id',
+        [cutoff]
+      );
+      return { aggregatedDays: 0, deletedSnapshots: result.rowCount ?? 0 };
     }
   };
 }
