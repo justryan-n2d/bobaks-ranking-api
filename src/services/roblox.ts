@@ -124,8 +124,15 @@ async function fetchThumbnailEndpoint(
     const body = await response.text();
 
     console.log(
-      `[Roblox thumbnail diagnostic] endpoint=${label} status=${response.status} contentType=${contentType} body=${body}`
+      `[Roblox thumbnail diagnostic] endpoint=${label} status=${response.status} contentType=${contentType} itemCount=${countJsonItems(body)}`
     );
+
+    if (!response.ok) {
+      console.warn(
+        `[Roblox thumbnail diagnostic] endpoint=${label} returned HTTP ${response.status}; trying fallback`
+      );
+      return null;
+    }
 
     try {
       return JSON.parse(body) as Json;
@@ -143,6 +150,15 @@ async function fetchThumbnailEndpoint(
     return null;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function countJsonItems(body: string): number {
+  try {
+    const parsed = JSON.parse(body) as { data?: unknown };
+    return Array.isArray(parsed.data) ? parsed.data.length : 0;
+  } catch {
+    return 0;
   }
 }
 
