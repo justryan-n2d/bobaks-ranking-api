@@ -57,3 +57,21 @@ gamesRouter.get("/:id/history", async (req, res) => {
     res.status(500).json({ error: "Database unavailable" });
   }
 });
+
+gamesRouter.get("/:id/peak", async (req, res) => {
+  let gameId: bigint;
+  try {
+    gameId = BigInt(req.params.id);
+  } catch {
+    return res.status(400).json({ error: "Invalid game id" });
+  }
+
+  try {
+    const peak = await prisma.gamePeak.findUnique({ where: { gameId } });
+    if (!peak) return res.status(404).json({ error: "Peak not found" });
+    res.json(jsonSafe({ data: peak }));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Database unavailable" });
+  }
+});

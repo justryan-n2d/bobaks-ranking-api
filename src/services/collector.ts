@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { discoverUniverseIds, getUniverseInfo, getUniverseThumbnails } from "./roblox";
 import { refreshRankings } from "./ranking";
+import { recordPeak } from "./peak";
 import { parseCollectorIntervalMinutes } from "../utils/collector";
 import { parsePlayerCount, parseRobloxDate, parseUniverseId } from "../utils/roblox";
 
@@ -75,12 +76,17 @@ export async function collectOnce(): Promise<void> {
       });
 
       const safePlayerCount = playerCount;
+      const snapshotAt = new Date();
+
       await prisma.gameSnapshot.create({
         data: {
           gameId: game.id,
-          playerCount: safePlayerCount
+          playerCount: safePlayerCount,
+          timestamp: snapshotAt
         }
       });
+
+      await recordPeak(prisma, game.id, safePlayerCount, snapshotAt);
 
       gamesUpdated++;
     }
