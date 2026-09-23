@@ -1,5 +1,5 @@
 import { collectOnceWithDb, type ScheduledCollectorDb } from "./collector";
-import { withPgDatabase, type WorkerEnv } from "./db";
+import { withPgCollectorDatabase, type WorkerEnv } from "./db";
 
 export type WorkerScheduledController = { cron?: string };
 export type WorkerExecutionContext = { waitUntil(promise: Promise<unknown>): void };
@@ -10,7 +10,7 @@ export type ScheduledDbOpener = (
 ) => Promise<void>;
 
 export function createScheduledHandler(
-  openDb: ScheduledDbOpener = withPgDatabase,
+  openDb: ScheduledDbOpener = withPgCollectorDatabase,
   runCollector: ScheduledCollector = collectOnceWithDb
 ): (
   controller: WorkerScheduledController,
