@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id           BigInt          @id @default(autoincrement())
+  universeId   BigInt          @unique
+  placeId      BigInt?
+  name         String
+  creatorName  String?
+  creatorId    BigInt?
+  iconUrl      String?
+  description  String?
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  isActive     Boolean         @default(true)
+  snapshots    GameSnapshot[]
+  rankings     Ranking[]
+  dailyStats   DailyGameStat[]
+
+  @@index([name])
+}
+
+model GameSnapshot {
+  id          BigInt   @id @default(autoincrement())
+  gameId      BigInt
+  playerCount Int
+  timestamp   DateTime @default(now())
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, timestamp])
+}
+
+model Ranking {
+  id           BigInt   @id @default(autoincrement())
+  gameId       BigInt
+  period       String
+  rank         Int
+  score        Float
+  calculatedAt DateTime @default(now())
+  game         Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([period, rank])
+}
+
+model DailyGameStat {
+  id              BigInt   @id @default(autoincrement())
+  gameId          BigInt
+  date            DateTime
+  averagePlayers  Float
+  peakPlayers     Int
+  lowestPlayers   Int
+  totalSamples    Int
+  game            Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, date])
+}
+
+model DataCollectionLog {
+  id           BigInt    @id @default(autoincrement())
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  gamesChecked Int       @default(0)
+  gamesUpdated Int       @default(0)
+  errors       Int       @default(0)
+  status       String
+}
