@@ -18,11 +18,17 @@ test("frontend entrypoint exists and contains the Bobaks app", () => {
 test("frontend uses the current rankings API contract", () => {
   const html = fs.readFileSync(frontendPath, "utf8");
 
+  assert.match(
+    html,
+    /\/api\/rankings\?period='\+period/,
+    "frontend must build ranking requests with the current period query parameter"
+  );
+
   for (const period of ["live", "week", "month", "year"]) {
     assert.match(
       html,
-      new RegExp(`/api/rankings\\?period=${period}`),
-      `frontend must request the ${period} ranking period`
+      new RegExp(`["']${period}["']`),
+      `frontend must support the ${period} ranking period`
     );
   }
 
