@@ -6,6 +6,7 @@ import { rankingsRouter } from "./routes/rankings";
 import { gamesRouter } from "./routes/games";
 import { searchRouter } from "./routes/search";
 import { startCollector } from "./services/collector";
+import { backfillMissingPeaks } from "./services/peak-backfill";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -44,7 +45,15 @@ let collectorInterval: NodeJS.Timeout;
 
 const server = app.listen(port, () => {
   console.log(`Bobaks Ranking API listening on port ${port}`);
-  collectorInterval = startCollector();
+  void backfillMissingPeaks()
+    .then(count => {
+      console.log(`Historical peak backfill complete: inserted=${count}`);
+      collectorInterval = startCollector();
+    })
+    .catch(error => {
+      console.error("Historical peak backfill failed:", error);
+      collectorInterval = startCollector();
+    });
 });
 
 let shuttingDown = false;
