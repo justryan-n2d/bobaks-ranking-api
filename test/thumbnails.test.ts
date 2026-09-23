@@ -20,7 +20,7 @@ test("uses Roblox game icons endpoint for universe icon URLs", async () => {
     const icons = await getUniverseThumbnails(["123"]);
 
     assert.equal(icons.get("123"), "https://tr.rbxcdn.com/example.png");
-    assert.match(requestedUrls[0], /\/v1\/games\/icons\?/);
+    assert.match(requestedUrls[0], /\/v1\/games\/icons\?/);\n    assert.match(requestedUrls[0], /returnPolicy=PlaceHolder/);\n    assert.match(requestedUrls[0], /size=150x150/);
   } finally {
     globalThis.fetch = originalFetch;
   }
