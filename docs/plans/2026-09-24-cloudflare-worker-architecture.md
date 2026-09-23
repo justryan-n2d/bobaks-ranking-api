@@ -28,7 +28,7 @@
 - Keep Supabase RLS enabled.
 - Do not expose database credentials to the frontend.
 - Cloudflare Cron schedules are UTC.
-- The initial collector schedule is every 10 minutes.
+- The collector schedule is every 5 minutes.
 - The Worker must not depend on `setInterval()` or module-level state as a distributed lock.
 - The implementation must be tested before the Railway data migration stage.
 
@@ -85,7 +85,7 @@ Add `pg` as a runtime dependency at the version required by the current Cloudfla
 Update `wrangler.jsonc` to define:
 - `main: "worker/index.ts"`
 - existing frontend assets
-- the 10-minute Cron Trigger
+- the 5-minute Cron Trigger
 - a Hyperdrive binding placeholder only in the sense of a configuration field that is completed when the actual Hyperdrive resource exists, without inventing an ID
 
 If TypeScript currently excludes Worker files, adjust the compiler configuration without changing the existing Node build output contract.
@@ -111,7 +111,70 @@ git commit -m "feat: add Cloudflare Worker API adapter"
 
 ---
 
-### Task 2: Move scheduled collection behind the Worker Cron Trigger
+### Task 2: Add 30-day snapshot retention and daily aggregation
+
+**Files:**
+- Create: `src/services/retention.ts`
+- Create or modify: `test/retention.test.ts`
+- Modify: `src/services/collector.ts` only where required to invoke retention safely
+- Modify: `prisma/schema.prisma` only if implementation reveals a missing constraint/index
+
+**Interfaces:**
+- Consumes: `GameSnapshot` and existing `DailyGameStat` schema.
+- Produces: a retry-safe retention operation that preserves 5-minute snapshots for the latest 30 days and permanently retains older history as daily statistics.
+
+- [ ] **Step 1: Add focused failing tests**
+
+Test that:
+1. Snapshots within the 30-day retention window are never deleted.
+2. Snapshots older than 30 days are aggregated by game and calendar day.
+3. Daily statistics contain average, peak, lowest, and sample count.
+4. Aggregation is idempotent and safe to retry.
+5. Raw snapshots are deleted only after successful aggregation.
+6. A simulated aggregation failure leaves the raw snapshots intact.
+7. The retention process does not change current rankings.
+
+- [ ] **Step 2: Verify the relevant failure**
+
+Run: `npm test`
+
+Expected: the new retention tests fail because the retention service does not yet exist.
+
+- [ ] **Step 3: Implement retention**
+
+Create a shared retention service that:
+- uses one explicit timezone consistently for daily boundaries;
+- selects only snapshots older than 30 days;
+- aggregates them into `DailyGameStat`;
+- uses an upsert/unique game-date key so retries do not duplicate daily rows;
+- deletes raw snapshots only after successful aggregation;
+- keeps `totalSamples` so historical coverage can be evaluated;
+- can safely be invoked repeatedly.
+
+The retention service must not require Railway and must work with the database abstraction used by the Worker and Node fallback.
+
+- [ ] **Step 4: Verify the focused pass**
+
+Run: `npm test`
+
+Expected: retention tests and all existing tests pass.
+
+- [ ] **Step 5: Run the build**
+
+Run: `npm run build`
+
+Expected: TypeScript compilation succeeds.
+
+- [ ] **Step 6: Commit the passing deliverable**
+
+```bash
+git add src/services/retention.ts test/retention.test.ts src/services/collector.ts prisma/schema.prisma
+git commit -m "feat: add 30-day snapshot retention"
+```
+
+---
+
+### Task 3: Move scheduled collection behind the Worker Cron Trigger
 
 **Files:**
 - Create: `worker/scheduled.ts`
@@ -239,7 +302,7 @@ The documentation should only be modified if an actual implementation detail dif
 
 ---
 
-### Task 4: Final pre-migration gate and handoff
+### Task 5: Final pre-migration gate and handoff
 
 **Files:**
 - Modify: `docs/plans/2026-09-24-cloudflare-worker-architecture.md` only to record verified commands/results if the project convention requires it
