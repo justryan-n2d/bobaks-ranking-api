@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { discoverUniverseIds, getUniverseInfo } from "./roblox";
 import { refreshRankings } from "./ranking";
+import { parseCollectorIntervalMinutes } from "../utils/collector";
 
 let collectionInProgress = false;
 
@@ -111,7 +112,7 @@ export async function collectOnce(): Promise<void> {
 }
 
 export function startCollector(): void {
-  const intervalMinutes = Math.max(Number(process.env.COLLECTOR_INTERVAL_MINUTES || 10), 5);
+  const intervalMinutes = parseCollectorIntervalMinutes(process.env.COLLECTOR_INTERVAL_MINUTES);
   const intervalMs = intervalMinutes * 60 * 1000;
 
   void collectOnce();
