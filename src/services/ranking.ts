@@ -9,13 +9,13 @@ const PERIODS = [
 export async function refreshRankings(db = prisma): Promise<void> {
   const now = new Date();
 
-  const games = await prisma.game.findMany({
+  const games = await db.game.findMany({
     where: { isActive: true },
     select: { id: true }
   });
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       await tx.ranking.deleteMany({
         where: { period: { in: ["live", "weekly", "monthly", "yearly"] } }
       });
