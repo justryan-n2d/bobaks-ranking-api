@@ -40,3 +40,12 @@ test("frontend uses the current rankings API contract", () => {
 
   assert.doesNotMatch(html, /\/api\/rankings\/(live|weekly|monthly|yearly)/);
 });
+test("frontend exposes and uses the server refresh schedule", () => {
+  const html = fs.readFileSync(frontendPath, "utf8");
+
+  assert.match(html, /nextRefreshAt=p\.nextRefreshAt/);
+  assert.match(html, /refreshIntervalSeconds=Number\(p\.refreshIntervalSeconds\)/);
+  assert.match(html, /new Date\(s\)\.getTime\(\)-Date\.now\(\)/);
+  assert.doesNotMatch(html, /getTime\(\)\+300000/);
+  assert.match(html, /new Date\(state\.nextRefreshAt\)\.getTime\(\)/);
+});
