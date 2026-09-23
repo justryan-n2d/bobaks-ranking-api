@@ -5,6 +5,7 @@ import { prisma } from "./services/db";
 import { rankingsRouter } from "./routes/rankings";
 import { gamesRouter } from "./routes/games";
 import { searchRouter } from "./routes/search";
+import { startCollector } from "./services/collector";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -12,12 +13,23 @@ const port = Number(process.env.PORT || 3000);
 app.use(cors());
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => {
-  res.json({
-    ok: true,
-    service: "bobaks-ranking-api",
-    timestamp: new Date().toISOString()
-  });
+app.get("/api/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      ok: true,
+      service: "bobaks-ranking-api",
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch {
+    res.status(503).json({
+      ok: false,
+      service: "bobaks-ranking-api",
+      database: "unavailable",
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 app.use("/api/rankings", rankingsRouter);
@@ -28,16 +40,7 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-app.listen(port, async () => {
+app.listen(port, () => {
   console.log(`Bobaks Ranking API listening on port ${port}`);
-  try {
-    const [games, snapshots, rankings] = await Promise.all([
-      prisma.game.count(),
-      prisma.gameSnapshot.count(),
-      prisma.ranking.count()
-    ]);
-    console.log(`DB verification: games=${games}, snapshots=${snapshots}, rankings=${rankings}`);
-  } catch (error) {
-    console.error("DB verification failed:", error);
-  }
+  startCollector();
 });
