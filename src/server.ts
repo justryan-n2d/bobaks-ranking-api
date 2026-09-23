@@ -40,7 +40,24 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Bobaks Ranking API listening on port ${port}`);
   startCollector();
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.log(`Received ${signal}; shutting down gracefully`);
+
+  server.close(async () => {
+    await prisma.$disconnect();
+    console.log("Shutdown complete");
+  });
+}
+
+process.once("SIGTERM", () => void shutdown("SIGTERM"));
+process.once("SIGINT", () => void shutdown("SIGINT"));
