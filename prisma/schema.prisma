@@ -34,6 +34,7 @@ model GameSnapshot {
   game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@index([gameId, timestamp])
+  @@index([timestamp, gameId])
 }
 
 model Ranking {
