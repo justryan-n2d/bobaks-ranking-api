@@ -6,7 +6,7 @@ const PERIODS = [
   { name: "yearly", days: 365 }
 ] as const;
 
-export async function refreshRankings(): Promise<void> {
+export async function refreshRankings(db = prisma): Promise<void> {
   const now = new Date();
 
   const games = await prisma.game.findMany({
