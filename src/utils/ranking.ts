@@ -1,7 +1,7 @@
 export type RankingPeriod = "live" | "week" | "month" | "year";
 
 export function parseRankingPeriod(value: unknown): RankingPeriod {
-  if (value == null || value === "") return "live";
+  if (value == null) return "live";
 
   if (Array.isArray(value)) {
     if (value.length !== 1) throw new Error("Invalid period");
