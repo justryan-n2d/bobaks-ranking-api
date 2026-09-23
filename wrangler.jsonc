@@ -13,6 +13,11 @@
       "0 0 * * *"
     ]
   },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "a4e7160cac2648ebb6b35937f45d9457"
+    }
+  ],
   "previews": {}
-  // Hyperdrive binding will be added after the real resource is created.
 }
