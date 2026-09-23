@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "test": "tsx --test test/*.test.ts",
     "test:frontend": "node --test test/frontend.test.mjs",
-    "build:worker": "tsc --noEmit -p worker/tsconfig.json"
+    "build:worker": "tsc --noEmit -p worker/tsconfig.json",
+    "test:supabase": "node --import tsx --test test/worker-supabase.integration.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
