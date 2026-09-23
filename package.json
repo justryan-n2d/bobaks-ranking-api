@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "npm run db:push && node dist/server.js",
+    "start": "node dist/server.js",
     "collect": "npm run db:push && tsx src/collector.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
