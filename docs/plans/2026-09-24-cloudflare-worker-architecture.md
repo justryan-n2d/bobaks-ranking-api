@@ -123,7 +123,7 @@ git commit -m "feat: add Cloudflare Worker API adapter"
 - Consumes: `GameSnapshot` and existing `DailyGameStat` schema.
 - Produces: a retry-safe retention operation that preserves 5-minute snapshots for the latest 30 days and permanently retains older history as daily statistics.
 
-- [ ] **Step 1: Add focused failing tests**
+- [x] **Step 1: Add focused failing tests**
 
 Test that:
 1. Snapshots within the 30-day retention window are never deleted.
@@ -134,13 +134,13 @@ Test that:
 6. A simulated aggregation failure leaves the raw snapshots intact.
 7. The retention process does not change current rankings.
 
-- [ ] **Step 2: Verify the relevant failure**
+- [x] **Step 2: Verify the relevant failure**
 
 Run: `npm test`
 
 Expected: the new retention tests fail because the retention service does not yet exist.
 
-- [ ] **Step 3: Implement retention**
+- [x] **Step 3: Implement retention**
 
 Create a shared retention service that:
 - uses one explicit timezone consistently for daily boundaries;
@@ -153,25 +153,27 @@ Create a shared retention service that:
 
 The retention service must not require Railway and must work with the database abstraction used by the Worker and Node fallback.
 
-- [ ] **Step 4: Verify the focused pass**
+- [x] **Step 4: Verify the focused pass**
 
 Run: `npm test`
 
 Expected: retention tests and all existing tests pass.
 
-- [ ] **Step 5: Run the build**
+- [x] **Step 5: Run the build**
 
 Run: `npm run build`
 
 Expected: TypeScript compilation succeeds.
 
-- [ ] **Step 6: Commit the passing deliverable**
+- [x] **Step 6: Commit the passing deliverable**
 
 ```bash
 git add src/services/retention.ts test/retention.test.ts src/services/collector.ts prisma/schema.prisma
 git commit -m "feat: add 30-day snapshot retention"
 ```
 
+
+**Verification:** GitHub Actions passed on commit `b920782c7053f6c86dad3ad4528e41fdb1f8f252`: backend tests, frontend verification, backend build, and Cloudflare Worker build all passed.
 ---
 
 ### Task 3: Move scheduled collection behind the Worker Cron Trigger
