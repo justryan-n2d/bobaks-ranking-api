@@ -24,6 +24,15 @@ jobs:
       - name: Build Worker
         run: npm run build:worker
 
+      - name: Check Supabase secret is configured
+        env:
+          BOBAKS_SUPABASE_DATABASE_URL: ${{ secrets.BOBAKS_SUPABASE_DATABASE_URL }}
+        run: |
+          if [ -z "$BOBAKS_SUPABASE_DATABASE_URL" ]; then
+            echo "BOBAKS_SUPABASE_DATABASE_URL is not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
       - name: Run read-only Supabase API smoke test
         env:
           BOBAKS_SUPABASE_DATABASE_URL: ${{ secrets.BOBAKS_SUPABASE_DATABASE_URL }}
