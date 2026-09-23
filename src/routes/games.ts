@@ -4,6 +4,19 @@ import { jsonSafe } from "../utils/json";
 
 export const gamesRouter = Router();
 
+function parseHistoryDays(value: unknown): number {
+  if (value == null || value === "") return 7;
+
+  const raw = Array.isArray(value) ? value[0] : value;
+  const days = Number(raw);
+
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new Error("Invalid days");
+  }
+
+  return days;
+}
+
 gamesRouter.get("/", async (_req, res) => {
   try {
     const games = await prisma.game.findMany({
@@ -30,9 +43,21 @@ gamesRouter.get("/:id", async (req, res) => {
 });
 
 gamesRouter.get("/:id/history", async (req, res) => {
+  let gameId: bigint;
   try {
-    const gameId = BigInt(req.params.id);
-    const days = Math.min(Math.max(Number(req.query.days || 7), 1), 365);
+    gameId = BigInt(req.params.id);
+  } catch {
+    return res.status(400).json({ error: "Invalid game id" });
+  }
+
+  let days: number;
+  try {
+    days = parseHistoryDays(req.query.days);
+  } catch {
+    return res.status(400).json({ error: "Invalid days parameter. Use an integer from 1 to 365." });
+  }
+
+  try {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const snapshots = await prisma.gameSnapshot.findMany({
       where: { gameId, timestamp: { gte: since } },
