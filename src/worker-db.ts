@@ -1,4 +1,5 @@
 import { Client } from 'pg';
+import type { Fetcher, Hyperdrive } from '@cloudflare/workers-types';
 
 export type WorkerEnv = {
   HYPERDRIVE: Hyperdrive;
