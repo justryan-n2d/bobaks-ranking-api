@@ -33,7 +33,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.record_game_peaks(jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_game_peaks(jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_game_peaks(jsonb) TO service_role;\nALTER FUNCTION public.record_game_peaks(jsonb) SET search_path = public, pg_temp;
 
 CREATE OR REPLACE FUNCTION public.refresh_rankings()
 RETURNS void
@@ -144,4 +144,4 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.refresh_rankings() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.refresh_rankings() TO service_role;
+GRANT EXECUTE ON FUNCTION public.refresh_rankings() TO service_role;\nALTER FUNCTION public.refresh_rankings() SET search_path = public, pg_temp;
