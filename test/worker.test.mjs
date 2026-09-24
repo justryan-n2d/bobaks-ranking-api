@@ -9,7 +9,7 @@ const wrangler = fs.readFileSync('wrangler.jsonc', 'utf8');
 test('Cloudflare worker is configured with Hyperdrive and static assets', () => {
   assert.match(wrangler, /"main":\s*"src\/worker\.ts"/);
   assert.match(wrangler, /"binding":\s*"HYPERDRIVE"/);
-  assert.match(wrangler, /"id":\s*"a4e7160cac2648ebb6b35937f45d9457"/);
+  assert.match(wrangler, /"id":\s*"f87bf0cfdd7a4ef8a66273e1f63b9341"/);
   assert.match(wrangler, /"directory":\s*"\.\/frontend"/);
   assert.match(wrangler, /"run_worker_first":\s*\["\/api\/\*"\]/);
 });
