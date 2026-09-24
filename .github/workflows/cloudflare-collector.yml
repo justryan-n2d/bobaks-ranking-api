@@ -1,0 +1,32 @@
+name: Deploy Cloudflare Collector
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/worker.ts"
+      - "wrangler.collector.jsonc"
+      - ".github/workflows/cloudflare-collector.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build backend
+        run: npm run build
+      - name: Deploy Worker
+        run: npx wrangler deploy --config wrangler.collector.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
