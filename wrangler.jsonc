@@ -21,3 +21,5 @@
   },
   "previews": {}
 }
+
+// Preview trigger: deploy this branch's latest Worker configuration.
