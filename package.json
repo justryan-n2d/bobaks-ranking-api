@@ -10,7 +10,7 @@
     "collect": "npm run db:push && tsx src/collector.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "test": "tsx --test test/*.test.ts",
+    "test": "tsx --test test/*.test.ts && node --test test/*.test.mjs",
     "test:frontend": "node --test test/frontend.test.mjs",
     "worker:types": "wrangler types",
     "worker:check": "wrangler deploy --dry-run"
