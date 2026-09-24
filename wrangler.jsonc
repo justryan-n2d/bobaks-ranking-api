@@ -22,7 +22,14 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  "previews": {}
+  "previews": {
+    "hyperdrive": [
+      {
+        "binding": "HYPERDRIVE",
+        "id": "f87bf0cfdd7a4ef8a66273e1f63b9341"
+      }
+    ]
+  }
 }
 
-// Preview trigger: deploy this branch's latest Worker configuration.
+// Preview Hyperdrive binding is explicitly declared because Preview settings do not inherit production bindings.
