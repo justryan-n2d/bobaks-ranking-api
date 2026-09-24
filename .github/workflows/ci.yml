@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, phase2-cloudflare-worker]
   pull_request:
     branches: [main]
 
@@ -22,7 +22,13 @@ jobs:
         run: npm test
       - name: Run frontend verification
         run: npm run test:frontend
+      - name: Run worker wiring tests
+        run: npm run test:worker
       - name: Build backend
         run: npm run build
+      - name: Generate Worker types
+        run: npm run worker:types
+      - name: Check Cloudflare Worker bundle
+        run: npm run worker:check
       - name: Verification marker
-        run: echo "Backend tests, frontend verification, and build completed for this commit."
+        run: echo "Backend tests, frontend verification, worker wiring, backend build, and Cloudflare Worker bundle check completed for this commit."
