@@ -1,9 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bobaks-ranking-api",
-  "compatibility_date": "2026-09-23",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "COLLECTOR_INTERVAL_MINUTES": "10"
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "a4e7160cac2648ebb6b35937f45d9457"
+    }
+  ],
   "assets": {
-    "directory": "./frontend"
+    "directory": "./frontend",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
   },
   "previews": {}
 }
