@@ -349,9 +349,46 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
   }
 }
 
+async function runDailySummary(env: Env, fetchImpl: FetchLike = fetch): Promise<number> {
+  const startedAt = new Date();
+  let gamesUpdated = 0;
+
+  try {
+    gamesUpdated = await summarizeYesterday(env, fetchImpl);
+
+    await writeLog(env, {
+      startedAt: startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      gamesChecked: gamesUpdated,
+      gamesUpdated,
+      errors: 0,
+      status: 'daily_summary_success'
+    }, fetchImpl);
+
+    return gamesUpdated;
+  } catch (error) {
+    console.error('Daily summary failed:', error);
+
+    try {
+      await writeLog(env, {
+        startedAt: startedAt.toISOString(),
+        finishedAt: new Date().toISOString(),
+        gamesChecked: gamesUpdated,
+        gamesUpdated,
+        errors: 1,
+        status: 'daily_summary_failed'
+      }, fetchImpl);
+    } catch (logError) {
+      console.error('Failed to record daily summary failure:', logError);
+    }
+
+    throw error;
+  }
+}
+
 export async function scheduled(controller: ScheduledController, env: Env, fetchImpl: FetchLike = fetch): Promise<void> {
   if (controller.cron === '5 0 * * *') {
-    await summarizeYesterday(env, fetchImpl);
+    await runDailySummary(env, fetchImpl);
     return;
   }
 
