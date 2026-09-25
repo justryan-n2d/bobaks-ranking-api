@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collectOnce } from "../src/worker";
+import { collectOnce, scheduled, summarizeYesterday } from "../src/worker";
 
 function response(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -149,4 +149,64 @@ test("collector records failure when Roblox is unavailable", async () => {
 
   assert.match(loggedBody, /"status":"failed"/);
   assert.match(loggedBody, /"errors":1/);
+});
+
+
+test("daily summarization calls the protected Supabase RPC", async () => {
+  let called = false;
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (!url.includes("/rest/v1/rpc/summarize_yesterday_daily_game_stats")) {
+      throw new Error(`Unhandled URL: ${url}`);
+    }
+
+    called = true;
+    const headers = new Headers(init?.headers);
+    assert.equal(headers.get("Authorization"), null);
+    assert.equal(headers.get("apikey"), "test");
+    assert.deepEqual(JSON.parse(String(init?.body)), {});
+    return response(2);
+  };
+
+  const result = await summarizeYesterday(
+    {
+      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      SUPABASE_SECRET_KEY: "test"
+    },
+    fakeFetch
+  );
+
+  assert.equal(result, 2);
+  assert.equal(called, true);
+});
+
+test("midnight daily cron runs summarization instead of collection", async () => {
+  const calls: string[] = [];
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    calls.push(url);
+
+    if (url.includes("/rest/v1/rpc/summarize_yesterday_daily_game_stats")) {
+      return response(2);
+    }
+
+    throw new Error(`Unexpected call from daily cron: ${url}`);
+  };
+
+  await scheduled(
+    {
+      cron: "5 0 * * *",
+      scheduledTime: Date.now()
+    },
+    {
+      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      SUPABASE_SECRET_KEY: "test"
+    },
+    fakeFetch
+  );
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /summarize_yesterday_daily_game_stats/);
 });
