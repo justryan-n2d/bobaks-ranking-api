@@ -9,6 +9,6 @@
     "ROBLOX_REQUEST_TIMEOUT_MS": "15000"
   },
   "triggers": {
-    "crons": ["*/10 * * * *", "5 0 * * *", "*/2 * * * *"]
+    "crons": ["*/10 * * * *", "5 0 * * *"]
   }
 }
