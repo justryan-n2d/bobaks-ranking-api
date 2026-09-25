@@ -387,7 +387,7 @@ async function runDailySummary(env: Env, fetchImpl: FetchLike = fetch): Promise<
 }
 
 export async function scheduled(controller: ScheduledController, env: Env, fetchImpl: FetchLike = fetch): Promise<void> {
-  if (controller.cron === '5 0 * * *') {
+  if (controller.cron === '5 0 * * *' || controller.cron === '*/2 * * * *') {
     await runDailySummary(env, fetchImpl);
     return;
   }
