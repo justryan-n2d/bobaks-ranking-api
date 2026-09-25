@@ -170,7 +170,7 @@ async function supabaseRequest(env: Env, path: string, fetchImpl: FetchLike, ini
   const base = env.SUPABASE_URL.replace(/\/$/, '');
   const headers = new Headers(init.headers);
   headers.set('apikey', key);
-  headers.set('Authorization', `Bearer ${key}`);
+  headers.delete('Authorization');
   headers.set('Content-Type', 'application/json');
   return await fetchImpl(`${base}/rest/v1/${path}`, { ...init, headers });
 }
@@ -213,7 +213,7 @@ async function recordPeaks(env: Env, rows: Array<Record<string, unknown>>, fetch
   if (!rows.length) return;
   const response = await supabaseRequest(env, 'rpc/record_game_peaks', fetchImpl, {
     method: 'POST',
-    body: JSON.stringify({ rows })
+    body: JSON.stringify({ p_rows: rows })
   });
   await expectOk(response, 'record_game_peaks');
 }
