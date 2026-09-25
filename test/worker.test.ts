@@ -11,14 +11,15 @@ function response(body: unknown, init: ResponseInit = {}): Response {
 }
 
 test("scheduled collector performs the complete collection cycle", async () => {
-  const calls: { url: string; method: string; body?: string }[] = [];
+  const calls: { url: string; method: string; body?: string; headers: Headers }[] = [];
 
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
     calls.push({
       url,
       method: init?.method ?? "GET",
-      body: typeof init?.body === "string" ? init.body : undefined
+      body: typeof init?.body === "string" ? init.body : undefined,
+      headers: new Headers(init?.headers)
     });
 
     if (url.includes("/get-sorts?")) {
@@ -73,10 +74,17 @@ test("scheduled collector performs the complete collection cycle", async () => {
     }
 
     if (url.includes("/rest/v1/rpc/record_game_peaks")) {
+      assert.equal(init?.headers instanceof Headers ? init.headers.get("Authorization") : new Headers(init?.headers).get("Authorization"), null);
+      assert.equal(new Headers(init?.headers).get("apikey"), "test");
+      const body = JSON.parse(String(init?.body));
+      assert.ok(Array.isArray(body.p_rows));
+      assert.equal(body.rows, undefined);
       return response(2);
     }
 
     if (url.includes("/rest/v1/rpc/refresh_rankings")) {
+      assert.equal(new Headers(init?.headers).get("Authorization"), null);
+      assert.equal(new Headers(init?.headers).get("apikey"), "test");
       return response(null);
     }
 
