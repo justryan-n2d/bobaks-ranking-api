@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "src/worker.ts"
+      - "test/worker.test.ts"
       - "wrangler.collector.jsonc"
       - ".github/workflows/cloudflare-collector.yml"
   workflow_dispatch:
@@ -23,6 +24,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Run tests
+        run: npm test
       - name: Build backend
         run: npm run build
       - name: Deploy Worker
