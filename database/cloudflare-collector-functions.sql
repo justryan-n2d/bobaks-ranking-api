@@ -42,7 +42,12 @@ SECURITY INVOKER
 AS $$
 DECLARE
   calculated_at timestamptz := now();
+  current_day_start timestamptz;
+  summary_start_date date;
 BEGIN
+  current_day_start := date_trunc('day', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
+
   DELETE FROM public."Ranking"
   WHERE "period" IN ('live', 'weekly', 'monthly', 'yearly');
 
@@ -117,13 +122,52 @@ BEGIN
   FROM ranked
   WHERE rank <= 100;
 
-  WITH averages AS (
+  /*
+    Yearly ranking uses 365 UTC calendar dates:
+    - the current UTC day from raw GameSnapshot rows
+    - the prior 364 complete UTC days from DailyGameStat
+
+    DailyGameStat stores playerSum and totalSamples so the score remains
+    a weighted average across the underlying samples.
+  */
+  WITH yearly_totals AS (
     SELECT
       "gameId",
-      AVG("playerCount")::double precision AS score
-    FROM public."GameSnapshot"
-    WHERE "timestamp" >= calculated_at - interval '365 days'
+      SUM("playerSum")::numeric AS player_sum,
+      SUM("totalSamples")::bigint AS total_samples
+    FROM public."DailyGameStat"
+    WHERE "date" >= summary_start_date::timestamp AT TIME ZONE 'UTC'
+      AND "date" < current_day_start
     GROUP BY "gameId"
+
+    UNION ALL
+
+    SELECT
+      "gameId",
+      SUM("playerCount")::numeric AS player_sum,
+      COUNT(*)::bigint AS total_samples
+    FROM public."GameSnapshot"
+    WHERE "timestamp" >= current_day_start
+      AND "timestamp" <= calculated_at
+    GROUP BY "gameId"
+  ),
+  yearly_aggregates AS (
+    SELECT
+      "gameId",
+      SUM(player_sum) AS player_sum,
+      SUM(total_samples) AS total_samples
+    FROM yearly_totals
+    GROUP BY "gameId"
+  ),
+  averages AS (
+    SELECT
+      "gameId",
+      CASE
+        WHEN total_samples > 0
+          THEN (player_sum / total_samples)::double precision
+        ELSE 0::double precision
+      END AS score
+    FROM yearly_aggregates
   ),
   ranked AS (
     SELECT
@@ -144,4 +188,5 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.refresh_rankings() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.refresh_rankings() TO service_role;\nALTER FUNCTION public.refresh_rankings() SET search_path = public, pg_temp;
+GRANT EXECUTE ON FUNCTION public.refresh_rankings() TO service_role;
+ALTER FUNCTION public.refresh_rankings() SET search_path = public, pg_temp;
