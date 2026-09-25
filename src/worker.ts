@@ -226,6 +226,23 @@ async function refreshRankings(env: Env, fetchImpl: FetchLike): Promise<void> {
   await expectOk(response, 'refresh_rankings');
 }
 
+export async function summarizeYesterday(env: Env, fetchImpl: FetchLike = fetch): Promise<number> {
+  requiredSupabaseKey(env);
+  const response = await supabaseRequest(env, 'rpc/summarize_yesterday_daily_game_stats', fetchImpl, {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
+  const body = await expectOk(response, 'summarize_yesterday_daily_game_stats');
+  if (!body.trim()) return 0;
+
+  const result = JSON.parse(body) as unknown;
+  const count = Number(result);
+  if (!Number.isFinite(count) || count < 0) {
+    throw new Error('summarize_yesterday_daily_game_stats returned an invalid count');
+  }
+  return Math.floor(count);
+}
+
 async function writeLog(env: Env, row: Record<string, unknown>, fetchImpl: FetchLike): Promise<void> {
   const response = await supabaseRequest(env, 'DataCollectionLog', fetchImpl, {
     method: 'POST',
@@ -332,6 +349,15 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
   }
 }
 
+export async function scheduled(controller: ScheduledController, env: Env, fetchImpl: FetchLike = fetch): Promise<void> {
+  if (controller.cron === '5 0 * * *') {
+    await summarizeYesterday(env, fetchImpl);
+    return;
+  }
+
+  await collectOnce(env, fetchImpl);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -341,7 +367,7 @@ export default {
         ok: true,
         service: 'bobaks-ranking-collector',
         platform: 'cloudflare-workers',
-        cron: '*/10 * * * *',
+        crons: ['*/10 * * * *', '5 0 * * *'],
         databaseConfigured: Boolean(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY),
         timestamp: new Date().toISOString()
       });
@@ -350,7 +376,5 @@ export default {
     return new Response('Not found', { status: 404 });
   },
 
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-    await collectOnce(env);
-  }
+  scheduled
 };
