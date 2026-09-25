@@ -181,15 +181,21 @@ test("daily summarization calls the protected Supabase RPC", async () => {
   assert.equal(called, true);
 });
 
-test("midnight daily cron runs summarization instead of collection", async () => {
+test("daily cron writes a success report", async () => {
   const calls: string[] = [];
+  let logBody = "";
 
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
     calls.push(url);
 
     if (url.includes("/rest/v1/rpc/summarize_yesterday_daily_game_stats")) {
-      return response(2);
+      return response(138);
+    }
+
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      logBody = String(init?.body);
+      return new Response("", { status: 201 });
     }
 
     throw new Error(`Unexpected call from daily cron: ${url}`);
@@ -207,6 +213,49 @@ test("midnight daily cron runs summarization instead of collection", async () =>
     fakeFetch
   );
 
-  assert.equal(calls.length, 1);
-  assert.match(calls[0], /summarize_yesterday_daily_game_stats/);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].includes("summarize_yesterday_daily_game_stats"), true);
+  assert.equal(calls[1].includes("/rest/v1/DataCollectionLog"), true);
+  assert.match(logBody, /"status":"daily_summary_success"/);
+  assert.match(logBody, /"gamesUpdated":138/);
+  assert.match(logBody, /"errors":0/);
+});
+
+test("daily cron writes a failure report and rethrows", async () => {
+  let logBody = "";
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/rest/v1/rpc/summarize_yesterday_daily_game_stats")) {
+      return new Response("summary failed", { status: 500 });
+    }
+
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      logBody = String(init?.body);
+      return new Response("", { status: 201 });
+    }
+
+    throw new Error(`Unexpected call from daily cron: ${url}`);
+  };
+
+  await assert.rejects(
+    () =>
+      scheduled(
+        {
+          cron: "5 0 * * *",
+          scheduledTime: Date.now()
+        },
+        {
+          SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+          SUPABASE_SECRET_KEY: "test"
+        },
+        fakeFetch
+      ),
+    /summarize_yesterday_daily_game_stats HTTP 500/
+  );
+
+  assert.match(logBody, /"status":"daily_summary_failed"/);
+  assert.match(logBody, /"gamesUpdated":0/);
+  assert.match(logBody, /"errors":1/);
 });
