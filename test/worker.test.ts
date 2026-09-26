@@ -71,6 +71,38 @@ test("scheduled collector performs the complete collection cycle", async () => {
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog")).length, 1);
 });
 
+test("collector retries transient Roblox discovery failures", async () => {
+  let attempts = 0;
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("/get-sorts?")) {
+      attempts++;
+      if (attempts === 1) throw new Error("network down");
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+    if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) return response({
+      data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+    });
+    if (url.includes("/rest/v1/Game?")) return response([{ id: "11", universeId: "1001" }]);
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+    if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.equal(attempts, 2);
+});
+
 test("collector records failure when Roblox is unavailable", async () => {
   let loggedBody = "";
   const fakeFetch: typeof fetch = async (input, init) => {
@@ -91,6 +123,7 @@ test("collector records failure when Roblox is unavailable", async () => {
 
   assert.match(loggedBody, /"status":"failed"/);
   assert.match(loggedBody, /"errors":1/);
+  assert.match(loggedBody, /"errorMessage":"network down"/);
 });
 
 test("daily summarization calls the protected Supabase RPC", async () => {
