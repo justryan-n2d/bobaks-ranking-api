@@ -129,7 +129,7 @@ test("daily cron writes a success report", async () => {
     throw new Error(`Unexpected call from daily cron: ${url}`);
   };
 
-  await scheduled({ cron: "5 0 * * *", scheduledTime: Date.now() }, {
+  await scheduledForTest({ cron: "5 0 * * *", scheduledTime: Date.now() }, {
     SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
     SUPABASE_SECRET_KEY: "sb_secret_test"
   }, fakeFetch);
@@ -154,7 +154,7 @@ test("daily cron writes a failure report and rethrows", async () => {
     throw new Error(`Unexpected call from daily cron: ${url}`);
   };
 
-  await assert.rejects(() => scheduled({ cron: "5 0 * * *", scheduledTime: Date.now() }, {
+  await assert.rejects(() => scheduledForTest({ cron: "5 0 * * *", scheduledTime: Date.now() }, {
     SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
     SUPABASE_SECRET_KEY: "sb_secret_test"
   }, fakeFetch), /summarize_yesterday_daily_game_stats HTTP 500/);
