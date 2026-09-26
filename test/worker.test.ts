@@ -259,3 +259,31 @@ test("daily cron writes a failure report and rethrows", async () => {
   assert.match(logBody, /"gamesUpdated":0/);
   assert.match(logBody, /"errors":1/);
 });
+
+
+test("health reports Supabase configuration and authentication status", async () => {
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (!url.includes("/rest/v1/Game?select=id&limit=1")) {
+      throw new Error(`Unexpected URL: ${url}`);
+    }
+    const headers = new Headers(init?.headers);
+    assert.equal(headers.get("apikey"), "sb_secret_test");
+    assert.equal(headers.get("Authorization"), null);
+    return response([{ id: 1 }]);
+  };
+
+  const worker = await import("../src/worker");
+  const result = await worker.default.fetch(
+    new Request("https://collector.example/health"),
+    {
+      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      SUPABASE_SECRET_KEY: "sb_secret_test"
+    }
+  );
+
+  const body = await result.json() as Record<string, unknown>;
+  assert.equal(body.databaseConfigured, true);
+  assert.equal(body.supabaseAuthOk, true);
+  assert.equal(body.supabaseStatus, 200);
+});
