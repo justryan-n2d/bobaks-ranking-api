@@ -26,6 +26,8 @@ const ROBLOX_OFFICIAL_ICONS = 'https://thumbnails.roblox.com/v1/games/icons';
 const ROBLOX_PROXY_ICONS = 'https://thumbnails.roproxy.com/v1/games/icons';
 const DEFAULT_TIMEOUT_MS = 15000;
 const DEFAULT_THROTTLE_MS = 150;
+const ROBLOX_RETRY_ATTEMPTS = 3;
+const ROBLOX_RETRY_DELAYS_MS = [500, 1000];
 
 function requiredSupabaseKey(env: Env): string {
   const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -38,16 +40,46 @@ function intEnv(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
 }
 
+function isRetryableRobloxError(error: unknown): boolean {
+  const message = String(error instanceof Error ? error.message : error).toLowerCase();
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('network') ||
+    message.includes('timeout') ||
+    /^roblox http 5\d\d$/.test(message)
+  );
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function robloxJson(url: string, fetchImpl: FetchLike, env: Env): Promise<Json> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), intEnv(env.ROBLOX_REQUEST_TIMEOUT_MS, DEFAULT_TIMEOUT_MS));
-  try {
-    const response = await fetchImpl(url, { headers: { 'User-Agent': 'BobaksRanking/2.0' }, signal: controller.signal });
-    if (!response.ok) throw new Error(`Roblox HTTP ${response.status}`);
-    return (await response.json()) as Json;
-  } finally {
-    clearTimeout(timeout);
+  for (let attempt = 1; attempt <= ROBLOX_RETRY_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), intEnv(env.ROBLOX_REQUEST_TIMEOUT_MS, DEFAULT_TIMEOUT_MS));
+
+    try {
+      const response = await fetchImpl(url, {
+        headers: { 'User-Agent': 'BobaksRanking/2.0' },
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`Roblox HTTP ${response.status}`);
+      return (await response.json()) as Json;
+    } catch (error) {
+      if (attempt === ROBLOX_RETRY_ATTEMPTS || !isRetryableRobloxError(error)) {
+        throw error;
+      }
+
+      const delay = ROBLOX_RETRY_DELAYS_MS[attempt - 1] ?? 1000;
+      console.warn(`Roblox request failed (attempt ${attempt}/${ROBLOX_RETRY_ATTEMPTS}), retrying in ${delay}ms:`, error);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+
+  throw new Error('Roblox request exhausted retry attempts');
 }
 
 async function robloxJsonWithFallback(officialUrl: string, proxyUrl: string, fetchImpl: FetchLike, env: Env): Promise<Json> {
@@ -346,7 +378,8 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
         gamesChecked,
         gamesUpdated,
         errors,
-        status: 'failed'
+        status: 'failed',
+        errorMessage: formatError(error)
       }, fetchImpl);
     } catch (logError) {
       console.error('Failed to record collector failure:', logError);
@@ -383,7 +416,8 @@ async function runDailySummary(env: Env, fetchImpl: FetchLike = fetch): Promise<
         gamesChecked: gamesUpdated,
         gamesUpdated,
         errors: 1,
-        status: 'daily_summary_failed'
+        status: 'daily_summary_failed',
+        errorMessage: formatError(error)
       }, fetchImpl);
     } catch (logError) {
       console.error('Failed to record daily summary failure:', logError);
