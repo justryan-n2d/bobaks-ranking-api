@@ -14,6 +14,10 @@ interface ScheduledController {
   scheduledTime: number;
 }
 
+interface WorkerExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
 const ROBLOX_OFFICIAL_BASE = 'https://apis.roblox.com';
 const ROBLOX_OFFICIAL_GAMES = 'https://games.roblox.com/v1/games';
 const ROBLOX_PROXY_BASE = 'https://apis.roproxy.com';
@@ -389,13 +393,25 @@ async function runDailySummary(env: Env, fetchImpl: FetchLike = fetch): Promise<
   }
 }
 
-export async function scheduled(controller: ScheduledController, env: Env, fetchImpl: FetchLike = fetch): Promise<void> {
+export async function scheduledForTest(
+  controller: ScheduledController,
+  env: Env,
+  fetchImpl: FetchLike = fetch
+): Promise<void> {
   if (controller.cron === '5 0 * * *') {
     await runDailySummary(env, fetchImpl);
     return;
   }
 
   await collectOnce(env, fetchImpl);
+}
+
+export async function scheduled(
+  controller: ScheduledController,
+  env: Env,
+  _ctx: WorkerExecutionContext
+): Promise<void> {
+  await scheduledForTest(controller, env, fetch);
 }
 
 export default {
