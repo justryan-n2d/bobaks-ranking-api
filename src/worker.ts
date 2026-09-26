@@ -171,6 +171,9 @@ async function supabaseRequest(env: Env, path: string, fetchImpl: FetchLike, ini
   const headers = new Headers(init.headers);
   headers.set('apikey', key);
   headers.delete('Authorization');
+  if (!key.startsWith('sb_')) {
+    headers.set('Authorization', `Bearer ${key}`);
+  }
   headers.set('Content-Type', 'application/json');
   return await fetchImpl(`${base}/rest/v1/${path}`, { ...init, headers });
 }
@@ -400,12 +403,33 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
+      const databaseConfigured = Boolean(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY);
+      let supabaseAuthOk = false;
+      let supabaseStatus: number | null = null;
+
+      if (databaseConfigured) {
+        try {
+          const response = await supabaseRequest(
+            env,
+            'Game?select=id&limit=1',
+            fetch,
+            { method: 'GET' }
+          );
+          supabaseStatus = response.status;
+          supabaseAuthOk = response.ok;
+        } catch {
+          supabaseStatus = null;
+        }
+      }
+
       return Response.json({
         ok: true,
         service: 'bobaks-ranking-collector',
         platform: 'cloudflare-workers',
         crons: ['*/10 * * * *', '5 0 * * *'],
-        databaseConfigured: Boolean(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY),
+        databaseConfigured,
+        supabaseAuthOk,
+        supabaseStatus,
         timestamp: new Date().toISOString()
       });
     }
