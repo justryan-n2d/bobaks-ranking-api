@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collectOnce, scheduled, summarizeYesterday } from "../src/worker";
+import { collectOnce, scheduledForTest, summarizeYesterday } from "../src/worker";
 
 function response(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
