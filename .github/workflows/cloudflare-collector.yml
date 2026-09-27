@@ -32,3 +32,16 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Smoke test collector
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          COLLECTOR="https://bobaks-ranking-collector.ryan-oledan0.workers.dev"
+          health=$(curl -fsS "$COLLECTOR/health")
+
+          echo "$health" | jq -e '.ok == true and .databaseConfigured == true and .supabaseAuthOk == true' >/dev/null
+          echo "$health" | jq -e '.crons | index("*/10 * * * *") != null and index("5 0 * * *") != null' >/dev/null
+
+          echo "Cloudflare collector Worker is deployed with the expected Cron Triggers and Supabase connectivity."
