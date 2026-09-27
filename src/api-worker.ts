@@ -1,0 +1,420 @@
+interface Env {
+  SUPABASE_URL: string;
+  SUPABASE_SECRET_KEY?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+}
+
+type FetchLike = typeof fetch;
+type JsonRow = Record<string, unknown>;
+
+const DEFAULT_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "public, max-age=15"
+};
+
+const RANKING_PERIODS: Record<string, string> = {
+  live: "live",
+  week: "weekly",
+  month: "monthly",
+  year: "yearly",
+  weekly: "weekly",
+  monthly: "monthly",
+  yearly: "yearly"
+};
+
+function requiredSupabaseKey(env: Env): string {
+  const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("Missing SUPABASE_SECRET_KEY");
+  return key;
+}
+
+function json(body: unknown, status = 200, extraHeaders: HeadersInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...DEFAULT_HEADERS, ...extraHeaders }
+  });
+}
+
+function corsHeaders(): HeadersInit {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, OPTIONS",
+    "access-control-allow-headers": "content-type"
+  };
+}
+
+function withCors(response: Response): Response {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(corsHeaders())) {
+    headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+function parseHistoryDays(value: string | null): number {
+  if (value == null || value === "") return 7;
+
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new Error("Invalid days");
+  }
+
+  return days;
+}
+
+function parseSearch(value: string | null): string {
+  const q = (value ?? "").trim();
+  if (!q) throw new Error("Missing q");
+  if (q.length > 100) throw new Error("Search query too long");
+  return q;
+}
+
+function supabaseUrl(env: Env, path: string, params: Record<string, string> = {}): string {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const url = new URL(`${base}/rest/v1/${path}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+async function supabaseGet(
+  env: Env,
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchLike
+): Promise<JsonRow[]> {
+  const key = requiredSupabaseKey(env);
+  const headers = new Headers({
+    apikey: key,
+    accept: "application/json"
+  });
+
+  if (!key.startsWith("sb_")) {
+    headers.set("authorization", `Bearer ${key}`);
+  }
+
+  const response = await fetchImpl(supabaseUrl(env, path, params), {
+    headers
+  });
+
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(`Supabase HTTP ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  if (!body.trim()) return [];
+  const data = JSON.parse(body) as unknown;
+  if (!Array.isArray(data)) throw new Error("Supabase returned an invalid response");
+  return data as JsonRow[];
+}
+
+function gameSelect(): string {
+  return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
+}
+
+async function getGames(env: Env, fetchImpl: FetchLike): Promise<JsonRow[]> {
+  return supabaseGet(
+    env,
+    "Game",
+    {
+      select: gameSelect(),
+      isActive: "eq.true",
+      order: "name.asc",
+      limit: "100"
+    },
+    fetchImpl
+  );
+}
+
+async function getGameById(env: Env, id: string, fetchImpl: FetchLike): Promise<JsonRow | null> {
+  const rows = await supabaseGet(
+    env,
+    "Game",
+    {
+      select: gameSelect(),
+      id: `eq.${id}`,
+      isActive: "eq.true",
+      limit: "1"
+    },
+    fetchImpl
+  );
+  return rows[0] ?? null;
+}
+
+async function getHistory(
+  env: Env,
+  gameId: string,
+  days: number,
+  fetchImpl: FetchLike
+): Promise<JsonRow[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return supabaseGet(
+    env,
+    "GameSnapshot",
+    {
+      select: "id,gameId,playerCount,timestamp",
+      gameId: `eq.${gameId}`,
+      timestamp: `gte.${since}`,
+      order: "timestamp.asc,id.asc"
+    },
+    fetchImpl
+  );
+}
+
+async function getPeak(env: Env, gameId: string, fetchImpl: FetchLike): Promise<JsonRow | null> {
+  const rows = await supabaseGet(
+    env,
+    "GamePeak",
+    {
+      select: "id,gameId,peakPlayers,peakAt",
+      gameId: `eq.${gameId}`,
+      limit: "1"
+    },
+    fetchImpl
+  );
+  return rows[0] ?? null;
+}
+
+async function getGamesByIds(env: Env, ids: string[], fetchImpl: FetchLike): Promise<Map<string, JsonRow>> {
+  const map = new Map<string, JsonRow>();
+  if (!ids.length) return map;
+
+  const uniqueIds = [...new Set(ids)];
+  const rows = await supabaseGet(
+    env,
+    "Game",
+    {
+      select: gameSelect(),
+      id: `in.(${uniqueIds.join(",")})`
+    },
+    fetchImpl
+  );
+
+  for (const row of rows) {
+    if (row.id != null) map.set(String(row.id), row);
+  }
+
+  return map;
+}
+
+async function getRankings(
+  env: Env,
+  period: string,
+  fetchImpl: FetchLike
+): Promise<JsonRow[]> {
+  const dbPeriod = RANKING_PERIODS[period];
+  if (!dbPeriod) throw new Error("Invalid period");
+
+  const rankings = await supabaseGet(
+    env,
+    "Ranking",
+    {
+      select: "id,gameId,period,rank,score,calculatedAt",
+      period: `eq.${dbPeriod}`,
+      order: "rank.asc",
+      limit: "100"
+    },
+    fetchImpl
+  );
+
+  const gameMap = await getGamesByIds(
+    env,
+    rankings.map(row => String(row.gameId ?? "")),
+    fetchImpl
+  );
+
+  return rankings.map(row => ({
+    ...row,
+    gameId: row.gameId == null ? null : String(row.gameId),
+    rank: Number(row.rank),
+    score: Number(row.score),
+    game: gameMap.get(String(row.gameId ?? "")) ?? null
+  }));
+}
+
+async function getRankingResponse(
+  env: Env,
+  period: string,
+  fetchImpl: FetchLike
+): Promise<Record<string, unknown>> {
+  const data = await getRankings(env, period, fetchImpl);
+  const updatedAt = data[0]?.calculatedAt ?? null;
+
+  return {
+    period,
+    updatedAt,
+    refreshIntervalSeconds: 600,
+    nextRefreshAt: updatedAt
+      ? new Date(new Date(String(updatedAt)).getTime() + 600_000).toISOString()
+      : null,
+    data
+  };
+}
+
+async function searchGames(
+  env: Env,
+  q: string,
+  fetchImpl: FetchLike
+): Promise<JsonRow[]> {
+  return supabaseGet(
+    env,
+    "Game",
+    {
+      select: gameSelect(),
+      isActive: "eq.true",
+      name: `ilike.*${q}*`,
+      order: "name.asc",
+      limit: "50"
+    },
+    fetchImpl
+  );
+}
+
+async function health(env: Env, fetchImpl: FetchLike): Promise<Response> {
+  try {
+    await supabaseGet(env, "Game", { select: "id", limit: "1" }, fetchImpl);
+    return json({
+      ok: true,
+      service: "bobaks-ranking-api",
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("API health check failed:", error);
+    return json({
+      ok: false,
+      service: "bobaks-ranking-api",
+      database: "unavailable",
+      timestamp: new Date().toISOString()
+    }, 503);
+  }
+}
+
+async function handleApi(
+  request: Request,
+  env: Env,
+  fetchImpl: FetchLike = fetch
+): Promise<Response> {
+  const url = new URL(request.url);
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+
+  if (path === "/api/health") {
+    return health(env, fetchImpl);
+  }
+
+  if (path === "/api/games") {
+    try {
+      return json({ data: await getGames(env, fetchImpl) });
+    } catch (error) {
+      console.error("GET /api/games failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  const gameMatch = path.match(/^\/api\/games\/(\d+)$/);
+  if (gameMatch) {
+    try {
+      const game = await getGameById(env, gameMatch[1], fetchImpl);
+      if (!game) return json({ error: "Game not found" }, 404);
+      return json({ data: game });
+    } catch (error) {
+      console.error("GET /api/games/:id failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  const historyMatch = path.match(/^\/api\/games\/(\d+)\/history$/);
+  if (historyMatch) {
+    let days: number;
+    try {
+      days = parseHistoryDays(url.searchParams.get("days"));
+    } catch {
+      return json({ error: "Invalid days parameter. Use an integer from 1 to 365." }, 400);
+    }
+
+    try {
+      const data = await getHistory(env, historyMatch[1], days, fetchImpl);
+      return json({ gameId: historyMatch[1], days, data });
+    } catch (error) {
+      console.error("GET /api/games/:id/history failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  const peakMatch = path.match(/^\/api\/games\/(\d+)\/peak$/);
+  if (peakMatch) {
+    try {
+      const peak = await getPeak(env, peakMatch[1], fetchImpl);
+      if (!peak) return json({ error: "Peak not found" }, 404);
+      return json({ data: peak });
+    } catch (error) {
+      console.error("GET /api/games/:id/peak failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  const rankingPath = path.match(/^\/api\/rankings(?:\/(live|weekly|monthly|yearly))?$/);
+  if (rankingPath) {
+    const period = rankingPath[1]
+      ? rankingPath[1] === "weekly"
+        ? "week"
+        : rankingPath[1] === "monthly"
+          ? "month"
+          : rankingPath[1] === "yearly"
+            ? "year"
+            : "live"
+      : url.searchParams.get("period") || "live";
+
+    if (!RANKING_PERIODS[period]) {
+      return json({ error: "Invalid period. Use live, week, month, or year." }, 400);
+    }
+
+    try {
+      return json(await getRankingResponse(env, period, fetchImpl));
+    } catch (error) {
+      console.error("GET /api/rankings failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  if (path === "/api/search") {
+    let q: string;
+    try {
+      q = parseSearch(url.searchParams.get("q"));
+    } catch (error) {
+      return json({
+        error: error instanceof Error && error.message === "Search query too long"
+          ? "Invalid q parameter. Maximum length is 100 characters."
+          : "Missing q parameter"
+      }, 400);
+    }
+
+    try {
+      return json({ query: q, data: await searchGames(env, q, fetchImpl) });
+    } catch (error) {
+      console.error("GET /api/search failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  return json({ error: "Not found" }, 404);
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const response = request.method === "OPTIONS"
+      ? new Response(null, { status: 204, headers: { ...corsHeaders() } })
+      : request.method !== "GET"
+        ? json({ error: "Method not allowed" }, 405, { allow: "GET, OPTIONS" })
+        : await handleApi(request, env);
+
+    return withCors(response);
+  }
+};
+
+export { handleApi };
