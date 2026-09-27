@@ -132,7 +132,7 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.equal((body.data as unknown[]).length, 1);
   assert.equal(calls.length, 2);
   assert.match(calls[0].url, /period=eq\.weekly/);
-  assert.match(calls[1].url, /id=in\.\(1\)/);
+  assert.equal(new URL(calls[1].url).searchParams.get("id"), "in.(1)");
 });
 
 test("legacy ranking paths remain compatible during Railway cutover", async () => {
