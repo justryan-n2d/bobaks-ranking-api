@@ -349,9 +349,11 @@ async function writeLog(env: Env, row: Record<string, unknown>, fetchImpl: Fetch
 export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promise<{ gamesChecked: number; gamesUpdated: number; errors: number }> {
   requiredSupabaseKey(env);
   const startedAt = new Date();
+  const collectionRunId = crypto.randomUUID();
   let gamesChecked = 0;
   let gamesUpdated = 0;
   let errors = 0;
+  let collectionLogWritten = false;
 
   try {
     const universeIds = await discoverUniverseIds(fetchImpl, env);
@@ -414,16 +416,18 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
       }
 
       const playerCount = parsePlayerCount(info.playing);
-      snapshots.push({ gameId, playerCount, timestamp: now });
+      snapshots.push({ gameId, playerCount, timestamp: now, collectionRunId });
       peaks.push({ gameId, playerCount, peakAt: now });
       gamesUpdated++;
     }
 
     await insertSnapshots(env, snapshots, fetchImpl);
     await recordPeaks(env, peaks, fetchImpl);
-    await refreshRankings(env, fetchImpl);
 
+    // Finalize the collection log before refreshing rankings so the current
+    // run is visible in both the coverage denominator and snapshot validation.
     await writeLog(env, {
+      collectionRunId,
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
       gamesChecked,
@@ -431,24 +435,33 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
       errors,
       status: errors ? 'partial' : 'success'
     }, fetchImpl);
+    collectionLogWritten = true;
+
+    // Ranking refresh is downstream of data collection. If it fails, the
+    // collected snapshots remain valid and the next successful run will retry
+    // the refresh without misclassifying this collection run as failed.
+    await refreshRankings(env, fetchImpl);
 
     return { gamesChecked, gamesUpdated, errors };
   } catch (error) {
     errors++;
     console.error('Collector failed:', error);
 
-    try {
-      await writeLog(env, {
-        startedAt: startedAt.toISOString(),
-        finishedAt: new Date().toISOString(),
-        gamesChecked,
-        gamesUpdated,
-        errors,
-        status: 'failed',
-        errorMessage: formatError(error)
-      }, fetchImpl);
-    } catch (logError) {
-      console.error('Failed to record collector failure:', logError);
+    if (!collectionLogWritten) {
+      try {
+        await writeLog(env, {
+          collectionRunId,
+          startedAt: startedAt.toISOString(),
+          finishedAt: new Date().toISOString(),
+          gamesChecked,
+          gamesUpdated,
+          errors,
+          status: 'failed',
+          errorMessage: formatError(error)
+        }, fetchImpl);
+      } catch (logError) {
+        console.error('Failed to record collector failure:', logError);
+      }
     }
 
     throw error;
@@ -463,6 +476,7 @@ async function runDailySummary(env: Env, fetchImpl: FetchLike = fetch): Promise<
     gamesUpdated = await summarizeYesterday(env, fetchImpl);
 
     await writeLog(env, {
+      collectionRunId: crypto.randomUUID(),
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
       gamesChecked: gamesUpdated,
