@@ -113,60 +113,6 @@ function makeFetch(calls: { url: string; headers: Headers }[]): typeof fetch {
 }
 
 
-test("ranking methodology endpoint exposes the canonical rules without database access", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch(calls));
-  const body = await result.json() as Record<string, any>;
-
-  assert.equal(result.status, 200);
-  assert.equal(body.title, "How Bobaks Rankings Work");
-  assert.equal(body.methodologyVersion, "2026-09-28");
-  assert.equal(body.collection.cadenceMinutes, 10);
-  assert.equal(body.rules.live.freshnessMinutes, 15);
-  assert.equal(body.rules.weekly.minimumSamples, 12);
-  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
-  assert.equal(body.rules.monthly.minimumSamples, 12);
-  assert.equal(body.rules.monthly.minimumCoverage, 0.5);
-  assert.equal(body.rules.yearly.period.includes("previous 364 days"), true);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
-  assert.equal(calls.length, 0);
-});
-
-test("ranking audit endpoint returns server-side integrity and current audit metadata", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const fetchImpl: typeof fetch = async (input, init) => {
-    const url = String(input);
-    const headers = new Headers(init?.headers);
-    calls.push({ url, headers });
-
-    if (url.includes("/rest/v1/rpc/get_rankings_audit")) {
-      assert.equal(init?.method, "POST");
-      assert.equal(headers.get("apikey"), "sb_secret_test");
-      return response({
-        methodologyVersion: "2026-09-28",
-        auditStatus: "passed",
-        rankings: {
-          live: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", maxLatestSnapshotAgeSeconds: 9 },
-          weekly: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", collectionOpportunities: 144, minimumSamplesObserved: 71, minimumCoverageObserved: 0.493 }
-        }
-      });
-    }
-
-    throw new Error(`Unhandled URL: ${url}`);
-  };
-
-  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, fetchImpl);
-  const body = await result.json() as Record<string, any>;
-
-  assert.equal(result.status, 200);
-  assert.equal(body.auditStatus, "passed");
-  assert.equal(body.rankings.live.rows, 100);
-  assert.equal(body.rankings.live.maxLatestSnapshotAgeSeconds, 9);
-  assert.equal(body.rankings.weekly.collectionOpportunities, 144);
-  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
-  assert.equal(calls.length, 1);
-});
-
 test("health checks Supabase and returns connected", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const result = await handleApi(new Request("https://api.example/api/health"), env, makeFetch(calls));
@@ -180,21 +126,6 @@ test("health checks Supabase and returns connected", async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].headers.get("apikey"), "sb_secret_test");
   assert.equal(calls[0].headers.get("authorization"), null);
-});
-
-test("ranking rules endpoint is a backward-compatible methodology alias", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch(calls));
-
-  assert.equal(result.status, 200);
-  const body = await result.json() as Record<string, any>;
-  assert.equal(body.methodologyVersion, "2026-09-28");
-  assert.equal(body.rules.common.topN, 100);
-  assert.equal(body.rules.live.freshnessMinutes, 15);
-  assert.equal(body.rules.weekly.minimumSamples, 12);
-  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
-  assert.equal(calls.length, 0);
 });
 
 test("ranking endpoint supports the current period query contract", async () => {
@@ -298,47 +229,97 @@ test("ranking rules endpoint is a backward-compatible methodology alias", async 
   assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
 });
 
-test("ranking methodology endpoint returns the published contract", async () => {
-  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch([]));
+test("ranking rules endpoint exposes the canonical public methodology", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch(calls));
+  const body = await result.json() as Record<string, any>;
 
   assert.equal(result.status, 200);
-  const body = await result.json() as {
-    methodologyVersion: string;
-    collection: { cadenceMinutes: number };
-    rules: {
-      common: { topN: number; activeGamesOnly: boolean };
-      live: { freshnessMinutes: number };
-      weekly: { minimumSamples: number; minimumCoverage: number };
-      monthly: { minimumSamples: number; minimumCoverage: number };
-      yearly: { period: string };
-    };
-  };
-
+  assert.equal(body.rulesVersion, "2026-09-28");
   assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.title, "How Bobaks Rankings Work");
+  assert.equal(body.topN, 100);
+  assert.equal(body.timezone, "UTC");
   assert.equal(body.collection.cadenceMinutes, 10);
-  assert.equal(body.rules.common.topN, 100);
-  assert.equal(body.rules.common.activeGamesOnly, true);
-  assert.equal(body.rules.live.freshnessMinutes, 15);
-  assert.equal(body.rules.weekly.minimumSamples, 12);
-  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
-  assert.equal(body.rules.monthly.minimumSamples, 12);
-  assert.equal(body.rules.monthly.minimumCoverage, 0.5);
-  assert.match(body.rules.yearly.period, /365/);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
+  assert.equal(body.eligibility.live, "A game must be active and have a qualifying snapshot no older than 15 minutes at ranking calculation time.");
+  assert.equal(body.eligibility.weekly.minimumSamples, 12);
+  assert.equal(body.eligibility.weekly.minimumCoverage, 0.5);
+  assert.equal(body.eligibility.monthly.minimumSamples, 12);
+  assert.equal(body.eligibility.monthly.minimumCoverage, 0.5);
+  assert.equal(typeof body.score.yearly, "string");
+  assert.deepEqual(body.collectionRuns.countedStatuses, ["success", "partial"]);
+  assert.match(body.ordering.tieBreak, /gameId/);
+  assert.ok(Array.isArray(body.limitations));
+  assert.equal(result.headers.get("cache-control"), "public, max-age=300");
+  assert.equal(calls.length, 0);
 });
 
-test("ranking audit endpoint returns live audit metadata", async () => {
-  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, makeFetch([]));
+test("ranking methodology endpoint is an alias of the canonical methodology", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch(calls));
+  const body = await result.json() as Record<string, any>;
 
   assert.equal(result.status, 200);
-  const body = await result.json() as {
-    methodologyVersion: string;
-    auditStatus: string;
-    rankings: { live: { rows: number } };
+  assert.equal(body.rulesVersion, "2026-09-28");
+  assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.topN, 100);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=300");
+  assert.equal(calls.length, 0);
+});
+
+test("ranking audit endpoint returns server-side integrity metadata", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers);
+    calls.push({ url, headers });
+
+    if (url.includes("/rest/v1/rpc/get_rankings_audit")) {
+      assert.equal(init?.method, "POST");
+      assert.equal(headers.get("apikey"), "sb_secret_test");
+      assert.equal(headers.get("authorization"), null);
+      return response({
+        methodologyVersion: "2026-09-28",
+        auditStatus: "passed",
+        collection: {
+          cadenceSeconds: 600,
+          latestStatus: "success",
+          latestStartedAt: "2026-09-28T00:00:00.000Z"
+        },
+        rankings: {
+          live: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", maxLatestSnapshotAgeSeconds: 3 },
+          weekly: {
+            rows: 100,
+            calculatedAt: "2026-09-28T00:00:00.000Z",
+            collectionOpportunities: 324,
+            minimumSamplesObserved: 164,
+            minimumCoverageObserved: 0.506
+          },
+          monthly: {
+            rows: 100,
+            calculatedAt: "2026-09-28T00:00:00.000Z",
+            collectionOpportunities: 324,
+            minimumSamplesObserved: 164,
+            minimumCoverageObserved: 0.506
+          },
+          yearly: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z" }
+        }
+      });
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
   };
 
-  assert.equal(body.methodologyVersion, "2026-09-28");
+  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, fetchImpl);
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
   assert.equal(body.auditStatus, "passed");
+  assert.equal(body.methodologyVersion, "2026-09-28");
   assert.equal(body.rankings.live.rows, 100);
+  assert.equal(body.rankings.weekly.collectionOpportunities, 324);
+  assert.equal(body.rankings.weekly.minimumSamplesObserved, 164);
+  assert.equal(body.rankings.weekly.minimumCoverageObserved, 0.506);
   assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
+  assert.equal(calls.length, 1);
 });
