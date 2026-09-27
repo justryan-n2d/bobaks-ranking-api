@@ -32,7 +32,7 @@ test("scheduled collector performs the complete collection cycle", async () => {
       { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
       { id: 1002, rootPlaceId: 2002, name: "Two", creator: { id: 3002, name: "B" }, playing: 34 }
     ] });
-    if (url.includes("/rest/v1/Game?") && url.includes("lastObservedAt=")) return response([]);
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
     if (url.includes("/rest/v1/Game?")) return response([
       { id: "11", universeId: "1001" },
       { id: "12", universeId: "1002" }
@@ -107,7 +107,7 @@ test("thumbnail collection falls back from empty official data and preserves mis
       { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
       { id: 1002, rootPlaceId: 2002, name: "Two", creator: { id: 3002, name: "B" }, playing: 34 }
     ] });
-    if (url.includes("/rest/v1/Game?select=id%2CuniverseId")) return response([]);
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
     if (url.includes("/rest/v1/Game?")) {
       gameBody = String(init?.body);
       return response([{ id: "11", universeId: "1001" }, { id: "12", universeId: "1002" }]);
@@ -158,8 +158,16 @@ test("collector verifies stale active games without changing coverage rules", as
       });
     }
 
-    if (url.includes("/rest/v1/Game?select=id%2CuniverseId")) {
-      return response([{ id: "22", universeId: "2002" }]);
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      assert.equal(body.p_limit, 100);
+      assert.equal(typeof body.p_cutoff, "string");
+      return response([{
+        id: "22",
+        universeId: "2002",
+        lastVerificationAttemptAt: null,
+        verificationMisses: 0
+      }]);
     }
 
     if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
@@ -207,7 +215,7 @@ test("collector retries transient Roblox discovery failures", async () => {
     if (url.includes("games.roblox.com/v1/games")) return response({
       data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
     });
-    if (url.includes("/rest/v1/Game?select=id%2CuniverseId")) return response([]);
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
     if (url.includes("/rest/v1/Game?")) return response([{ id: "11", universeId: "1001" }]);
     if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
     if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
