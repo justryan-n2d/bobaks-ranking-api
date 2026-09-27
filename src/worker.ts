@@ -163,11 +163,18 @@ async function getUniverseInfo(universeIds: string[], fetchImpl: FetchLike, env:
   return result;
 }
 
-async function getUniverseThumbnails(universeIds: string[], fetchImpl: FetchLike, env: Env): Promise<Map<string, string>> {
+async function getUniverseThumbnails(
+  games: Array<{ universeId: string; placeId: string | null }>,
+  fetchImpl: FetchLike,
+  env: Env
+): Promise<Map<string, string>> {
   const result = new Map<string, string>();
+  const universeIds = [...new Set(games.map(game => game.universeId).filter(id => /^\d+$/.test(id)))];
+
   for (let i = 0; i < universeIds.length; i += 100) {
     const batch = universeIds.slice(i, i + 100);
     if (!batch.length) continue;
+
     const params = `?universeIds=${encodeURIComponent(batch.join(','))}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false`;
     const fetchThumbnail = async (url: string): Promise<Json | null> => {
       try {
@@ -177,8 +184,17 @@ async function getUniverseThumbnails(universeIds: string[], fetchImpl: FetchLike
         return null;
       }
     };
-    const response = (await fetchThumbnail(ROBLOX_OFFICIAL_ICONS + params)) ?? (await fetchThumbnail(ROBLOX_PROXY_ICONS + params));
-    const data = Array.isArray(response?.data) ? response.data : [];
+
+    let response = await fetchThumbnail(ROBLOX_OFFICIAL_ICONS + params);
+    let data = Array.isArray(response?.data) ? response.data : [];
+
+    // If the official endpoint succeeds but filters a universe out,
+    // try the proxy instead of treating an empty result as final.
+    if (!data.length) {
+      response = await fetchThumbnail(ROBLOX_PROXY_ICONS + params);
+      data = Array.isArray(response?.data) ? response.data : [];
+    }
+
     for (const item of data) {
       if (!item || typeof item !== 'object') continue;
       const row = item as Record<string, unknown>;
@@ -187,6 +203,45 @@ async function getUniverseThumbnails(universeIds: string[], fetchImpl: FetchLike
       if (/^\d+$/.test(id) && imageUrl) result.set(id, imageUrl);
     }
   }
+
+  const missing = games.filter(game => !result.has(game.universeId) && game.placeId);
+  const placeToUniverse = new Map(
+    missing.map(game => [String(game.placeId), game.universeId])
+  );
+  const placeIds = [...placeToUniverse.keys()];
+
+  for (let i = 0; i < placeIds.length; i += 100) {
+    const batch = placeIds.slice(i, i + 100);
+    if (!batch.length) continue;
+
+    const params = `?placeIds=${encodeURIComponent(batch.join(','))}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false`;
+    const fetchPlaceIcons = async (url: string): Promise<Json | null> => {
+      try {
+        return await robloxJson(url, fetchImpl, env);
+      } catch (error) {
+        console.warn('Roblox place icon endpoint failed:', error);
+        return null;
+      }
+    };
+
+    let response = await fetchPlaceIcons('https://thumbnails.roblox.com/v1/places/gameicons' + params);
+    let data = Array.isArray(response?.data) ? response.data : [];
+
+    if (!data.length) {
+      response = await fetchPlaceIcons('https://thumbnails.roproxy.com/v1/places/gameicons' + params);
+      data = Array.isArray(response?.data) ? response.data : [];
+    }
+
+    for (const item of data) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      const placeId = String(row.targetId ?? '');
+      const imageUrl = String(row.imageUrl ?? '').trim();
+      const universeId = placeToUniverse.get(placeId);
+      if (universeId && imageUrl) result.set(universeId, imageUrl);
+    }
+  }
+
   return result;
 }
 
@@ -302,7 +357,12 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
     const universeIds = await discoverUniverseIds(fetchImpl, env);
     const infos = await getUniverseInfo(universeIds, fetchImpl, env);
     const iconMap = await getUniverseThumbnails(
-      infos.map(info => String(info.id ?? info.universeId ?? '')).filter(id => /^\d+$/.test(id)),
+      infos
+        .map(info => ({
+          universeId: String(info.id ?? info.universeId ?? ''),
+          placeId: info.rootPlaceId == null ? null : String(info.rootPlaceId)
+        }))
+        .filter(game => /^\d+$/.test(game.universeId)),
       fetchImpl,
       env
     );
@@ -320,18 +380,24 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
         ? info.creator as Record<string, unknown>
         : null;
 
-      return [{
+      const row: Record<string, unknown> = {
         universeId,
         placeId: info.rootPlaceId == null ? null : String(info.rootPlaceId),
         name: String(info.name ?? 'Unknown Game'),
         creatorName: creator ? String(creator.name ?? '') || null : null,
         creatorId: creator?.id == null ? null : String(creator.id),
-        iconUrl: iconMap.get(universeId) ?? null,
         description: info.description == null ? null : String(info.description),
         createdAt: parseDate(info.created),
         updatedAt: parseDate(info.updated),
         isActive: true
-      }];
+      };
+
+      // Never erase a known-good icon just because Roblox returned no icon
+      // in this collection cycle. A later successful cycle can refresh it.
+      const iconUrl = iconMap.get(universeId);
+      if (iconUrl) row.iconUrl = iconUrl;
+
+      return [row];
     });
 
     const games = await upsertGames(env, gamePayloads, fetchImpl);
