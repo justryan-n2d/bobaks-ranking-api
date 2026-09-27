@@ -45,8 +45,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "Ranking_period_rank_unique_idx"
 
 -- Ranking period definitions used by refresh_rankings():
 -- live   = latest qualifying snapshot, within 15 minutes
--- weekly = current UTC calendar week, Monday through Sunday
--- monthly = current UTC calendar month
+-- weekly = current UTC calendar week, Monday through Sunday; at least 12 samples and 50% coverage
+-- monthly = current UTC calendar month; at least 12 samples and 50% coverage
 -- yearly = 365 UTC calendar dates
 --
 -- See database/cloudflare-collector-functions.sql for the canonical function body.
