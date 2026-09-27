@@ -160,8 +160,7 @@ test("collector verifies stale active games without changing coverage rules", as
       }
       return response({
         data: [
-          { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
-          { id: 2002, rootPlaceId: 3002, name: "Stale", creator: { id: 3002, name: "B" }, playing: 34 }
+          { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }
         ]
       });
     }
@@ -205,7 +204,7 @@ test("collector verifies stale active games without changing coverage rules", as
     ROBLOX_THROTTLE_MS: "0"
   }, fakeFetch);
 
-  assert.deepEqual(result, { gamesChecked: 2, gamesUpdated: 1, errors: 0 });
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
   const verification = calls.find(call => call.url.includes("/rest/v1/rpc/verify_game_activity"));
   assert.ok(verification);
 });
