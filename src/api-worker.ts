@@ -22,6 +22,52 @@ const RANKING_PERIODS: Record<string, string> = {
   yearly: "yearly"
 };
 
+const RANKING_RULES = {
+  rulesVersion: "2026-09-28",
+  topN: 100,
+  timezone: "UTC",
+  score: {
+    live: "Latest qualifying player-count snapshot.",
+    weekly: "Average player count across qualifying samples in the current UTC calendar week, Monday through Sunday.",
+    monthly: "Average player count across qualifying samples in the current UTC calendar month.",
+    yearly: "Weighted average player count across the current UTC day plus the prior 364 UTC calendar days. Prior complete days use DailyGameStat summaries; the current day uses raw GameSnapshot samples."
+  },
+  eligibility: {
+    live: "A game must be active and have a qualifying snapshot no older than 15 minutes at ranking calculation time.",
+    weekly: {
+      minimumSamples: 12,
+      minimumCoverage: 0.5,
+      coverageFormula: "Qualifying snapshots for the game divided by successful or partial collection runs in the ranking period."
+    },
+    monthly: {
+      minimumSamples: 12,
+      minimumCoverage: 0.5,
+      coverageFormula: "Qualifying snapshots for the game divided by successful or partial collection runs in the ranking period."
+    },
+    yearly: "No separate sample-count or coverage threshold is applied."
+  },
+  collectionRuns: {
+    countedStatuses: ["success", "partial"],
+    excludedStatuses: ["failed", "daily_summary_success", "daily_summary_failed"],
+    boundaryRule: "For linked snapshots, Weekly and Monthly period membership follows the collection run startedAt. Legacy snapshots without a collectionRunId use their snapshot timestamp."
+  },
+  ordering: {
+    primary: "Score descending.",
+    tieBreak: "gameId ascending, deterministic."
+  },
+  activity: {
+    discovery: "Observed games are active and their verification miss streak resets.",
+    staleVerification: "Active games not observed for 24 hours enter explicit Roblox verification.",
+    deactivation: "A game is deactivated after 12 consecutive verification misses.",
+    reactivation: "A later discovery reactivates the game and clears the inactive state."
+  },
+  limitations: [
+    "Rankings represent Bobaks collection snapshots, not every moment of Roblox activity.",
+    "Roblox discovery and API availability can limit which games are observed in a cycle.",
+    "Coverage is based on Bobaks collection runs, not on all possible Roblox observations."
+  ]
+};
+
 function requiredSupabaseKey(env: Env): string {
   const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("Missing SUPABASE_SECRET_KEY");
@@ -278,6 +324,10 @@ async function getNextCollectionAt(
   return new Date(nextBoundary + COLLECTION_REFRESH_BUFFER_MS).toISOString();
 }
 
+function getRankingRules(): Record<string, unknown> {
+  return RANKING_RULES;
+}
+
 async function getRankingResponse(
   env: Env,
   period: string,
@@ -398,6 +448,12 @@ async function handleApi(
       console.error("GET /api/games/:id/peak failed:", error);
       return json({ error: "Database unavailable" }, 503);
     }
+  }
+
+  if (path === "/api/rankings/rules") {
+    return json(getRankingRules(), 200, {
+      "cache-control": "public, max-age=300"
+    });
   }
 
   const rankingPath = path.match(/^\/api\/rankings(?:\/(live|weekly|monthly|yearly))?$/);
