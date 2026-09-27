@@ -159,6 +159,103 @@ async function supabaseGet(
   return data as JsonRow[];
 }
 
+async function supabaseRpc(
+  env: Env,
+  functionName: string,
+  body: Record<string, unknown>,
+  fetchImpl: FetchLike
+): Promise<unknown> {
+  const key = requiredSupabaseKey(env);
+  const headers = new Headers({
+    apikey: key,
+    "content-type": "application/json",
+    accept: "application/json"
+  });
+
+  if (!key.startsWith("sb_")) {
+    headers.set("authorization", `Bearer ${key}`);
+  }
+
+  const response = await fetchImpl(
+    `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/${functionName}`,
+    { method: "POST", headers, body: JSON.stringify(body) }
+  );
+
+  const textBody = await response.text();
+  if (!response.ok) {
+    throw new Error(`Supabase RPC HTTP ${response.status}: ${textBody.slice(0, 300)}`);
+  }
+
+  if (!textBody.trim()) return null;
+  return JSON.parse(textBody) as unknown;
+}
+
+const RANKING_METHODOLOGY = {
+  methodologyVersion: "2026-09-28",
+  title: "How Bobaks Rankings Work",
+  collection: {
+    cadenceMinutes: 10,
+    source: "Roblox public experience data collected by Bobaks Ranking"
+  },
+  rules: {
+    common: {
+      topN: 100,
+      activeGamesOnly: true,
+      tieBreak: "Higher score first. Equal scores are ordered by ascending game ID.",
+      collectedDataOnly: true
+    },
+    live: {
+      score: "Latest qualifying player-count snapshot",
+      freshnessMinutes: 15,
+      eligibility: "The latest qualifying snapshot must be no older than 15 minutes at ranking calculation time."
+    },
+    weekly: {
+      period: "Current UTC calendar week, Monday through Sunday",
+      score: "Arithmetic mean of player counts from qualifying snapshots",
+      minimumSamples: 12,
+      minimumCoverage: 0.5,
+      coverageFormula: "Qualifying snapshots for a game divided by successful or partial collection runs in the same UTC week"
+    },
+    monthly: {
+      period: "Current UTC calendar month",
+      score: "Arithmetic mean of player counts from qualifying snapshots",
+      minimumSamples: 12,
+      minimumCoverage: 0.5,
+      coverageFormula: "Qualifying snapshots for a game divided by successful or partial collection runs in the same UTC month"
+    },
+    yearly: {
+      period: "365 UTC calendar dates: the current day from raw snapshots plus the previous 364 days from DailyGameStat",
+      score: "Weighted average using playerSum divided by totalSamples",
+      minimumSamples: null,
+      minimumCoverage: null
+    }
+  },
+  qualifyingData: {
+    collectionRuns: "Successful and partial runs count toward coverage. Failed runs do not.",
+    snapshots: "New snapshots are linked to their collection run. Snapshots linked to failed runs are excluded. Legacy unlinked snapshots are retained for backward compatibility.",
+    futureSnapshotsExcluded: true
+  },
+  activity: {
+    discovery: "A discovered game is active and observed in that cycle.",
+    gracePeriodHours: 24,
+    verificationIntervalHours: 24,
+    deactivationAfterConsecutiveMisses: 12,
+    approximateMissWindowMinutes: 120,
+    reactivation: "A later successful discovery reactivates a previously inactive game."
+  },
+  integrity: {
+    transaction: "Ranking replacement is protected by a transaction and advisory lock.",
+    validation: "A server-side integrity check validates row counts, ranks, ordering, active-game membership, freshness, and period-specific score/eligibility rules before commit.",
+    failureBehavior: "An invalid ranking refresh raises an error and rolls back instead of committing a bad ranking set."
+  },
+  limitations: [
+    "Bobaks rankings represent collected snapshots, not every moment of gameplay.",
+    "Roblox rate limits, outages, or discovery gaps can reduce the amount of data collected.",
+    "Coverage measures Bobaks collection opportunities and samples, not total Roblox availability.",
+    "Ranking values can change as new collection cycles arrive."
+  ]
+} as const;
+
 function gameSelect(): string {
   return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
 }
@@ -367,6 +464,17 @@ async function searchGames(
   );
 }
 
+async function getRankingAudit(
+  env: Env,
+  fetchImpl: FetchLike
+): Promise<JsonRow> {
+  const result = await supabaseRpc(env, "get_rankings_audit", {}, fetchImpl);
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error("Ranking audit returned an invalid response");
+  }
+  return result as JsonRow;
+}
+
 async function health(env: Env, fetchImpl: FetchLike): Promise<Response> {
   try {
     await supabaseGet(env, "Game", { select: "id", limit: "1" }, fetchImpl);
@@ -397,6 +505,21 @@ async function handleApi(
 
   if (path === "/api/health") {
     return health(env, fetchImpl);
+  }
+
+  if (path === "/api/rankings/methodology") {
+    return json(RANKING_METHODOLOGY, 200, { "cache-control": "public, max-age=3600" });
+  }
+
+  if (path === "/api/rankings/audit") {
+    try {
+      return json(await getRankingAudit(env, fetchImpl), 200, {
+        "cache-control": "no-store, no-cache, must-revalidate"
+      });
+    } catch (error) {
+      console.error("GET /api/rankings/audit failed:", error);
+      return json({ error: "Ranking audit unavailable" }, 503);
+    }
   }
 
   if (path === "/api/games") {
