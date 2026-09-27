@@ -22,181 +22,6 @@ const RANKING_PERIODS: Record<string, string> = {
   yearly: "yearly"
 };
 
-const RANKING_RULES = {
-  rulesVersion: "2026-09-28",
-  methodologyVersion: "2026-09-28",
-  title: "How Bobaks Rankings Work",
-  topN: 100,
-  collection: {
-    cadenceMinutes: 10,
-    source: "Roblox public experience data collected by Bobaks Ranking"
-  },
-  timezone: "UTC",
-  score: {
-    live: "Latest qualifying player-count snapshot.",
-    weekly: "Average player count across qualifying samples in the current UTC calendar week, Monday through Sunday.",
-    monthly: "Average player count across qualifying samples in the current UTC calendar month.",
-    yearly: "Weighted average player count across the current UTC day plus the prior 364 UTC calendar days. Prior complete days use DailyGameStat summaries; the current day uses raw GameSnapshot samples."
-  },
-  eligibility: {
-    live: "A game must be active and have a qualifying snapshot no older than 15 minutes at ranking calculation time.",
-    weekly: {
-      minimumSamples: 12,
-      minimumCoverage: 0.5,
-      coverageFormula: "Qualifying snapshots for the game divided by successful or partial collection runs in the ranking period."
-    },
-    monthly: {
-      minimumSamples: 12,
-      minimumCoverage: 0.5,
-      coverageFormula: "Qualifying snapshots for the game divided by successful or partial collection runs in the ranking period."
-    },
-    yearly: "No separate sample-count or coverage threshold is applied."
-  },
-  collectionRuns: {
-    countedStatuses: ["success", "partial"],
-    excludedStatuses: ["failed", "daily_summary_success", "daily_summary_failed"],
-    boundaryRule: "For linked snapshots, Weekly and Monthly period membership follows the collection run startedAt. Legacy snapshots without a collectionRunId use their snapshot timestamp."
-  },
-  ordering: {
-    primary: "Score descending.",
-    tieBreak: "gameId ascending, deterministic."
-  },
-  activity: {
-    discovery: "Observed games are active and their verification miss streak resets.",
-    staleVerification: "Active games not observed for 24 hours enter explicit Roblox verification.",
-    deactivation: "A game is deactivated after 12 consecutive verification misses.",
-    reactivation: "A later discovery reactivates the game and clears the inactive state."
-  },
-  integrity: {
-    transaction: "Ranking replacement is protected by a transaction and advisory lock.",
-    validation: "A server-side integrity check validates row counts, rank continuity, duplicate games, score validity, ordering, active-game membership, Live freshness, and period-specific score and eligibility rules before commit.",
-    failureBehavior: "An invalid ranking refresh raises an error and rolls back instead of committing a bad ranking set."
-  },
-  limitations: [
-    "Rankings represent Bobaks collection snapshots, not every moment of Roblox activity.",
-    "Roblox discovery and API availability can limit which games are observed in a cycle.",
-    "Coverage is based on Bobaks collection runs, not on all possible Roblox observations."
-  ]
-};
-
-function requiredSupabaseKey(env: Env): string {
-  const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw new Error("Missing SUPABASE_SECRET_KEY");
-  return key;
-}
-
-function json(body: unknown, status = 200, extraHeaders: HeadersInit = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...DEFAULT_HEADERS, ...extraHeaders }
-  });
-}
-
-function corsHeaders(): HeadersInit {
-  return {
-    "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, OPTIONS",
-    "access-control-allow-headers": "content-type"
-  };
-}
-
-function withCors(response: Response): Response {
-  const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(corsHeaders())) {
-    headers.set(key, value);
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  });
-}
-
-function parseHistoryDays(value: string | null): number {
-  if (value == null || value === "") return 7;
-  const days = Number(value);
-  if (!Number.isInteger(days) || days < 1 || days > 365) {
-    throw new Error("Invalid days");
-  }
-  return days;
-}
-
-function parseSearch(value: string | null): string {
-  const q = (value ?? "").trim();
-  if (!q) throw new Error("Missing q");
-  if (q.length > 100) throw new Error("Search query too long");
-  return q;
-}
-
-function supabaseUrl(env: Env, path: string, params: Record<string, string> = {}): string {
-  const base = env.SUPABASE_URL.replace(/\/$/, "");
-  const url = new URL(`${base}/rest/v1/${path}`);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, value);
-  }
-  return url.toString();
-}
-
-async function supabaseGet(
-  env: Env,
-  path: string,
-  params: Record<string, string>,
-  fetchImpl: FetchLike
-): Promise<JsonRow[]> {
-  const key = requiredSupabaseKey(env);
-  const headers = new Headers({
-    apikey: key,
-    accept: "application/json"
-  });
-
-  if (!key.startsWith("sb_")) {
-    headers.set("authorization", `Bearer ${key}`);
-  }
-
-  const response = await fetchImpl(supabaseUrl(env, path, params), { headers });
-  const body = await response.text();
-
-  if (!response.ok) {
-    throw new Error(`Supabase HTTP ${response.status}: ${body.slice(0, 300)}`);
-  }
-
-  if (!body.trim()) return [];
-  const data = JSON.parse(body) as unknown;
-  if (!Array.isArray(data)) throw new Error("Supabase returned an invalid response");
-  return data as JsonRow[];
-}
-
-async function supabaseRpc(
-  env: Env,
-  functionName: string,
-  body: Record<string, unknown>,
-  fetchImpl: FetchLike
-): Promise<unknown> {
-  const key = requiredSupabaseKey(env);
-  const headers = new Headers({
-    apikey: key,
-    "content-type": "application/json",
-    accept: "application/json"
-  });
-
-  if (!key.startsWith("sb_")) {
-    headers.set("authorization", `Bearer ${key}`);
-  }
-
-  const response = await fetchImpl(
-    `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/${functionName}`,
-    { method: "POST", headers, body: JSON.stringify(body) }
-  );
-
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Supabase RPC HTTP ${response.status}: ${bodyText.slice(0, 300)}`);
-  }
-
-  if (!bodyText.trim()) return null;
-  return JSON.parse(bodyText) as unknown;
-}
-
 function gameSelect(): string {
   return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
 }
@@ -362,10 +187,6 @@ async function getNextCollectionAt(
   return new Date(nextBoundary + COLLECTION_REFRESH_BUFFER_MS).toISOString();
 }
 
-function getRankingRules(): Record<string, unknown> {
-  return RANKING_RULES;
-}
-
 async function getRankingResponse(
   env: Env,
   period: string,
@@ -515,8 +336,10 @@ async function handleApi(
   }
 
   if (path === "/api/rankings/rules") {
-    return json(getRankingRules(), 200, {
-      "cache-control": "public, max-age=300"
+    // Backward-compatible alias. The methodology endpoint is the canonical
+    // public source for ranking rules.
+    return json(RANKING_METHODOLOGY, 200, {
+      "cache-control": "public, max-age=3600"
     });
   }
 
