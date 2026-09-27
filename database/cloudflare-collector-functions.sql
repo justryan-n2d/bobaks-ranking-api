@@ -44,6 +44,8 @@ AS $$
 DECLARE
   calculated_at timestamptz := now();
   current_day_start timestamptz;
+  current_week_start timestamptz;
+  next_week_start timestamptz;
   current_month_start timestamptz;
   next_month_start timestamptz;
   summary_start_date date;
@@ -55,6 +57,8 @@ BEGIN
   );
 
   current_day_start := date_trunc('day', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  current_week_start := date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  next_week_start := current_week_start + interval '7 days';
   current_month_start := date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   next_month_start := current_month_start + interval '1 month';
   summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
@@ -88,12 +92,14 @@ BEGIN
   FROM ranked
   WHERE rank <= 100;
 
+  -- Weekly ranking = current UTC calendar week, Monday through Sunday.
   WITH averages AS (
     SELECT
       "gameId",
       AVG("playerCount")::double precision AS score
     FROM public."GameSnapshot"
-    WHERE "timestamp" >= calculated_at - interval '7 days'
+    WHERE "timestamp" >= current_week_start
+      AND "timestamp" < next_week_start
       AND "timestamp" <= calculated_at
     GROUP BY "gameId"
   ),
