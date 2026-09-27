@@ -71,6 +71,54 @@ test("scheduled collector performs the complete collection cycle", async () => {
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog")).length, 1);
 });
 
+test("thumbnail collection falls back from empty official data and preserves missing icons", async () => {
+  let gameBody = "";
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
+    if (url.includes("/get-sort-content?")) {
+      return response({ data: [{ universeId: "1001" }, { universeId: "1002" }] });
+    }
+    if (url.startsWith("https://thumbnails.roblox.com/v1/games/icons")) {
+      return response({ data: [] });
+    }
+    if (url.startsWith("https://thumbnails.roproxy.com/v1/games/icons")) {
+      return response({ data: [{ targetId: 1001, imageUrl: "https://cdn.example/proxy.png" }] });
+    }
+    if (url.startsWith("https://thumbnails.roblox.com/v1/places/gameicons")) {
+      return response({ data: [{ targetId: 2002, imageUrl: "https://cdn.example/place.png" }] });
+    }
+    if (url.startsWith("https://thumbnails.roproxy.com/v1/places/gameicons")) {
+      return response({ data: [] });
+    }
+    if (url.includes("games.roblox.com/v1/games")) return response({ data: [
+      { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
+      { id: 1002, rootPlaceId: 2002, name: "Two", creator: { id: 3002, name: "B" }, playing: 34 }
+    ] });
+    if (url.includes("/rest/v1/Game?")) {
+      gameBody = String(init?.body);
+      return response([{ id: "11", universeId: "1001" }, { id: "12", universeId: "1002" }]);
+    }
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(2);
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+    if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  const payload = JSON.parse(gameBody) as Array<Record<string, unknown>>;
+  assert.equal(payload.length, 2);
+  assert.equal(payload[0].iconUrl, "https://cdn.example/proxy.png");
+  assert.equal(payload[1].iconUrl, "https://cdn.example/place.png");
+});
+
 test("collector retries transient Roblox discovery failures", async () => {
   let attempts = 0;
   const fakeFetch: typeof fetch = async (input, init) => {
