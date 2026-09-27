@@ -30,6 +30,12 @@ jobs:
           curl -fsS "$API/api/rankings?period=month" | jq -e '.period == "month" and (.data | length > 0)' >/dev/null
           curl -fsS "$API/api/rankings?period=year" | jq -e '.period == "year" and (.data | length > 0)' >/dev/null
 
+          methodology=$(curl -fsS "$API/api/rankings/methodology")
+          echo "$methodology" | jq -e '.methodologyVersion == "2026-09-28" and .rules.live.freshnessMinutes == 15 and .rules.weekly.minimumSamples == 12 and .rules.weekly.minimumCoverage == 0.5 and .rules.monthly.minimumSamples == 12 and .rules.monthly.minimumCoverage == 0.5' >/dev/null
+
+          audit=$(curl -fsS "$API/api/rankings/audit")
+          echo "$audit" | jq -e '.auditStatus == "passed" and .rankings.live.rows == 100 and .rankings.weekly.rows == 100 and .rankings.monthly.rows == 100 and .rankings.yearly.rows == 100' >/dev/null
+
           curl -fsS "$API/api/games/$game_id" | jq -e '.data.id != null' >/dev/null
           curl -fsS "$API/api/games/$game_id/history?days=31" | jq -e '.gameId != null and .days == 31' >/dev/null
           curl -fsS "$API/api/games/$game_id/peak" | jq -e '.data.gameId != null' >/dev/null
