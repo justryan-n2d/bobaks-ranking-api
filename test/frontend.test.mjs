@@ -57,3 +57,16 @@ test("frontend exposes and uses the client refresh scheduler", () => {
   assert.match(html, /\.icon-wrap\{width:48px;height:48px\}/);
   assert.match(html, /\.players\{grid-column:4;grid-row:1\/span 2/);
 });
+
+
+test("frontend exposes the ranking transparency page", () => {
+  const html = fs.readFileSync(frontendPath, "utf8");
+
+  assert.match(html, /How Bobaks Rankings Work/);
+  assert.match(html, /\/api\/rankings\/rules/);
+  assert.match(html, /Rules version:/);
+  assert.match(html, /Minimum samples/);
+  assert.match(html, /Minimum coverage/);
+  assert.match(html, /Tie-break/);
+  assert.match(html, /Limitations/);
+});
