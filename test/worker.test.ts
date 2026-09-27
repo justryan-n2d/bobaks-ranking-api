@@ -150,6 +150,15 @@ test("collector verifies stale active games without changing coverage rules", as
     if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
 
     if (url.includes("games.roblox.com/v1/games")) {
+      const parsed = new URL(url);
+      const ids = parsed.searchParams.get("universeIds") ?? "";
+      if (ids === "2002") {
+        return response({
+          data: [
+            { id: 2002, rootPlaceId: 3002, name: "Stale", creator: { id: 3002, name: "B" }, playing: 34 }
+          ]
+        });
+      }
       return response({
         data: [
           { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
@@ -244,6 +253,7 @@ test("collector finalizes the run before refreshing rankings", async () => {
     if (url.includes("games.roblox.com/v1/games")) return response({
       data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
     });
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
     if (url.includes("/rest/v1/Game?")) return response([{ id: "11", universeId: "1001" }]);
     if (url.includes("/rest/v1/GameSnapshot")) {
       order.push("snapshot");
