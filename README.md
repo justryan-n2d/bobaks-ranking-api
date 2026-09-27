@@ -56,3 +56,13 @@ Validate the TypeScript build:
 ```bash
 npm run build
 ```
+
+
+## Ranking transparency
+
+Bobaks publishes the current ranking methodology and a server-side audit summary through the public API:
+
+- GET /api/rankings/methodology
+- GET /api/rankings/audit
+
+The website exposes these under **How Bobaks Rankings Work**.
