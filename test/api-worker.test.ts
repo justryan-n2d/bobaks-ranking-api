@@ -182,26 +182,18 @@ test("health checks Supabase and returns connected", async () => {
   assert.equal(calls[0].headers.get("authorization"), null);
 });
 
-test("ranking rules endpoint exposes the canonical public methodology", async () => {
+test("ranking rules endpoint is a backward-compatible methodology alias", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch(calls));
 
   assert.equal(result.status, 200);
   const body = await result.json() as Record<string, any>;
-  assert.equal(body.rulesVersion, "2026-09-28");
-  assert.equal(body.topN, 100);
-  assert.equal(body.timezone, "UTC");
-  assert.equal(body.eligibility.weekly.minimumSamples, 12);
-  assert.equal(body.eligibility.weekly.minimumCoverage, 0.5);
-  assert.equal(body.eligibility.monthly.minimumSamples, 12);
-  assert.equal(body.eligibility.monthly.minimumCoverage, 0.5);
-  assert.deepEqual(body.collectionRuns.countedStatuses, ["success", "partial"]);
-  assert.deepEqual(body.collectionRuns.excludedStatuses, [
-    "failed",
-    "daily_summary_success",
-    "daily_summary_failed"
-  ]);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=300");
+  assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.rules.common.topN, 100);
+  assert.equal(body.rules.live.freshnessMinutes, 15);
+  assert.equal(body.rules.weekly.minimumSamples, 12);
+  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
   assert.equal(calls.length, 0);
 });
 
