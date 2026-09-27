@@ -515,7 +515,7 @@ async function handleApi(
   }
 
   if (path === "/api/rankings/methodology") {
-    return json(RANKING_METHODOLOGY, 200, { "cache-control": "public, max-age=3600" });
+    return json(RANKING_RULES, 200, { "cache-control": "public, max-age=300" });
   }
 
   if (path === "/api/rankings/audit") {
@@ -582,8 +582,8 @@ async function handleApi(
 
   if (path === "/api/rankings/rules") {
     // Backward-compatible alias for the canonical methodology endpoint.
-    return json(RANKING_METHODOLOGY, 200, {
-      "cache-control": "public, max-age=3600"
+    return json(RANKING_RULES, 200, {
+      "cache-control": "public, max-age=300"
     });
   }
 
