@@ -260,9 +260,9 @@ BEGIN
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
     CROSS JOIN bounds b
-    WHERE s."timestamp" >= b.period_start
-      AND s."timestamp" < b.period_end
-      AND s."timestamp" <= b.calculated_at
+    WHERE COALESCE(l."startedAt", s."timestamp") >= b.period_start
+      AND COALESCE(l."startedAt", s."timestamp") < b.period_end
+      AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
       AND (
         s."collectionRunId" IS NULL
         OR l."status" IN ('success', 'partial')
