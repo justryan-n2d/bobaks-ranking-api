@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bobaks Ranking | Roblox Game Rankings</title>
+<title>Bobaks Ranking | Live Rankings & Historical Trends</title>
 <meta name="description" content="Live rankings and historical trends for Roblox experiences.">
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#eef2f7;background:#07090d;font-synthesis:none}
@@ -27,7 +27,7 @@ footer{display:flex;justify-content:space-between;gap:28px;color:#505a67;font-si
 <header class="topbar"><div class="brand"><span class="brand-mark">B</span><span>BOBAKS RANKING</span></div><div class="live-status"><span></span> LIVE DATA</div></header>
 <main id="app" class="content"></main>
 <script>
-const API='https://bobaks-api-production.up.railway.app';
+const API='https://bobaks-ranking-api-service.ryan-oledan0.workers.dev';
 const periods=[['live','Live'],['week','This Week'],['month','This Month'],['year','This Year']];
 let state={period:'live',games:[],updatedAt:null,nextRefreshAt:null,refreshIntervalSeconds:null,loading:true,error:'',query:'',search:[],selected:null,info:null,searchTimer:null};
 const fmt=n=>new Intl.NumberFormat('en-US').format(Number(n)||0);
@@ -36,7 +36,7 @@ const countdown=s=>{if(!s)return'--:--';const x=Math.max(0,Math.ceil((new Date(s
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function icon(url,name){return url?'<img src="'+esc(url)+'" alt="">':'<div style="width:58px;height:58px;border-radius:11px;background:#171d25;display:grid;place-items:center;color:#697482;font-weight:900">'+esc((name||'?')[0])+'</div>'}
 async function api(path){const r=await fetch(API+path);if(!r.ok)throw new Error('API '+r.status);return r.json()}
-async function load(period=state.period){state.loading=true;state.error='';render();try{const p=await api('/api/rankings?period='+period);state.games=(p.data||[]).map(x=>({rank:x.rank,gameId:x.gameId,universeId:Number(x.game?.universeId||0),placeId:Number(x.game?.placeId||0),name:x.game?.name||'Unknown game',creator:x.game?.creatorName||'Unknown creator',playing:Number(x.score||0),icon:x.game?.iconUrl,updatedAt:x.calculatedAt}));state.updatedAt=p.updatedAt||null;state.nextRefreshAt=p.nextRefreshAt||null;state.refreshIntervalSeconds=Number(p.refreshIntervalSeconds)||null}catch(e){state.games=[];state.nextRefreshAt=null;state.error='Railway ranking data could not be loaded right now. Try again in a moment.'}finally{state.loading=false;render()}}
+async function load(period=state.period){state.loading=true;state.error='';render();try{const p=await api('/api/rankings?period='+period);state.games=(p.data||[]).map(x=>({rank:x.rank,gameId:x.gameId,universeId:Number(x.game?.universeId||0),placeId:Number(x.game?.placeId||0),name:x.game?.name||'Unknown game',creator:x.game?.creatorName||'Unknown creator',playing:Number(x.score||0),icon:x.game?.iconUrl,updatedAt:x.calculatedAt}));state.updatedAt=p.updatedAt||null;state.nextRefreshAt=p.nextRefreshAt||null;state.refreshIntervalSeconds=Number(p.refreshIntervalSeconds)||null}catch(e){state.games=[];state.nextRefreshAt=null;state.error='Ranking data could not be loaded right now. Try again in a moment.'}finally{state.loading=false;render()}}
 async function search(q){if(q.trim().length<2){state.search=[];render();return}try{const p=await api('/api/search?q='+encodeURIComponent(q.trim()));state.search=(p.data||[]).map(x=>({gameId:x.id,universeId:Number(x.universeId),placeId:Number(x.placeId||0),name:x.name,creator:x.creatorName||'Unknown creator',icon:x.iconUrl,playing:0}));render()}catch{state.search=[];render()}}
 async function openGame(g){state.error='';try{const p=await api('/api/games/'+encodeURIComponent(g.gameId));const game=p.data;if(!game)throw new Error('not found');const [h,peakResponse]=await Promise.all([api('/api/games/'+encodeURIComponent(g.gameId)+'/history?days=365'),api('/api/games/'+encodeURIComponent(g.gameId)+'/peak')]);const points=(h.data||[]).map(x=>({at:x.timestamp,playing:Number(x.playerCount)}));const peak=Number(peakResponse.data?.peakPlayers??0);const peakAt=peakResponse.data?.peakAt||null;state.selected={...g,...game,playing:Number(g.playing||0),creator:game.creatorName||g.creator||'Unknown creator',icon:game.iconUrl||g.icon,history:points,peak,peakAt};render()}catch{state.error='That game could not be loaded.';render()}}
 function chart(points){if(points.length<2)return'<div class="chart-empty">Collecting history</div>';const w=900,h=250,v=points.map(x=>x.playing),min=Math.min(...v),max=Math.max(...v),range=Math.max(1,max-min),line=points.map((p,i)=>((i/(points.length-1))*w).toFixed(1)+','+(h-15-((p.playing-min)/range)*(h-30)).toFixed(1)).join(' ');return'<div class="chart"><svg viewBox="0 0 '+w+' '+h+'"><line x1="0" y1="235" x2="900" y2="235" class="grid-line"/><line x1="0" y1="125" x2="900" y2="125" class="grid-line"/><line x1="0" y1="15" x2="900" y2="15" class="grid-line"/><polyline points="'+line+'" class="chart-line"/></svg><div class="chart-labels"><span>'+fmt(min)+'</span><span>'+fmt(Math.round((min+max)/2))+'</span><span>'+fmt(max)+'</span></div></div>'}
