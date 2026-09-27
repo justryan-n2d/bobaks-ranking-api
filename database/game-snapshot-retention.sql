@@ -1,7 +1,17 @@
 -- Bobaks Ranking GameSnapshot retention support.
--- This file defines a guarded, server-only cleanup function.
--- It is intentionally separate from the collector deployment so retention
--- cannot be activated by a normal Worker code deployment.
+-- Server-side storage lifecycle for raw GameSnapshot history.
+-- Keep raw snapshots for at least 31 days; preserve summarized/peak/ranking
+-- history separately for long-term use.
+--
+-- This SQL reflects the production retention setup. It is intentionally
+-- separate from the collector deployment.
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Supports the retention query's timestamp ordering/filtering as the
+-- GameSnapshot table grows.
+CREATE INDEX IF NOT EXISTS "GameSnapshot_timestamp_id_idx"
+  ON public."GameSnapshot" ("timestamp", "id");
 
 CREATE OR REPLACE FUNCTION public.cleanup_game_snapshots(
   p_retention_days integer DEFAULT 31,
@@ -16,7 +26,7 @@ DECLARE
   deleted_in_batch integer;
   deleted_total bigint := 0;
 BEGIN
-  -- Never allow the cleanup function to shorten the approved retention window.
+  -- Never allow cleanup to shorten the approved retention window.
   IF p_retention_days < 31 THEN
     RAISE EXCEPTION 'GameSnapshot retention must be at least 31 days';
   END IF;
@@ -47,7 +57,21 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.cleanup_game_snapshots(integer, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.cleanup_game_snapshots(integer, integer) TO service_role;
+-- Cleanup is server-only. The public API must never be able to invoke it.
+REVOKE EXECUTE ON FUNCTION public.cleanup_game_snapshots(integer, integer)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cleanup_game_snapshots(integer, integer)
+  TO service_role;
+
 ALTER FUNCTION public.cleanup_game_snapshots(integer, integer)
   SET search_path = public, pg_temp;
+
+COMMENT ON FUNCTION public.cleanup_game_snapshots(integer, integer)
+  IS 'Deletes GameSnapshot rows older than the approved retention window. Minimum retention is 31 days. Intended for scheduled server-side execution.';
+
+-- Daily at 00:20 UTC / 08:20 PHT, after the daily summary at 00:05 UTC.
+SELECT cron.schedule(
+  'bobaks-game-snapshot-retention-daily',
+  '20 0 * * *',
+  $$SELECT public.cleanup_game_snapshots(31, 5000);$$
+);
