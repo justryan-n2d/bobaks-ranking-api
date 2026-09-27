@@ -454,7 +454,7 @@ async function handleApi(
   if (path === "/api/rankings/audit") {
     try {
       return json(await getRankingAudit(env, fetchImpl), 200, {
-        "cache-control": "no-store, no-cache, must-revalidate"
+        "cache-control": "public, max-age=60, s-maxage=60"
       });
     } catch (error) {
       console.error("GET /api/rankings/audit failed:", error);
