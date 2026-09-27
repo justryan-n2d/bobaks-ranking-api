@@ -199,9 +199,9 @@ BEGIN
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
     CROSS JOIN bounds b
-    WHERE s."timestamp" >= b.period_start
-      AND s."timestamp" < b.period_end
-      AND s."timestamp" <= b.calculated_at
+    WHERE COALESCE(l."startedAt", s."timestamp") >= b.period_start
+      AND COALESCE(l."startedAt", s."timestamp") < b.period_end
+      AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
       AND (
         s."collectionRunId" IS NULL
         OR l."status" IN ('success', 'partial')
@@ -360,8 +360,6 @@ $function$;
 REVOKE ALL ON FUNCTION public.assert_rankings_integrity() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.assert_rankings_integrity() TO service_role;
 ALTER FUNCTION public.assert_rankings_integrity() SET search_path = public, pg_temp;
-
-
 
 CREATE OR REPLACE FUNCTION public.refresh_rankings()
 RETURNS void
