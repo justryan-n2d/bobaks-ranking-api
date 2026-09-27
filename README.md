@@ -17,7 +17,8 @@ Backend and data collection services for Bobaks Ranking.
 - GET /api/rankings/weekly
 - GET /api/rankings/monthly
 - GET /api/rankings/yearly
-- GET /api/rankings/rules
+- GET /api/rankings/methodology
+- GET /api/rankings/audit
 - GET /api/games
 - GET /api/games/:id/history?days=7
 - GET /api/search?q=...
@@ -25,9 +26,15 @@ Backend and data collection services for Bobaks Ranking.
 ### Collector
 The collector runs on Cloudflare Workers Cron Triggers and stores Roblox experience data in Supabase.
 
-## Ranking transparency
+## Ranking methodology
 
-The canonical public methodology is documented in [docs/rankings.md](docs/rankings.md) and is also available from GET /api/rankings/rules.
+The canonical public explanation of ranking rules, coverage, data qualification, game activity, integrity checks, and limitations is in:
+
+- [docs/ranking-methodology.md](docs/ranking-methodology.md)
+- GET /api/rankings/methodology
+- GET /api/rankings/audit
+
+The API methodology response is versioned so the website can display the same rules used by the production API.
 
 ## Development
 
