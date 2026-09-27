@@ -69,5 +69,6 @@ test("frontend exposes the ranking transparency page", () => {
   assert.match(html, /Minimum samples/);
   assert.match(html, /Minimum coverage/);
   assert.match(html, /Tie-break/);
+  assert.match(html, /Audit status:/);
   assert.match(html, /Limitations/);
 });
