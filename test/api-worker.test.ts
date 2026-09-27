@@ -315,3 +315,49 @@ test("ranking rules endpoint returns the published rule set", async () => {
   assert.ok(Array.isArray(body.limitations));
   assert.equal(result.headers.get("cache-control"), "public, max-age=300");
 });
+
+
+test("ranking methodology endpoint returns the published contract", async () => {
+  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch([]));
+
+  assert.equal(result.status, 200);
+  const body = await result.json() as {
+    methodologyVersion: string;
+    collection: { cadenceMinutes: number };
+    rules: {
+      common: { topN: number; activeGamesOnly: boolean };
+      live: { freshnessMinutes: number };
+      weekly: { minimumSamples: number; minimumCoverage: number };
+      monthly: { minimumSamples: number; minimumCoverage: number };
+      yearly: { period: string };
+    };
+  };
+
+  assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.collection.cadenceMinutes, 10);
+  assert.equal(body.rules.common.topN, 100);
+  assert.equal(body.rules.common.activeGamesOnly, true);
+  assert.equal(body.rules.live.freshnessMinutes, 15);
+  assert.equal(body.rules.weekly.minimumSamples, 12);
+  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
+  assert.equal(body.rules.monthly.minimumSamples, 12);
+  assert.equal(body.rules.monthly.minimumCoverage, 0.5);
+  assert.match(body.rules.yearly.period, /365/);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
+});
+
+test("ranking audit endpoint returns live audit metadata", async () => {
+  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, makeFetch([]));
+
+  assert.equal(result.status, 200);
+  const body = await result.json() as {
+    methodologyVersion: string;
+    auditStatus: string;
+    rankings: { live: { rows: number } };
+  };
+
+  assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.auditStatus, "passed");
+  assert.equal(body.rankings.live.rows, 100);
+  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
+});
