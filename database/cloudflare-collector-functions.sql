@@ -54,20 +54,22 @@ BEGIN
   WITH latest AS (
     SELECT DISTINCT ON ("gameId")
       "gameId",
-      "playerCount"
+      "playerCount",
+      "timestamp"
     FROM public."GameSnapshot"
     ORDER BY "gameId", "timestamp" DESC, "id" DESC
   ),
   ranked AS (
     SELECT
       g."id" AS "gameId",
-      COALESCE(latest."playerCount", 0)::double precision AS score,
+      latest."playerCount"::double precision AS score,
       ROW_NUMBER() OVER (
-        ORDER BY COALESCE(latest."playerCount", 0) DESC, g."id" ASC
+        ORDER BY latest."playerCount" DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    LEFT JOIN latest ON latest."gameId" = g."id"
+    INNER JOIN latest ON latest."gameId" = g."id"
     WHERE g."isActive" = true
+      AND latest."timestamp" >= calculated_at - interval '15 minutes'
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
   SELECT "gameId", 'live', rank::integer, score, calculated_at
