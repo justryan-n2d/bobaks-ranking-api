@@ -34,3 +34,23 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Smoke test published frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FRONTEND="https://bobaks-ranking-api.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          html=$(curl -fsS "$FRONTEND")
+          echo "$html" | grep -F "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
+          echo "$html" | grep -F "Live Rankings & Historical Trends"
+
+          health=$(curl -fsS "$API/api/health")
+          echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
+
+          rankings=$(curl -fsS "$API/api/rankings?period=live")
+          echo "$rankings" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+
+          echo "Published frontend and Cloudflare API smoke test passed."
