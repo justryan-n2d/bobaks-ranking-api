@@ -161,6 +161,80 @@ test("collector retries transient Roblox discovery failures", async () => {
   assert.equal(attempts, 2);
 });
 
+test("collector finalizes the run before refreshing rankings", async () => {
+  const order: string[] = [];
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
+    if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) return response({
+      data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+    });
+    if (url.includes("/rest/v1/Game?")) return response([{ id: "11", universeId: "1001" }]);
+    if (url.includes("/rest/v1/GameSnapshot")) {
+      order.push("snapshot");
+      return new Response("", { status: 201 });
+    }
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) {
+      order.push("peaks");
+      return response(1);
+    }
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      order.push("log");
+      const payload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      assert.equal(payload.status, "success");
+      return new Response("", { status: 201 });
+    }
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) {
+      order.push("refresh");
+      return response(null);
+    }
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(order, ["snapshot", "peaks", "log", "refresh"]);
+});
+
+test("collector keeps a collected run valid when ranking refresh fails", async () => {
+  let logCount = 0;
+  let logStatus = "";
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
+    if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) return response({
+      data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+    });
+    if (url.includes("/rest/v1/Game?")) return response([{ id: "11", universeId: "1001" }]);
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      logCount++;
+      logStatus = String((JSON.parse(String(init?.body)) as Record<string, unknown>).status);
+      return new Response("", { status: 201 });
+    }
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return new Response("refresh failed", { status: 500 });
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  await assert.rejects(() => collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch), /refresh_rankings HTTP 500/);
+
+  assert.equal(logCount, 1);
+  assert.equal(logStatus, "success");
+});
+
 test("collector records failure when Roblox is unavailable", async () => {
   let loggedBody = "";
   const fakeFetch: typeof fetch = async (input, init) => {
