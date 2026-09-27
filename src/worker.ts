@@ -347,6 +347,7 @@ async function listStaleActiveGames(
     isActive: 'eq.true',
     lastObservedAt: `lt.${cutoff}`,
     or: `(verificationMisses.gt.0,lastVerificationAttemptAt.is.null,lastVerificationAttemptAt.lt.${cutoff})`,
+    order: 'lastVerificationAttemptAt.asc.nullsfirst',
     limit: '100'
   });
   const response = await supabaseRequest(env, `Game?${params.toString()}`, fetchImpl, {
