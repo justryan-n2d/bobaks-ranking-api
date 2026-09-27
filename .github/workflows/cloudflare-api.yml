@@ -7,6 +7,7 @@ on:
       - "src/api-worker.ts"
       - "test/api-worker.test.ts"
       - "wrangler.api.jsonc"
+      - "docs/ranking-methodology.md"
       - ".github/workflows/cloudflare-api.yml"
   workflow_dispatch:
 
@@ -48,7 +49,14 @@ jobs:
           games=$(curl -fsS "$API/api/games")
           echo "$games" | jq -e '.data | length > 0' >/dev/null
 
-          curl -fsS "$API/api/rankings?period=live"             | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+          live=$(curl -fsS "$API/api/rankings?period=live")
+          echo "$live" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+
+          methodology=$(curl -fsS "$API/api/rankings/methodology")
+          echo "$methodology" | jq -e '.methodologyVersion == "2026-09-28" and .rules.live.freshnessMinutes == 15 and .rules.weekly.minimumSamples == 12 and .rules.weekly.minimumCoverage == 0.5' >/dev/null
+
+          audit=$(curl -fsS "$API/api/rankings/audit")
+          echo "$audit" | jq -e '.auditStatus == "passed" and .rankings.live.rows == 100 and .rankings.weekly.rows == 100 and .rankings.monthly.rows == 100 and .rankings.yearly.rows == 100' >/dev/null
 
           game_id=$(echo "$games" | jq -r '.data[0].id')
           curl -fsS "$API/api/games/$game_id/peak"             | jq -e '.data.gameId != null' >/dev/null
