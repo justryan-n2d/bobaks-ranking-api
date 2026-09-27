@@ -382,7 +382,7 @@ async function verifyStaleGames(
     ...new Set(
       infos
         .map(info => String(info.id ?? info.universeId ?? ''))
-        .filter(id => /^\\d+$/.test(id))
+        .filter(id => /^\d+$/.test(id))
     )
   ];
 
