@@ -337,6 +337,73 @@ export async function summarizeYesterday(env: Env, fetchImpl: FetchLike = fetch)
   return Math.floor(count);
 }
 
+async function listStaleActiveGames(
+  env: Env,
+  cutoff: string,
+  fetchImpl: FetchLike
+): Promise<Array<{ id: string; universeId: string }>> {
+  const params = new URLSearchParams({
+    select: 'id,universeId',
+    isActive: 'eq.true',
+    lastObservedAt: `lt.${cutoff}`,
+    limit: '100'
+  });
+  const response = await supabaseRequest(env, `Game?${params.toString()}`, fetchImpl, {
+    method: 'GET'
+  });
+  const body = await expectOk(response, 'Stale game lookup');
+  if (!body.trim()) return [];
+
+  const data = JSON.parse(body) as unknown;
+  if (!Array.isArray(data)) throw new Error('Stale game lookup returned invalid data');
+
+  return data.flatMap(item => {
+    if (!item || typeof item !== 'object') return [];
+    const row = item as Record<string, unknown>;
+    const id = String(row.id ?? '');
+    const universeId = String(row.universeId ?? '');
+    if (!/^\\d+$/.test(id) || !/^\\d+$/.test(universeId)) return [];
+    return [{ id, universeId }];
+  });
+}
+
+async function verifyStaleGames(
+  env: Env,
+  fetchImpl: FetchLike,
+  cutoff: string,
+  verifiedAt: string
+): Promise<number> {
+  const candidates = await listStaleActiveGames(env, cutoff, fetchImpl);
+  if (!candidates.length) return 0;
+
+  const attemptedUniverseIds = candidates.map(game => game.universeId);
+  const infos = await getUniverseInfo(attemptedUniverseIds, fetchImpl, env);
+  const foundUniverseIds = [
+    ...new Set(
+      infos
+        .map(info => String(info.id ?? info.universeId ?? ''))
+        .filter(id => /^\\d+$/.test(id))
+    )
+  ];
+
+  const response = await supabaseRequest(env, 'rpc/verify_game_activity', fetchImpl, {
+    method: 'POST',
+    body: JSON.stringify({
+      p_attempted_universe_ids: attemptedUniverseIds,
+      p_found_universe_ids: foundUniverseIds,
+      p_verified_at: verifiedAt
+    })
+  });
+  const body = await expectOk(response, 'verify_game_activity');
+  if (!body.trim()) return 0;
+
+  const processed = Number(body);
+  if (!Number.isFinite(processed) || processed < 0) {
+    throw new Error('verify_game_activity returned an invalid count');
+  }
+  return Math.floor(processed);
+}
+
 async function writeLog(env: Env, row: Record<string, unknown>, fetchImpl: FetchLike): Promise<void> {
   const response = await supabaseRequest(env, 'DataCollectionLog', fetchImpl, {
     method: 'POST',
@@ -391,7 +458,12 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
         description: info.description == null ? null : String(info.description),
         createdAt: parseDate(info.created),
         updatedAt: parseDate(info.updated),
-        isActive: true
+        isActive: true,
+        lastObservedAt: now,
+        lastVerificationAttemptAt: now,
+        verificationMisses: 0,
+        inactiveAt: null,
+        inactiveReason: null
       };
 
       // Never erase a known-good icon just because Roblox returned no icon
@@ -423,6 +495,23 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
 
     await insertSnapshots(env, snapshots, fetchImpl);
     await recordPeaks(env, peaks, fetchImpl);
+
+    // Games missing from discovery are not immediately marked inactive.
+    // Only games that have not been observed for 24 hours enter explicit
+    // verification, and they need 12 consecutive misses before deactivation.
+    try {
+      await verifyStaleGames(
+        env,
+        fetchImpl,
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        new Date().toISOString()
+      );
+    } catch (verificationError) {
+      // Verification is a secondary maintenance step. Do not turn a valid
+      // collection run into a failed run just because verification is down.
+      errors++;
+      console.error('Game activity verification failed:', verificationError);
+    }
 
     // Finalize the collection log before refreshing rankings so the current
     // run is visible in both the coverage denominator and snapshot validation.
