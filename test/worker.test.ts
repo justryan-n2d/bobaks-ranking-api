@@ -32,7 +32,7 @@ test("scheduled collector performs the complete collection cycle", async () => {
       { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
       { id: 1002, rootPlaceId: 2002, name: "Two", creator: { id: 3002, name: "B" }, playing: 34 }
     ] });
-    if (url.includes("/rest/v1/Game?select=id%2CuniverseId")) return response([]);
+    if (url.includes("/rest/v1/Game?") && url.includes("lastObservedAt=")) return response([]);
     if (url.includes("/rest/v1/Game?")) return response([
       { id: "11", universeId: "1001" },
       { id: "12", universeId: "1002" }
