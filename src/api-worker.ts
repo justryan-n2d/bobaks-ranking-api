@@ -331,7 +331,7 @@ async function handleApi(
   }
 
   if (path === "/api/rankings/methodology") {
-    return json(getRankingRules(), 200, { "cache-control": "public, max-age=300" });
+    return json(RANKING_METHODOLOGY, 200, { "cache-control": "public, max-age=3600" });
   }
 
   if (path === "/api/rankings/audit") {
