@@ -9,25 +9,33 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify production API data
+      - name: Verify production Cloudflare API data
         run: |
-          set -e
-          for i in $(seq 1 24); do
-            health=$(curl -fsS https://bobaks-api-production.up.railway.app/api/health || true)
-            games=$(curl -fsS https://bobaks-api-production.up.railway.app/api/games || true)
-            live=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/live || true)
-            weekly=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/weekly || true)
-            monthly=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/monthly || true)
-            yearly=$(curl -fsS https://bobaks-api-production.up.railway.app/api/rankings/yearly || true)
+          set -euo pipefail
 
-            if echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null 2>&1 &&                echo "$games" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$live" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$weekly" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$monthly" | jq -e '.data | length > 0' >/dev/null 2>&1 &&                echo "$yearly" | jq -e '.data | length > 0' >/dev/null 2>&1; then
-              echo "Production API is returning real database-backed game and ranking data."
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          for i in $(seq 1 24); do
+            health=$(curl -fsS "$API/api/health" || true)
+            games=$(curl -fsS "$API/api/games" || true)
+            live=$(curl -fsS "$API/api/rankings/live" || true)
+            weekly=$(curl -fsS "$API/api/rankings/weekly" || true)
+            monthly=$(curl -fsS "$API/api/rankings/monthly" || true)
+            yearly=$(curl -fsS "$API/api/rankings/yearly" || true)
+
+            if echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null 2>&1 &&
+               echo "$games" | jq -e '.data | length > 0' >/dev/null 2>&1 &&
+               echo "$live" | jq -e '.data | length > 0' >/dev/null 2>&1 &&
+               echo "$weekly" | jq -e '.data | length > 0' >/dev/null 2>&1 &&
+               echo "$monthly" | jq -e '.data | length > 0' >/dev/null 2>&1 &&
+               echo "$yearly" | jq -e '.data | length > 0' >/dev/null 2>&1; then
+              echo "Cloudflare API is returning real database-backed game and ranking data."
               exit 0
             fi
 
-            echo "Production API data not ready yet (attempt $i/24). Retrying in 10s..."
+            echo "Cloudflare API data not ready yet (attempt $i/24). Retrying in 10s..."
             sleep 10
           done
 
-          echo "Production API did not return usable game/ranking data within 4 minutes."
+          echo "Cloudflare API did not return usable game/ranking data within 4 minutes."
           exit 1
