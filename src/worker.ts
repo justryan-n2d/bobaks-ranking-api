@@ -346,6 +346,7 @@ async function listStaleActiveGames(
     select: 'id,universeId',
     isActive: 'eq.true',
     lastObservedAt: `lt.${cutoff}`,
+    or: `(verificationMisses.gt.0,lastVerificationAttemptAt.is.null,lastVerificationAttemptAt.lt.${cutoff})`,
     limit: '100'
   });
   const response = await supabaseRequest(env, `Game?${params.toString()}`, fetchImpl, {
