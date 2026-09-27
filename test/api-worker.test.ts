@@ -129,6 +129,9 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.equal(result.status, 200);
   assert.equal(body.period, "week");
   assert.equal(body.refreshIntervalSeconds, 600);
+  assert.equal(typeof body.nextRefreshAt, "string");
+  assert.ok(Date.parse(String(body.nextRefreshAt)) > Date.now());
+  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
   assert.equal((body.data as unknown[]).length, 1);
   assert.equal(calls.length, 2);
   assert.match(calls[0].url, /period=eq\.weekly/);
