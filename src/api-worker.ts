@@ -79,6 +79,124 @@ const RANKING_RULES = {
   ]
 };
 
+function requiredSupabaseKey(env: Env): string {
+  const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("Missing SUPABASE_SECRET_KEY");
+  return key;
+}
+
+function json(body: unknown, status = 200, extraHeaders: HeadersInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...DEFAULT_HEADERS, ...extraHeaders }
+  });
+}
+
+function corsHeaders(): HeadersInit {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, OPTIONS",
+    "access-control-allow-headers": "content-type"
+  };
+}
+
+function withCors(response: Response): Response {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(corsHeaders())) {
+    headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+function parseHistoryDays(value: string | null): number {
+  if (value == null || value === "") return 7;
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new Error("Invalid days");
+  }
+  return days;
+}
+
+function parseSearch(value: string | null): string {
+  const q = (value ?? "").trim();
+  if (!q) throw new Error("Missing q");
+  if (q.length > 100) throw new Error("Search query too long");
+  return q;
+}
+
+function supabaseUrl(env: Env, path: string, params: Record<string, string> = {}): string {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const url = new URL(`${base}/rest/v1/${path}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+async function supabaseGet(
+  env: Env,
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchLike
+): Promise<JsonRow[]> {
+  const key = requiredSupabaseKey(env);
+  const headers = new Headers({
+    apikey: key,
+    accept: "application/json"
+  });
+
+  if (!key.startsWith("sb_")) {
+    headers.set("authorization", `Bearer ${key}`);
+  }
+
+  const response = await fetchImpl(supabaseUrl(env, path, params), { headers });
+  const body = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Supabase HTTP ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  if (!body.trim()) return [];
+  const data = JSON.parse(body) as unknown;
+  if (!Array.isArray(data)) throw new Error("Supabase returned an invalid response");
+  return data as JsonRow[];
+}
+
+async function supabaseRpc(
+  env: Env,
+  functionName: string,
+  body: Record<string, unknown>,
+  fetchImpl: FetchLike
+): Promise<unknown> {
+  const key = requiredSupabaseKey(env);
+  const headers = new Headers({
+    apikey: key,
+    "content-type": "application/json",
+    accept: "application/json"
+  });
+
+  if (!key.startsWith("sb_")) {
+    headers.set("authorization", `Bearer ${key}`);
+  }
+
+  const response = await fetchImpl(
+    `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/${functionName}`,
+    { method: "POST", headers, body: JSON.stringify(body) }
+  );
+
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Supabase RPC HTTP ${response.status}: ${bodyText.slice(0, 300)}`);
+  }
+
+  if (!bodyText.trim()) return null;
+  return JSON.parse(bodyText) as unknown;
+}
+
 function gameSelect(): string {
   return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
 }
@@ -331,7 +449,7 @@ async function handleApi(
   }
 
   if (path === "/api/rankings/methodology") {
-    return json(RANKING_METHODOLOGY, 200, { "cache-control": "public, max-age=3600" });
+    return json(getRankingRules(), 200, { "cache-control": "public, max-age=300" });
   }
 
   if (path === "/api/rankings/audit") {
