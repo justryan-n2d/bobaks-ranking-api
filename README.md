@@ -1,18 +1,17 @@
-# Bobaks Ranking API
+# Bobaks Ranking
 
-Backend for Bobaks Ranking.
+Backend and data collection services for Bobaks Ranking.
 
 ## Stack
 
-- Node.js 20+
+- Cloudflare Workers for the public API and Roblox data collector
+- Supabase for PostgreSQL data storage and scheduled database jobs
+- GitHub Actions for CI/CD and production smoke tests
 - TypeScript
-- Express
-- PostgreSQL
-- Prisma
-- Railway
 
-## API
+## Production services
 
+### Public API
 - GET /api/health
 - GET /api/rankings/live
 - GET /api/rankings/weekly
@@ -22,13 +21,22 @@ Backend for Bobaks Ranking.
 - GET /api/games/:id/history?days=7
 - GET /api/search?q=...
 
-## Local setup
+### Collector
+The collector runs on Cloudflare Workers Cron Triggers and stores Roblox experience data in Supabase.
 
-1. Copy .env.example to .env.
-2. Set DATABASE_URL.
-3. Run npm install.
-4. Run npm run db:generate.
-5. Run npm run db:push.
-6. Run npm run dev.
+## Development
 
-The Roblox collector and ranking calculations will be added after the API and database connection are verified.
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the automated tests:
+
+```bash
+npm test
+npm run test:frontend
+```
+
+The legacy Node.js/Express/Prisma files are retained temporarily during the Railway retirement process and are not part of the current production request path.
