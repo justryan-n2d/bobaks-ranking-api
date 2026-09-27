@@ -342,29 +342,27 @@ async function listStaleActiveGames(
   cutoff: string,
   fetchImpl: FetchLike
 ): Promise<Array<{ id: string; universeId: string }>> {
-  const params = new URLSearchParams({
-    select: 'id,universeId',
-    isActive: 'eq.true',
-    lastObservedAt: `lt.${cutoff}`,
-    or: `(verificationMisses.gt.0,lastVerificationAttemptAt.is.null,lastVerificationAttemptAt.lt.${cutoff})`,
-    order: 'lastVerificationAttemptAt.asc.nullsfirst',
-    limit: '100'
-  });
-  const response = await supabaseRequest(env, `Game?${params.toString()}`, fetchImpl, {
-    method: 'GET'
+  const response = await supabaseRequest(env, 'rpc/list_stale_active_games', fetchImpl, {
+    method: 'POST',
+    body: JSON.stringify({
+      p_cutoff: cutoff,
+      p_limit: 100
+    })
   });
   const body = await expectOk(response, 'Stale game lookup');
   if (!body.trim()) return [];
 
   const data = JSON.parse(body) as unknown;
-  if (!Array.isArray(data)) throw new Error('Stale game lookup returned invalid data');
+  if (!Array.isArray(data)) {
+    throw new Error('Stale game lookup returned invalid data');
+  }
 
   return data.flatMap(item => {
     if (!item || typeof item !== 'object') return [];
     const row = item as Record<string, unknown>;
     const id = String(row.id ?? '');
     const universeId = String(row.universeId ?? '');
-    if (!/^\\d+$/.test(id) || !/^\\d+$/.test(universeId)) return [];
+    if (!/^\d+$/.test(id) || !/^\d+$/.test(universeId)) return [];
     return [{ id, universeId }];
   });
 }
