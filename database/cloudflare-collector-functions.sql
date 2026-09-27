@@ -44,6 +44,8 @@ AS $$
 DECLARE
   calculated_at timestamptz := now();
   current_day_start timestamptz;
+  current_month_start timestamptz;
+  next_month_start timestamptz;
   summary_start_date date;
 BEGIN
   -- Serialize refreshes so concurrent cron/manual calls cannot interleave
@@ -53,6 +55,8 @@ BEGIN
   );
 
   current_day_start := date_trunc('day', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  current_month_start := date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  next_month_start := current_month_start + interval '1 month';
   summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
 
   DELETE FROM public."Ranking"
@@ -109,12 +113,14 @@ BEGIN
   FROM ranked
   WHERE rank <= 100;
 
+  -- Monthly ranking = current UTC calendar month, not a rolling 30-day window.
   WITH averages AS (
     SELECT
       "gameId",
       AVG("playerCount")::double precision AS score
     FROM public."GameSnapshot"
-    WHERE "timestamp" >= calculated_at - interval '30 days'
+    WHERE "timestamp" >= current_month_start
+      AND "timestamp" < next_month_start
       AND "timestamp" <= calculated_at
     GROUP BY "gameId"
   ),
