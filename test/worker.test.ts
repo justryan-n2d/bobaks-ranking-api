@@ -131,6 +131,68 @@ test("thumbnail collection falls back from empty official data and preserves mis
   assert.equal(payload[1].iconUrl, "https://cdn.example/place.png");
 });
 
+test("collector verifies stale active games without changing coverage rules", async () => {
+  const calls: { url: string; method: string; body?: string }[] = [];
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    calls.push({
+      url,
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : undefined
+    });
+
+    if (url.includes("/get-sorts?")) {
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+    if (url.includes("/get-sort-content?")) {
+      return response({ data: [{ universeId: "1001" }] });
+    }
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+
+    if (url.includes("games.roblox.com/v1/games")) {
+      return response({
+        data: [
+          { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
+          { id: 2002, rootPlaceId: 3002, name: "Stale", creator: { id: 3002, name: "B" }, playing: 34 }
+        ]
+      });
+    }
+
+    if (url.includes("/rest/v1/Game?select=id%2CuniverseId")) {
+      return response([{ id: "22", universeId: "2002" }]);
+    }
+
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      return response([{ id: "11", universeId: "1001" }]);
+    }
+
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+
+    if (url.includes("/rest/v1/rpc/verify_game_activity")) {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      assert.deepEqual(body.p_attempted_universe_ids, ["2002"]);
+      assert.deepEqual(body.p_found_universe_ids, ["2002"]);
+      return response(0);
+    }
+
+    if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  const verification = calls.find(call => call.url.includes("/rest/v1/rpc/verify_game_activity"));
+  assert.ok(verification);
+});
+
 test("collector retries transient Roblox discovery failures", async () => {
   let attempts = 0;
   const fakeFetch: typeof fetch = async (input, init) => {
