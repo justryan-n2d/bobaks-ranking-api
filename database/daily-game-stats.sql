@@ -39,17 +39,23 @@ BEGIN
     "playerSum"
   )
   SELECT
-    "gameId",
+    s."gameId",
     day_start,
-    AVG("playerCount")::double precision,
-    MAX("playerCount"),
-    MIN("playerCount"),
+    AVG(s."playerCount")::double precision,
+    MAX(s."playerCount"),
+    MIN(s."playerCount"),
     COUNT(*)::integer,
-    SUM("playerCount")::bigint
-  FROM public."GameSnapshot"
-  WHERE "timestamp" >= day_start
-    AND "timestamp" < day_end
-  GROUP BY "gameId"
+    SUM(s."playerCount")::bigint
+  FROM public."GameSnapshot" s
+  LEFT JOIN public."DataCollectionLog" l
+    ON l."collectionRunId" = s."collectionRunId"
+  WHERE s."timestamp" >= day_start
+    AND s."timestamp" < day_end
+    AND (
+      s."collectionRunId" IS NULL
+      OR l."status" IN ('success', 'partial')
+    )
+  GROUP BY s."gameId"
   ON CONFLICT ("gameId", "date") DO UPDATE
   SET
     "averagePlayers" = EXCLUDED."averagePlayers",
