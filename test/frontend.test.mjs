@@ -41,19 +41,14 @@ test("frontend uses the current rankings API contract", () => {
   assert.doesNotMatch(html, /\/api\/rankings\/(live|weekly|monthly|yearly)/);
   assert.doesNotMatch(html, /bobaks-api-production\.up\.railway\.app/);
 });
-test("frontend exposes and uses the server refresh schedule", () => {
+test("frontend exposes and uses the client refresh scheduler", () => {
   const html = fs.readFileSync(frontendPath, "utf8");
 
-  assert.match(html, /nextRefreshAt=p\.nextRefreshAt/);
-  assert.match(html, /refreshIntervalSeconds=Number\(p\.refreshIntervalSeconds\)/);
-  assert.match(html, /new Date\(s\)\.getTime\(\)-Date\.now\(\)/);
-  assert.match(html, /countdown\(state\.nextRefreshAt\)/);
-  assert.doesNotMatch(html, /countdown\(state\.updatedAt\)/);
-  assert.doesNotMatch(html, /getTime\(\)\+300000/);
-  assert.match(html, /new Date\(state\.nextRefreshAt\)\.getTime\(\)/);
   assert.match(html, /function scheduleRefresh\(seconds\)/);
   assert.match(html, /refreshTimer=setTimeout\(\(\)=>load\(\),delay\)/);
+  assert.match(html, /state\.refreshIntervalSeconds=Number\(p\.refreshIntervalSeconds\)\|\|600/);
   assert.match(html, /state\.nextRefreshAt=new Date\(Date\.now\(\)\+state\.refreshIntervalSeconds\*1000\)\.toISOString\(\)/);
+  assert.match(html, /scheduleRefresh\(state\.refreshIntervalSeconds\)/);
   assert.doesNotMatch(html, /function refreshDue\(\)/);
-  assert.doesNotMatch(html, /!state\.loading&&refreshDue\(\)/);
+  assert.doesNotMatch(html, /setInterval\(\(\)=>\{if\(!state\.selected&&!state\.loading&&refreshDue\(\)\)load\(\)\},1000\)/);
 });
