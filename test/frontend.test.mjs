@@ -47,8 +47,13 @@ test("frontend exposes and uses the client refresh scheduler", () => {
   assert.match(html, /function scheduleRefresh\(seconds\)/);
   assert.match(html, /refreshTimer=setTimeout\(\(\)=>load\(\),delay\)/);
   assert.match(html, /state\.refreshIntervalSeconds=Number\(p\.refreshIntervalSeconds\)\|\|600/);
-  assert.match(html, /state\.nextRefreshAt=new Date\(Date\.now\(\)\+state\.refreshIntervalSeconds\*1000\)\.toISOString\(\)/);
-  assert.match(html, /scheduleRefresh\(state\.refreshIntervalSeconds\)/);
+  assert.match(html, /state\.nextRefreshAt=p\.nextCollectionAt\|\|p\.nextRefreshAt\|\|fallbackNextCollectionAt\(\)/);
+  assert.match(html, /scheduleRefresh\(Math\.max\(1,\(new Date\(state\.nextRefreshAt\)\.getTime\(\)-Date\.now\(\)\)\/1000\)\)/);
+  assert.doesNotMatch(html, /state\.nextRefreshAt=new Date\(Date\.now\(\)\+state\.refreshIntervalSeconds\*1000\)\.toISOString\(\)/);
   assert.doesNotMatch(html, /function refreshDue\(\)/);
   assert.doesNotMatch(html, /setInterval\(\(\)=>\{if\(!state\.selected&&!state\.loading&&refreshDue\(\)\)load\(\)\},1000\)/);
+  assert.match(html, /\.game\{width:100%;min-width:0/);
+  assert.match(html, /grid-template-columns:30px 48px minmax\(0,1fr\) max-content 22px/);
+  assert.match(html, /\.icon-wrap\{width:48px;height:48px\}/);
+  assert.match(html, /\.players\{grid-column:4;grid-row:1\/span 2/);
 });
