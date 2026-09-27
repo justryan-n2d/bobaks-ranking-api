@@ -1,57 +1,3 @@
-test("ranking methodology endpoint exposes the canonical rules without database access", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch(calls));
-  const body = await result.json() as Record<string, any>;
-
-  assert.equal(result.status, 200);
-  assert.equal(body.title, "How Bobaks Rankings Work");
-  assert.equal(body.methodologyVersion, "2026-09-28");
-  assert.equal(body.collection.cadenceMinutes, 10);
-  assert.equal(body.rules.live.freshnessMinutes, 15);
-  assert.equal(body.rules.weekly.minimumSamples, 12);
-  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
-  assert.equal(body.rules.monthly.minimumSamples, 12);
-  assert.equal(body.rules.monthly.minimumCoverage, 0.5);
-  assert.equal(body.rules.yearly.period.includes("previous 364 days"), true);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
-  assert.equal(calls.length, 0);
-});
-
-test("ranking audit endpoint returns server-side integrity and current audit metadata", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const fetchImpl: typeof fetch = async (input, init) => {
-    const url = String(input);
-    const headers = new Headers(init?.headers);
-    calls.push({ url, headers });
-
-    if (url.includes("/rest/v1/rpc/get_rankings_audit")) {
-      assert.equal(init?.method, "POST");
-      assert.equal(headers.get("apikey"), "sb_secret_test");
-      return response({
-        methodologyVersion: "2026-09-28",
-        auditStatus: "passed",
-        rankings: {
-          live: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", maxLatestSnapshotAgeSeconds: 9 },
-          weekly: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", collectionOpportunities: 144, minimumSamplesObserved: 71, minimumCoverageObserved: 0.493 }
-        }
-      });
-    }
-
-    throw new Error(`Unhandled URL: ${url}`);
-  };
-
-  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, fetchImpl);
-  const body = await result.json() as Record<string, any>;
-
-  assert.equal(result.status, 200);
-  assert.equal(body.auditStatus, "passed");
-  assert.equal(body.rankings.live.rows, 100);
-  assert.equal(body.rankings.live.maxLatestSnapshotAgeSeconds, 9);
-  assert.equal(body.rankings.weekly.collectionOpportunities, 144);
-  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
-  assert.equal(calls.length, 1);
-});
-
 import test from "node:test";
 import assert from "node:assert/strict";
 import apiWorker, { handleApi } from "../src/api-worker";
@@ -165,6 +111,61 @@ function makeFetch(calls: { url: string; headers: Headers }[]): typeof fetch {
     throw new Error(`Unhandled URL: ${url}`);
   };
 }
+
+
+test("ranking methodology endpoint exposes the canonical rules without database access", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch(calls));
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
+  assert.equal(body.title, "How Bobaks Rankings Work");
+  assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.collection.cadenceMinutes, 10);
+  assert.equal(body.rules.live.freshnessMinutes, 15);
+  assert.equal(body.rules.weekly.minimumSamples, 12);
+  assert.equal(body.rules.weekly.minimumCoverage, 0.5);
+  assert.equal(body.rules.monthly.minimumSamples, 12);
+  assert.equal(body.rules.monthly.minimumCoverage, 0.5);
+  assert.equal(body.rules.yearly.period.includes("previous 364 days"), true);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
+  assert.equal(calls.length, 0);
+});
+
+test("ranking audit endpoint returns server-side integrity and current audit metadata", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers);
+    calls.push({ url, headers });
+
+    if (url.includes("/rest/v1/rpc/get_rankings_audit")) {
+      assert.equal(init?.method, "POST");
+      assert.equal(headers.get("apikey"), "sb_secret_test");
+      return response({
+        methodologyVersion: "2026-09-28",
+        auditStatus: "passed",
+        rankings: {
+          live: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", maxLatestSnapshotAgeSeconds: 9 },
+          weekly: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", collectionOpportunities: 144, minimumSamplesObserved: 71, minimumCoverageObserved: 0.493 }
+        }
+      });
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, fetchImpl);
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
+  assert.equal(body.auditStatus, "passed");
+  assert.equal(body.rankings.live.rows, 100);
+  assert.equal(body.rankings.live.maxLatestSnapshotAgeSeconds, 9);
+  assert.equal(body.rankings.weekly.collectionOpportunities, 144);
+  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
+  assert.equal(calls.length, 1);
+});
 
 test("health checks Supabase and returns connected", async () => {
   const calls: { url: string; headers: Headers }[] = [];
