@@ -1,0 +1,40 @@
+name: Cloudflare API Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify public API
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          health=$(curl -fsS "$API/api/health")
+          echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
+
+          games=$(curl -fsS "$API/api/games")
+          echo "$games" | jq -e '.data | length > 0' >/dev/null
+
+          game_id=$(echo "$games" | jq -r '.data[0].id')
+          test -n "$game_id"
+          test "$game_id" != "null"
+
+          curl -fsS "$API/api/rankings?period=live" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+          curl -fsS "$API/api/rankings?period=week" | jq -e '.period == "week" and (.data | length > 0)' >/dev/null
+          curl -fsS "$API/api/rankings?period=month" | jq -e '.period == "month" and (.data | length > 0)' >/dev/null
+          curl -fsS "$API/api/rankings?period=year" | jq -e '.period == "year" and (.data | length > 0)' >/dev/null
+
+          curl -fsS "$API/api/games/$game_id" | jq -e '.data.id != null' >/dev/null
+          curl -fsS "$API/api/games/$game_id/history?days=31" | jq -e '.gameId != null and .days == 31' >/dev/null
+          curl -fsS "$API/api/games/$game_id/peak" | jq -e '.data.gameId != null' >/dev/null
+
+          query=$(echo "$games" | jq -r '.data[0].name')
+          curl -fsS --get --data-urlencode "q=$query" "$API/api/search" | jq -e '.data | length > 0' >/dev/null
+
+          echo "Cloudflare API Worker smoke test passed."
