@@ -49,6 +49,8 @@ DECLARE
   current_month_start timestamptz;
   next_month_start timestamptz;
   summary_start_date date;
+  weekly_collection_opportunities bigint;
+  monthly_collection_opportunities bigint;
 BEGIN
   -- Serialize refreshes so concurrent cron/manual calls cannot interleave
   -- DELETE/INSERT operations against the persisted ranking set.
@@ -62,6 +64,24 @@ BEGIN
   current_month_start := date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   next_month_start := current_month_start + interval '1 month';
   summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
+
+  -- Coverage opportunities are completed collector runs during each period.
+  -- Successful and partial runs count; failed and daily-summary runs do not.
+  SELECT count(*)
+  INTO weekly_collection_opportunities
+  FROM public."DataCollectionLog"
+  WHERE "status" IN ('success', 'partial')
+    AND "startedAt" >= current_week_start
+    AND "startedAt" < next_week_start
+    AND "startedAt" <= calculated_at;
+
+  SELECT count(*)
+  INTO monthly_collection_opportunities
+  FROM public."DataCollectionLog"
+  WHERE "status" IN ('success', 'partial')
+    AND "startedAt" >= current_month_start
+    AND "startedAt" < next_month_start
+    AND "startedAt" <= calculated_at;
 
   DELETE FROM public."Ranking"
   WHERE "period" IN ('live', 'weekly', 'monthly', 'yearly');
@@ -93,25 +113,39 @@ BEGIN
   WHERE rank <= 100;
 
   -- Weekly ranking = current UTC calendar week, Monday through Sunday.
+  -- Eligibility requires at least 12 observations and 50% coverage.
   WITH averages AS (
     SELECT
       "gameId",
-      AVG("playerCount")::double precision AS score
+      AVG("playerCount")::double precision AS score,
+      COUNT(*)::bigint AS sample_count
     FROM public."GameSnapshot"
     WHERE "timestamp" >= current_week_start
       AND "timestamp" < next_week_start
       AND "timestamp" <= calculated_at
     GROUP BY "gameId"
   ),
+  eligible AS (
+    SELECT
+      "gameId",
+      score
+    FROM averages
+    WHERE sample_count >= 12
+      AND weekly_collection_opportunities > 0
+      AND LEAST(
+        sample_count::numeric / weekly_collection_opportunities::numeric,
+        1.0
+      ) >= 0.50
+  ),
   ranked AS (
     SELECT
       g."id" AS "gameId",
-      averages.score AS score,
+      eligible.score AS score,
       ROW_NUMBER() OVER (
-        ORDER BY averages.score DESC, g."id" ASC
+        ORDER BY eligible.score DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    INNER JOIN averages ON averages."gameId" = g."id"
+    INNER JOIN eligible ON eligible."gameId" = g."id"
     WHERE g."isActive" = true
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
@@ -119,26 +153,40 @@ BEGIN
   FROM ranked
   WHERE rank <= 100;
 
-  -- Monthly ranking = current UTC calendar month, not a rolling 30-day window.
+  -- Monthly ranking = current UTC calendar month.
+  -- Eligibility requires at least 12 observations and 50% coverage.
   WITH averages AS (
     SELECT
       "gameId",
-      AVG("playerCount")::double precision AS score
+      AVG("playerCount")::double precision AS score,
+      COUNT(*)::bigint AS sample_count
     FROM public."GameSnapshot"
     WHERE "timestamp" >= current_month_start
       AND "timestamp" < next_month_start
       AND "timestamp" <= calculated_at
     GROUP BY "gameId"
   ),
+  eligible AS (
+    SELECT
+      "gameId",
+      score
+    FROM averages
+    WHERE sample_count >= 12
+      AND monthly_collection_opportunities > 0
+      AND LEAST(
+        sample_count::numeric / monthly_collection_opportunities::numeric,
+        1.0
+      ) >= 0.50
+  ),
   ranked AS (
     SELECT
       g."id" AS "gameId",
-      averages.score AS score,
+      eligible.score AS score,
       ROW_NUMBER() OVER (
-        ORDER BY averages.score DESC, g."id" ASC
+        ORDER BY eligible.score DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    INNER JOIN averages ON averages."gameId" = g."id"
+    INNER JOIN eligible ON eligible."gameId" = g."id"
     WHERE g."isActive" = true
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
