@@ -248,7 +248,8 @@ async function getNextCollectionAt(
     env,
     "DataCollectionLog",
     {
-      select: "startedAt",
+      select: "startedAt,status",
+      status: "in.(success,partial,failed)",
       order: "startedAt.desc",
       limit: "1"
     },
