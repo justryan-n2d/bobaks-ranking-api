@@ -135,7 +135,7 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.equal(new URL(calls[1].url).searchParams.get("id"), "in.(1)");
 });
 
-test("legacy ranking paths remain compatible during Railway cutover", async () => {
+test("legacy ranking paths remain compatible", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const result = await handleApi(new Request("https://api.example/api/rankings/monthly"), env, makeFetch(calls));
   const body = await result.json() as Record<string, unknown>;

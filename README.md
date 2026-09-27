@@ -39,4 +39,8 @@ npm test
 npm run test:frontend
 ```
 
-The legacy Node.js/Express/Prisma files are retained temporarily during the Railway retirement process and are not part of the current production request path.
+Validate the TypeScript build:
+
+```bash
+npm run build
+```
