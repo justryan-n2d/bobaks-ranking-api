@@ -70,8 +70,19 @@ COMMENT ON FUNCTION public.cleanup_game_snapshots(integer, integer)
   IS 'Deletes GameSnapshot rows older than the approved retention window. Minimum retention is 31 days. Intended for scheduled server-side execution.';
 
 -- Daily at 00:20 UTC / 08:20 PHT, after the daily summary at 00:05 UTC.
-SELECT cron.schedule(
-  'bobaks-game-snapshot-retention-daily',
-  '20 0 * * *',
-  $$SELECT public.cleanup_game_snapshots(31, 5000);$$
-);
+-- Idempotent: rerunning this entire file will not create a duplicate job.
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM cron.job
+    WHERE jobname = 'bobaks-game-snapshot-retention-daily'
+  ) THEN
+    PERFORM cron.schedule(
+      'bobaks-game-snapshot-retention-daily',
+      '20 0 * * *',
+      $job$SELECT public.cleanup_game_snapshots(31, 5000);$job$
+    );
+  END IF;
+END
+$do$;
