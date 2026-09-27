@@ -33,7 +33,8 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.record_game_peaks(jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_game_peaks(jsonb) TO service_role;\nALTER FUNCTION public.record_game_peaks(jsonb) SET search_path = public, pg_temp;
+GRANT EXECUTE ON FUNCTION public.record_game_peaks(jsonb) TO service_role;
+ALTER FUNCTION public.record_game_peaks(jsonb) SET search_path = public, pg_temp;
 
 CREATE OR REPLACE FUNCTION public.refresh_rankings()
 RETURNS void
@@ -45,6 +46,12 @@ DECLARE
   current_day_start timestamptz;
   summary_start_date date;
 BEGIN
+  -- Serialize refreshes so concurrent cron/manual calls cannot interleave
+  -- DELETE/INSERT operations against the persisted ranking set.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('bobaks.refresh_rankings', 0)
+  );
+
   current_day_start := date_trunc('day', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
 
@@ -57,6 +64,7 @@ BEGIN
       "playerCount",
       "timestamp"
     FROM public."GameSnapshot"
+    WHERE "timestamp" <= calculated_at
     ORDER BY "gameId", "timestamp" DESC, "id" DESC
   ),
   ranked AS (
@@ -82,17 +90,18 @@ BEGIN
       AVG("playerCount")::double precision AS score
     FROM public."GameSnapshot"
     WHERE "timestamp" >= calculated_at - interval '7 days'
+      AND "timestamp" <= calculated_at
     GROUP BY "gameId"
   ),
   ranked AS (
     SELECT
       g."id" AS "gameId",
-      COALESCE(averages.score, 0)::double precision AS score,
+      averages.score AS score,
       ROW_NUMBER() OVER (
-        ORDER BY COALESCE(averages.score, 0) DESC, g."id" ASC
+        ORDER BY averages.score DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    LEFT JOIN averages ON averages."gameId" = g."id"
+    INNER JOIN averages ON averages."gameId" = g."id"
     WHERE g."isActive" = true
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
@@ -106,17 +115,18 @@ BEGIN
       AVG("playerCount")::double precision AS score
     FROM public."GameSnapshot"
     WHERE "timestamp" >= calculated_at - interval '30 days'
+      AND "timestamp" <= calculated_at
     GROUP BY "gameId"
   ),
   ranked AS (
     SELECT
       g."id" AS "gameId",
-      COALESCE(averages.score, 0)::double precision AS score,
+      averages.score AS score,
       ROW_NUMBER() OVER (
-        ORDER BY COALESCE(averages.score, 0) DESC, g."id" ASC
+        ORDER BY averages.score DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    LEFT JOIN averages ON averages."gameId" = g."id"
+    INNER JOIN averages ON averages."gameId" = g."id"
     WHERE g."isActive" = true
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
@@ -170,16 +180,17 @@ BEGIN
         ELSE 0::double precision
       END AS score
     FROM yearly_aggregates
+    WHERE total_samples > 0
   ),
   ranked AS (
     SELECT
       g."id" AS "gameId",
-      COALESCE(averages.score, 0)::double precision AS score,
+      averages.score AS score,
       ROW_NUMBER() OVER (
-        ORDER BY COALESCE(averages.score, 0) DESC, g."id" ASC
+        ORDER BY averages.score DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    LEFT JOIN averages ON averages."gameId" = g."id"
+    INNER JOIN averages ON averages."gameId" = g."id"
     WHERE g."isActive" = true
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
