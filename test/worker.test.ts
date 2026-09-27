@@ -75,7 +75,7 @@ test("scheduled collector performs the complete collection cycle", async () => {
   assert.equal(typeof snapshotPayload[0].collectionRunId, "string");
   assert.equal(snapshotPayload[0].collectionRunId, snapshotPayload[1].collectionRunId);
   assert.equal(snapshotPayload[0].collectionRunId, logPayload.collectionRunId);
-  assert.equal(calls.filter(c => c.url.includes("/rest/v1/Game?")).length, 1);
+  assert.equal(calls.filter(c => c.url.includes("/rest/v1/Game?on_conflict=universeId")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/GameSnapshot")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/record_game_peaks")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/refresh_rankings")).length, 1);
