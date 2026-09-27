@@ -65,7 +65,7 @@ BEGIN
   next_month_start := current_month_start + interval '1 month';
   summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
 
-  -- Coverage opportunities are completed collector runs during each period.
+  -- Coverage opportunities are finalized collector runs during each period.
   -- Successful and partial runs count; failed and daily-summary runs do not.
   SELECT count(*)
   INTO weekly_collection_opportunities
@@ -87,12 +87,18 @@ BEGIN
   WHERE "period" IN ('live', 'weekly', 'monthly', 'yearly');
 
   WITH latest AS (
-    SELECT DISTINCT ON ("gameId")
-      "gameId",
-      "playerCount",
-      "timestamp"
-    FROM public."GameSnapshot"
-    WHERE "timestamp" <= calculated_at
+    SELECT DISTINCT ON (s."gameId")
+      s."gameId",
+      s."playerCount",
+      s."timestamp"
+    FROM public."GameSnapshot" s
+    LEFT JOIN public."DataCollectionLog" l
+      ON l."collectionRunId" = s."collectionRunId"
+    WHERE s."timestamp" <= calculated_at
+      AND (
+        s."collectionRunId" IS NULL
+        OR l."status" IN ('success', 'partial')
+      )
     ORDER BY "gameId", "timestamp" DESC, "id" DESC
   ),
   ranked AS (
@@ -116,14 +122,20 @@ BEGIN
   -- Eligibility requires at least 12 observations and 50% coverage.
   WITH averages AS (
     SELECT
-      "gameId",
-      AVG("playerCount")::double precision AS score,
+      s."gameId",
+      AVG(s."playerCount")::double precision AS score,
       COUNT(*)::bigint AS sample_count
-    FROM public."GameSnapshot"
-    WHERE "timestamp" >= current_week_start
-      AND "timestamp" < next_week_start
-      AND "timestamp" <= calculated_at
-    GROUP BY "gameId"
+    FROM public."GameSnapshot" s
+    LEFT JOIN public."DataCollectionLog" l
+      ON l."collectionRunId" = s."collectionRunId"
+    WHERE s."timestamp" >= current_week_start
+      AND s."timestamp" < next_week_start
+      AND s."timestamp" <= calculated_at
+      AND (
+        s."collectionRunId" IS NULL
+        OR l."status" IN ('success', 'partial')
+      )
+    GROUP BY s."gameId"
   ),
   eligible AS (
     SELECT
@@ -157,14 +169,20 @@ BEGIN
   -- Eligibility requires at least 12 observations and 50% coverage.
   WITH averages AS (
     SELECT
-      "gameId",
-      AVG("playerCount")::double precision AS score,
+      s."gameId",
+      AVG(s."playerCount")::double precision AS score,
       COUNT(*)::bigint AS sample_count
-    FROM public."GameSnapshot"
-    WHERE "timestamp" >= current_month_start
-      AND "timestamp" < next_month_start
-      AND "timestamp" <= calculated_at
-    GROUP BY "gameId"
+    FROM public."GameSnapshot" s
+    LEFT JOIN public."DataCollectionLog" l
+      ON l."collectionRunId" = s."collectionRunId"
+    WHERE s."timestamp" >= current_month_start
+      AND s."timestamp" < next_month_start
+      AND s."timestamp" <= calculated_at
+      AND (
+        s."collectionRunId" IS NULL
+        OR l."status" IN ('success', 'partial')
+      )
+    GROUP BY s."gameId"
   ),
   eligible AS (
     SELECT
@@ -215,13 +233,19 @@ BEGIN
     UNION ALL
 
     SELECT
-      "gameId",
-      SUM("playerCount")::numeric AS player_sum,
+      s."gameId",
+      SUM(s."playerCount")::numeric AS player_sum,
       COUNT(*)::bigint AS total_samples
-    FROM public."GameSnapshot"
-    WHERE "timestamp" >= current_day_start
-      AND "timestamp" <= calculated_at
-    GROUP BY "gameId"
+    FROM public."GameSnapshot" s
+    LEFT JOIN public."DataCollectionLog" l
+      ON l."collectionRunId" = s."collectionRunId"
+    WHERE s."timestamp" >= current_day_start
+      AND s."timestamp" <= calculated_at
+      AND (
+        s."collectionRunId" IS NULL
+        OR l."status" IN ('success', 'partial')
+      )
+    GROUP BY s."gameId"
   ),
   yearly_aggregates AS (
     SELECT
