@@ -291,32 +291,20 @@ test("public worker adds CORS headers and rejects unsupported methods", async ()
 });
 
 
-test("ranking rules endpoint returns the published rule set", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch(calls));
+test("ranking rules endpoint is a backward-compatible methodology alias", async () => {
+  const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch([]));
 
   assert.equal(result.status, 200);
   const body = await result.json() as {
-    rulesVersion: string;
-    topN: number;
-    timezone: string;
-    score: Record<string, string>;
-    eligibility: { weekly: { minimumSamples: number; minimumCoverage: number } };
-    ordering: { tieBreak: string };
-    limitations: string[];
+    methodologyVersion: string;
+    rules: { common: { topN: number }; live: { freshnessMinutes: number } };
   };
 
-  assert.match(body.rulesVersion, /^2026-09-/);
-  assert.equal(body.topN, 100);
-  assert.equal(body.timezone, "UTC");
-  assert.equal(typeof body.score.live, "string");
-  assert.equal(body.eligibility.weekly.minimumSamples, 12);
-  assert.equal(body.eligibility.weekly.minimumCoverage, 0.5);
-  assert.match(body.ordering.tieBreak, /gameId/);
-  assert.ok(Array.isArray(body.limitations));
-  assert.equal(result.headers.get("cache-control"), "public, max-age=300");
+  assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.rules.common.topN, 100);
+  assert.equal(body.rules.live.freshnessMinutes, 15);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
 });
-
 
 test("ranking methodology endpoint returns the published contract", async () => {
   const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch([]));
