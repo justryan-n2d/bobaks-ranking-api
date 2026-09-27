@@ -11,8 +11,8 @@ test("frontend entrypoint exists and contains the Bobaks app", () => {
   const html = fs.readFileSync(frontendPath, "utf8");
 
   assert.match(html, /<!doctype html>/i);
-  assert.match(html, /<title>Bobaks Ranking \| Roblox Game Rankings<\/title>/);
-  assert.match(html, /const API='https:\/\/bobaks-api-production\.up\.railway\.app';/);
+  assert.match(html, /<title>Bobaks Ranking \| Live Rankings & Historical Trends<\/title>/);
+  assert.match(html, /const API='https:\/\/bobaks-ranking-api-service\.ryan-oledan0\.workers\.dev';/);
 });
 
 test("frontend uses the current rankings API contract", () => {
@@ -38,7 +38,7 @@ test("frontend uses the current rankings API contract", () => {
   assert.match(html, /\/api\/games\/.*\/peak/);
   assert.match(html, /peakPlayers/);
 
-  assert.doesNotMatch(html, /\/api\/rankings\/(live|weekly|monthly|yearly)/);
+  assert.doesNotMatch(html, /\/api\/rankings\/(live|weekly|monthly|yearly)/);\n  assert.doesNotMatch(html, /bobaks-api-production\.up\.railway\.app/);
 });
 test("frontend exposes and uses the server refresh schedule", () => {
   const html = fs.readFileSync(frontendPath, "utf8");
