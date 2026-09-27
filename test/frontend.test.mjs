@@ -63,7 +63,8 @@ test("frontend exposes the ranking transparency page", () => {
   const html = fs.readFileSync(frontendPath, "utf8");
 
   assert.match(html, /How Bobaks Rankings Work/);
-  assert.match(html, /\/api\/rankings\/methodology/);\n  assert.match(html, /\/api\/rankings\/audit/);
+  assert.match(html, /\/api\/rankings\/methodology/);
+  assert.match(html, /\/api\/rankings\/audit/);
   assert.match(html, /Methodology version:/);
   assert.match(html, /Minimum samples/);
   assert.match(html, /Minimum coverage/);
