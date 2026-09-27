@@ -237,6 +237,46 @@ async function getRankings(
   }));
 }
 
+const COLLECTION_INTERVAL_MS = 10 * 60 * 1000;
+const COLLECTION_REFRESH_BUFFER_MS = 15 * 1000;
+
+async function getNextCollectionAt(
+  env: Env,
+  fetchImpl: FetchLike
+): Promise<string> {
+  const rows = await supabaseGet(
+    env,
+    "DataCollectionLog",
+    {
+      select: "startedAt",
+      order: "startedAt.desc",
+      limit: "1"
+    },
+    fetchImpl
+  );
+
+  const latestStartedAt = rows[0]?.startedAt == null
+    ? NaN
+    : Date.parse(String(rows[0].startedAt));
+
+  if (Number.isFinite(latestStartedAt)) {
+    let next = latestStartedAt + COLLECTION_INTERVAL_MS + COLLECTION_REFRESH_BUFFER_MS;
+    const now = Date.now();
+
+    while (next <= now) {
+      next += COLLECTION_INTERVAL_MS;
+    }
+
+    return new Date(next).toISOString();
+  }
+
+  // Cold-start fallback: align with the global 10-minute cycle rather than
+  // starting a new 10-minute countdown from the page/API request.
+  const now = Date.now();
+  const nextBoundary = (Math.floor(now / COLLECTION_INTERVAL_MS) + 1) * COLLECTION_INTERVAL_MS;
+  return new Date(nextBoundary + COLLECTION_REFRESH_BUFFER_MS).toISOString();
+}
+
 async function getRankingResponse(
   env: Env,
   period: string,
@@ -244,17 +284,15 @@ async function getRankingResponse(
 ): Promise<Record<string, unknown>> {
   const data = await getRankings(env, period, fetchImpl);
   const updatedAt = data[0]?.calculatedAt ?? null;
-
-  const refreshIntervalSeconds = 600;
+  const refreshIntervalSeconds = COLLECTION_INTERVAL_MS / 1000;
+  const nextCollectionAt = await getNextCollectionAt(env, fetchImpl);
 
   return {
     period,
     updatedAt,
     refreshIntervalSeconds,
-    // This is the next client refresh time, measured from this API response,
-    // not from the ranking's calculatedAt. That prevents the timer from
-    // getting stuck at 00:00 while a new collector snapshot is being written.
-    nextRefreshAt: new Date(Date.now() + refreshIntervalSeconds * 1000).toISOString(),
+    nextCollectionAt,
+    nextRefreshAt: nextCollectionAt,
     data
   };
 }
