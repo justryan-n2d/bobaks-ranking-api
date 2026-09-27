@@ -476,7 +476,6 @@ async function runDailySummary(env: Env, fetchImpl: FetchLike = fetch): Promise<
     gamesUpdated = await summarizeYesterday(env, fetchImpl);
 
     await writeLog(env, {
-      collectionRunId: crypto.randomUUID(),
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
       gamesChecked: gamesUpdated,
