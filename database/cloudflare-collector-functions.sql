@@ -99,7 +99,7 @@ BEGIN
         s."collectionRunId" IS NULL
         OR l."status" IN ('success', 'partial')
       )
-    ORDER BY "gameId", "timestamp" DESC, "id" DESC
+    ORDER BY s."gameId", s."timestamp" DESC, s."id" DESC
   ),
   ranked AS (
     SELECT
