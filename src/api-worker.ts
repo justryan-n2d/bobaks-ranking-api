@@ -197,6 +197,72 @@ async function supabaseRpc(
   return JSON.parse(bodyText) as unknown;
 }
 
+const RANKING_METHODOLOGY = {
+  methodologyVersion: "2026-09-28",
+  title: "How Bobaks Rankings Work",
+  collection: {
+    cadenceMinutes: 10,
+    source: "Roblox public experience data collected by Bobaks Ranking"
+  },
+  rules: {
+    common: {
+      topN: 100,
+      activeGamesOnly: true,
+      tieBreak: "Higher score first. Equal scores are ordered by ascending game ID.",
+      collectedDataOnly: true
+    },
+    live: {
+      score: "Latest qualifying player-count snapshot",
+      freshnessMinutes: 15,
+      eligibility: "The latest qualifying snapshot must be no older than 15 minutes at ranking calculation time."
+    },
+    weekly: {
+      period: "Current UTC calendar week, Monday through Sunday",
+      score: "Arithmetic mean of player counts from qualifying snapshots",
+      minimumSamples: 12,
+      minimumCoverage: 0.5,
+      coverageFormula: "Qualifying snapshots for a game divided by successful or partial collection runs in the same UTC week"
+    },
+    monthly: {
+      period: "Current UTC calendar month",
+      score: "Arithmetic mean of player counts from qualifying snapshots",
+      minimumSamples: 12,
+      minimumCoverage: 0.5,
+      coverageFormula: "Qualifying snapshots for a game divided by successful or partial collection runs in the same UTC month"
+    },
+    yearly: {
+      period: "365 UTC calendar dates: the current day from raw snapshots plus the previous 364 days from DailyGameStat",
+      score: "Weighted average using playerSum divided by totalSamples",
+      minimumSamples: null,
+      minimumCoverage: null
+    }
+  },
+  qualifyingData: {
+    collectionRuns: "Successful and partial runs count toward coverage. Failed runs do not.",
+    snapshots: "New snapshots are linked to their collection run. Snapshots linked to failed runs are excluded. Legacy unlinked snapshots are retained for backward compatibility.",
+    futureSnapshotsExcluded: true
+  },
+  activity: {
+    discovery: "A discovered game is active and observed in that cycle.",
+    gracePeriodHours: 24,
+    verificationIntervalHours: 24,
+    deactivationAfterConsecutiveMisses: 12,
+    approximateMissWindowMinutes: 120,
+    reactivation: "A later successful discovery reactivates a previously inactive game."
+  },
+  integrity: {
+    transaction: "Ranking replacement is protected by a transaction and advisory lock.",
+    validation: "A server-side integrity check validates row counts, rank continuity, duplicate games, score validity, ordering, active-game membership, Live freshness, and period-specific score and eligibility rules before commit.",
+    failureBehavior: "An invalid ranking refresh raises an error and rolls back instead of committing a bad ranking set."
+  },
+  limitations: [
+    "Rankings represent Bobaks collection snapshots, not every moment of Roblox activity.",
+    "Roblox discovery and API availability can limit which games are observed in a cycle.",
+    "Coverage is based on Bobaks collection runs, not on all possible Roblox observations.",
+    "Ranking values can change when new collection cycles arrive."
+  ]
+} as const;
+
 function gameSelect(): string {
   return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
 }
@@ -449,7 +515,7 @@ async function handleApi(
   }
 
   if (path === "/api/rankings/methodology") {
-    return json(getRankingRules(), 200, { "cache-control": "public, max-age=300" });
+    return json(RANKING_METHODOLOGY, 200, { "cache-control": "public, max-age=3600" });
   }
 
   if (path === "/api/rankings/audit") {
@@ -515,8 +581,9 @@ async function handleApi(
   }
 
   if (path === "/api/rankings/rules") {
-    return json(getRankingRules(), 200, {
-      "cache-control": "public, max-age=300"
+    // Backward-compatible alias for the canonical methodology endpoint.
+    return json(RANKING_METHODOLOGY, 200, {
+      "cache-control": "public, max-age=3600"
     });
   }
 
