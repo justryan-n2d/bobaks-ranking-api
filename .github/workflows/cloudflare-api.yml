@@ -34,3 +34,23 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Smoke test live API
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          health=$(curl -fsS "$API/api/health")
+          echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
+
+          games=$(curl -fsS "$API/api/games")
+          echo "$games" | jq -e '.data | length > 0' >/dev/null
+
+          curl -fsS "$API/api/rankings?period=live"             | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+
+          game_id=$(echo "$games" | jq -r '.data[0].id')
+          curl -fsS "$API/api/games/$game_id/peak"             | jq -e '.data.gameId != null' >/dev/null
+
+          echo "Cloudflare API Worker is serving real Supabase-backed data."
