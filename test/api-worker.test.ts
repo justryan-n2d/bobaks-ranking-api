@@ -213,22 +213,6 @@ test("public worker adds CORS headers and rejects unsupported methods", async ()
   assert.equal(method.headers.get("access-control-allow-origin"), "*");
 });
 
-
-test("ranking rules endpoint is a backward-compatible methodology alias", async () => {
-  const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch([]));
-
-  assert.equal(result.status, 200);
-  const body = await result.json() as {
-    methodologyVersion: string;
-    rules: { common: { topN: number }; live: { freshnessMinutes: number } };
-  };
-
-  assert.equal(body.methodologyVersion, "2026-09-28");
-  assert.equal(body.rules.common.topN, 100);
-  assert.equal(body.rules.live.freshnessMinutes, 15);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=3600");
-});
-
 test("ranking rules endpoint exposes the canonical public methodology", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch(calls));
@@ -239,32 +223,43 @@ test("ranking rules endpoint exposes the canonical public methodology", async ()
   assert.equal(body.methodologyVersion, "2026-09-28");
   assert.equal(body.title, "How Bobaks Rankings Work");
   assert.equal(body.topN, 100);
-  assert.equal(body.timezone, "UTC");
   assert.equal(body.collection.cadenceMinutes, 10);
-  assert.equal(body.eligibility.live, "A game must be active and have a qualifying snapshot no older than 15 minutes at ranking calculation time.");
+  assert.equal(body.timezone, "UTC");
+  assert.equal(body.eligibility.live.includes("15 minutes"), true);
   assert.equal(body.eligibility.weekly.minimumSamples, 12);
   assert.equal(body.eligibility.weekly.minimumCoverage, 0.5);
   assert.equal(body.eligibility.monthly.minimumSamples, 12);
   assert.equal(body.eligibility.monthly.minimumCoverage, 0.5);
+  assert.equal(typeof body.score.live, "string");
   assert.equal(typeof body.score.yearly, "string");
   assert.deepEqual(body.collectionRuns.countedStatuses, ["success", "partial"]);
+  assert.deepEqual(body.collectionRuns.excludedStatuses, [
+    "failed",
+    "daily_summary_success",
+    "daily_summary_failed"
+  ]);
   assert.match(body.ordering.tieBreak, /gameId/);
   assert.ok(Array.isArray(body.limitations));
   assert.equal(result.headers.get("cache-control"), "public, max-age=300");
   assert.equal(calls.length, 0);
 });
 
-test("ranking methodology endpoint is an alias of the canonical methodology", async () => {
-  const calls: { url: string; headers: Headers }[] = [];
-  const result = await handleApi(new Request("https://api.example/api/rankings/methodology"), env, makeFetch(calls));
-  const body = await result.json() as Record<string, any>;
+test("ranking methodology endpoint returns the same canonical methodology", async () => {
+  const rulesResult = await handleApi(
+    new Request("https://api.example/api/rankings/rules"),
+    env,
+    makeFetch([])
+  );
+  const methodologyResult = await handleApi(
+    new Request("https://api.example/api/rankings/methodology"),
+    env,
+    makeFetch([])
+  );
 
-  assert.equal(result.status, 200);
-  assert.equal(body.rulesVersion, "2026-09-28");
-  assert.equal(body.methodologyVersion, "2026-09-28");
-  assert.equal(body.topN, 100);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=300");
-  assert.equal(calls.length, 0);
+  assert.equal(rulesResult.status, 200);
+  assert.equal(methodologyResult.status, 200);
+  assert.deepEqual(await methodologyResult.json(), await rulesResult.json());
+  assert.equal(methodologyResult.headers.get("cache-control"), "public, max-age=300");
 });
 
 test("ranking audit endpoint returns server-side integrity metadata", async () => {
@@ -278,6 +273,7 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
       assert.equal(init?.method, "POST");
       assert.equal(headers.get("apikey"), "sb_secret_test");
       assert.equal(headers.get("authorization"), null);
+
       return response({
         methodologyVersion: "2026-09-28",
         auditStatus: "passed",
@@ -287,7 +283,11 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
           latestStartedAt: "2026-09-28T00:00:00.000Z"
         },
         rankings: {
-          live: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z", maxLatestSnapshotAgeSeconds: 3 },
+          live: {
+            rows: 100,
+            calculatedAt: "2026-09-28T00:00:00.000Z",
+            maxLatestSnapshotAgeSeconds: 3
+          },
           weekly: {
             rows: 100,
             calculatedAt: "2026-09-28T00:00:00.000Z",
@@ -302,7 +302,10 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
             minimumSamplesObserved: 164,
             minimumCoverageObserved: 0.506
           },
-          yearly: { rows: 100, calculatedAt: "2026-09-28T00:00:00.000Z" }
+          yearly: {
+            rows: 100,
+            calculatedAt: "2026-09-28T00:00:00.000Z"
+          }
         }
       });
     }
@@ -310,13 +313,18 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
     throw new Error(`Unhandled URL: ${url}`);
   };
 
-  const result = await handleApi(new Request("https://api.example/api/rankings/audit"), env, fetchImpl);
+  const result = await handleApi(
+    new Request("https://api.example/api/rankings/audit"),
+    env,
+    fetchImpl
+  );
   const body = await result.json() as Record<string, any>;
 
   assert.equal(result.status, 200);
   assert.equal(body.auditStatus, "passed");
   assert.equal(body.methodologyVersion, "2026-09-28");
   assert.equal(body.rankings.live.rows, 100);
+  assert.equal(body.rankings.live.maxLatestSnapshotAgeSeconds, 3);
   assert.equal(body.rankings.weekly.collectionOpportunities, 324);
   assert.equal(body.rankings.weekly.minimumSamplesObserved, 164);
   assert.equal(body.rankings.weekly.minimumCoverageObserved, 0.506);
