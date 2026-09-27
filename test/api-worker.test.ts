@@ -288,3 +288,30 @@ test("public worker adds CORS headers and rejects unsupported methods", async ()
   assert.equal(method.status, 405);
   assert.equal(method.headers.get("access-control-allow-origin"), "*");
 });
+
+
+test("ranking rules endpoint returns the published rule set", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const result = await handleApi(new Request("https://api.example/api/rankings/rules"), env, makeFetch(calls));
+
+  assert.equal(result.status, 200);
+  const body = await result.json() as {
+    rulesVersion: string;
+    topN: number;
+    timezone: string;
+    score: Record<string, string>;
+    eligibility: { weekly: { minimumSamples: number; minimumCoverage: number } };
+    ordering: { tieBreak: string };
+    limitations: string[];
+  };
+
+  assert.match(body.rulesVersion, /^2026-09-/);
+  assert.equal(body.topN, 100);
+  assert.equal(body.timezone, "UTC");
+  assert.equal(typeof body.score.live, "string");
+  assert.equal(body.eligibility.weekly.minimumSamples, 12);
+  assert.equal(body.eligibility.weekly.minimumCoverage, 0.5);
+  assert.match(body.ordering.tieBreak, /gameId/);
+  assert.ok(Array.isArray(body.limitations));
+  assert.equal(result.headers.get("cache-control"), "public, max-age=300");
+});
