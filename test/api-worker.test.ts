@@ -141,7 +141,7 @@ test("ranking endpoint supports the current period query contract", async () => 
   const nextCollectionAt = Date.parse(String(body.nextCollectionAt));
   assert.ok(nextCollectionAt >= Date.now() + 10_000);
   assert.ok(nextCollectionAt <= Date.now() + 25_000);
-  assert.equal(result.headers.get("cache-control"), "public, max-age=60, s-maxage=60");
+  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
   assert.equal(calls.length, 3);
   assert.ok(calls.some(call => call.url.includes("/rest/v1/DataCollectionLog?")));
   assert.equal((body.data as unknown[]).length, 1);
@@ -328,6 +328,6 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
   assert.equal(body.rankings.weekly.collectionOpportunities, 324);
   assert.equal(body.rankings.weekly.minimumSamplesObserved, 164);
   assert.equal(body.rankings.weekly.minimumCoverageObserved, 0.506);
-  assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
+  assert.equal(result.headers.get("cache-control"), "public, max-age=60, s-maxage=60");
   assert.equal(calls.length, 1);
 });
