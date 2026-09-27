@@ -46,6 +46,9 @@ jobs:
           echo "$html" | grep -F "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
           ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
           echo "$html" | grep -F "Live Rankings & Historical Trends"
+          echo "$html" | grep -F "How Bobaks Rankings Work"
+          echo "$html" | grep -F "/api/rankings/methodology"
+          echo "$html" | grep -F "/api/rankings/audit"
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
