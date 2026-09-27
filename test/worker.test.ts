@@ -140,12 +140,16 @@ test("collector verifies stale active games without changing coverage rules", as
     if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
     if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
     if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
-    if (url.includes("games.roblox.com/v1/games")) return response({
-      data: [
-        { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 },
-        { id: 2002, rootPlaceId: 3002, name: "Stale", creator: { id: 3002, name: "B" }, playing: 34 }
-      ]
-    });
+    if (url.includes("games.roblox.com/v1/games")) {
+      if (url.includes("universeIds=2002")) {
+        return response({
+          data: [{ id: 2002, rootPlaceId: 3002, name: "Stale", creator: { id: 3002, name: "B" }, playing: 34 }]
+        });
+      }
+      return response({
+        data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+      });
+    }
     if (url.includes("/rest/v1/Game?select=id%2CuniverseId")) {
       return response([{ id: "22", universeId: "2002" }]);
     }
