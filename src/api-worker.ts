@@ -245,13 +245,16 @@ async function getRankingResponse(
   const data = await getRankings(env, period, fetchImpl);
   const updatedAt = data[0]?.calculatedAt ?? null;
 
+  const refreshIntervalSeconds = 600;
+
   return {
     period,
     updatedAt,
-    refreshIntervalSeconds: 600,
-    nextRefreshAt: updatedAt
-      ? new Date(new Date(String(updatedAt)).getTime() + 600_000).toISOString()
-      : null,
+    refreshIntervalSeconds,
+    // This is the next client refresh time, measured from this API response,
+    // not from the ranking's calculatedAt. That prevents the timer from
+    // getting stuck at 00:00 while a new collector snapshot is being written.
+    nextRefreshAt: new Date(Date.now() + refreshIntervalSeconds * 1000).toISOString(),
     data
   };
 }
@@ -375,7 +378,11 @@ async function handleApi(
     }
 
     try {
-      return json(await getRankingResponse(env, period, fetchImpl));
+      return json(
+        await getRankingResponse(env, period, fetchImpl),
+        200,
+        { "cache-control": "no-store, no-cache, must-revalidate" }
+      );
     } catch (error) {
       console.error("GET /api/rankings failed:", error);
       return json({ error: "Database unavailable" }, 503);
