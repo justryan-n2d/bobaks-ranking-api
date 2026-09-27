@@ -64,6 +64,16 @@ test("scheduled collector performs the complete collection cycle", async () => {
   }, fakeFetch);
 
   assert.deepEqual(result, { gamesChecked: 2, gamesUpdated: 2, errors: 0 });
+
+  const snapshotCall = calls.find(c => c.url.includes("/rest/v1/GameSnapshot"));
+  const logCall = calls.find(c => c.url.includes("/rest/v1/DataCollectionLog"));
+  assert.ok(snapshotCall);
+  assert.ok(logCall);
+  const snapshotPayload = JSON.parse(String(snapshotCall.body)) as Array<Record<string, unknown>>;
+  const logPayload = JSON.parse(String(logCall.body)) as Record<string, unknown>;
+  assert.equal(typeof snapshotPayload[0].collectionRunId, "string");
+  assert.equal(snapshotPayload[0].collectionRunId, snapshotPayload[1].collectionRunId);
+  assert.equal(snapshotPayload[0].collectionRunId, logPayload.collectionRunId);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/Game?")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/GameSnapshot")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/record_game_peaks")).length, 1);
@@ -172,6 +182,8 @@ test("collector records failure when Roblox is unavailable", async () => {
   assert.match(loggedBody, /"status":"failed"/);
   assert.match(loggedBody, /"errors":1/);
   assert.match(loggedBody, /"errorMessage":"network down"/);
+  const failedLog = JSON.parse(loggedBody) as Record<string, unknown>;
+  assert.equal(typeof failedLog.collectionRunId, "string");
 });
 
 test("daily summarization calls the protected Supabase RPC", async () => {
