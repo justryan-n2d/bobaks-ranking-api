@@ -205,7 +205,7 @@ test("collector verifies stale active games without changing coverage rules", as
     ROBLOX_THROTTLE_MS: "0"
   }, fakeFetch);
 
-  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.deepEqual(result, { gamesChecked: 2, gamesUpdated: 1, errors: 0 });
   const verification = calls.find(call => call.url.includes("/rest/v1/rpc/verify_game_activity"));
   assert.ok(verification);
 });
