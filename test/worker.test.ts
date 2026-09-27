@@ -133,6 +133,7 @@ test("thumbnail collection falls back from empty official data and preserves mis
 
 test("collector verifies stale active games without changing coverage rules", async () => {
   const calls: { url: string; method: string; body?: string }[] = [];
+  let verificationMode = false;
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
     calls.push({
@@ -150,9 +151,7 @@ test("collector verifies stale active games without changing coverage rules", as
     if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
 
     if (url.includes("games.roblox.com/v1/games")) {
-      const parsed = new URL(url);
-      const ids = parsed.searchParams.get("universeIds") ?? "";
-      if (ids === "2002") {
+      if (verificationMode) {
         return response({
           data: [
             { id: 2002, rootPlaceId: 3002, name: "Stale", creator: { id: 3002, name: "B" }, playing: 34 }
@@ -171,6 +170,7 @@ test("collector verifies stale active games without changing coverage rules", as
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
       assert.equal(body.p_limit, 100);
       assert.equal(typeof body.p_cutoff, "string");
+      verificationMode = true;
       return response([{
         id: "22",
         universeId: "2002",
@@ -296,6 +296,7 @@ test("collector keeps a collected run valid when ranking refresh fails", async (
     if (url.includes("games.roblox.com/v1/games")) return response({
       data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
     });
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
     if (url.includes("/rest/v1/Game?")) return response([{ id: "11", universeId: "1001" }]);
     if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
     if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
