@@ -43,4 +43,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS "Ranking_period_gameId_unique_idx"
 CREATE UNIQUE INDEX IF NOT EXISTS "Ranking_period_rank_unique_idx"
   ON public."Ranking" ("period", "rank");
 
+-- Ranking period definitions used by refresh_rankings():
+-- live   = latest qualifying snapshot, within 15 minutes
+-- weekly = current UTC calendar week, Monday through Sunday
+-- monthly = current UTC calendar month
+-- yearly = 365 UTC calendar dates
+--
 -- See database/cloudflare-collector-functions.sql for the canonical function body.
