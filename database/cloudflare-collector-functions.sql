@@ -455,9 +455,9 @@ BEGIN
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
-    WHERE s."timestamp" >= current_week_start
-      AND s."timestamp" < next_week_start
-      AND s."timestamp" <= calculated_at
+    WHERE COALESCE(l."startedAt", s."timestamp") >= current_week_start
+      AND COALESCE(l."startedAt", s."timestamp") < next_week_start
+      AND COALESCE(l."startedAt", s."timestamp") <= calculated_at
       AND (
         s."collectionRunId" IS NULL
         OR l."status" IN ('success', 'partial')
@@ -502,9 +502,9 @@ BEGIN
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
-    WHERE s."timestamp" >= current_month_start
-      AND s."timestamp" < next_month_start
-      AND s."timestamp" <= calculated_at
+    WHERE COALESCE(l."startedAt", s."timestamp") >= current_month_start
+      AND COALESCE(l."startedAt", s."timestamp") < next_month_start
+      AND COALESCE(l."startedAt", s."timestamp") <= calculated_at
       AND (
         s."collectionRunId" IS NULL
         OR l."status" IN ('success', 'partial')
