@@ -3,13 +3,11 @@
 -- Keep raw snapshots for at least 31 days; preserve summarized/peak/ranking
 -- history separately for long-term use.
 --
--- This SQL reflects the production retention setup. It is intentionally
--- separate from the collector deployment.
+-- Retention is guarded by the daily-summary repair path: a raw snapshot is
+-- deleted only after its UTC day has at least one persisted DailyGameStat row.
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- Supports the retention query's timestamp ordering/filtering as the
--- GameSnapshot table grows.
 CREATE INDEX IF NOT EXISTS "GameSnapshot_timestamp_id_idx"
   ON public."GameSnapshot" ("timestamp", "id");
 
@@ -26,7 +24,6 @@ DECLARE
   deleted_in_batch integer;
   deleted_total bigint := 0;
 BEGIN
-  -- Never allow cleanup to shorten the approved retention window.
   IF p_retention_days < 31 THEN
     RAISE EXCEPTION 'GameSnapshot retention must be at least 31 days';
   END IF;
@@ -38,12 +35,21 @@ BEGIN
   cutoff := now() - make_interval(days => p_retention_days);
 
   LOOP
-    DELETE FROM public."GameSnapshot"
-    WHERE "id" IN (
-      SELECT "id"
-      FROM public."GameSnapshot"
-      WHERE "timestamp" < cutoff
-      ORDER BY "timestamp", "id"
+    DELETE FROM public."GameSnapshot" s
+    WHERE s."id" IN (
+      SELECT s2."id"
+      FROM public."GameSnapshot" s2
+      WHERE s2."timestamp" < cutoff
+        AND EXISTS (
+          SELECT 1
+          FROM public."DailyGameStat" d
+          WHERE d."gameId" = s2."gameId"
+            AND d."date" = date_trunc(
+              'day',
+              s2."timestamp" AT TIME ZONE 'UTC'
+            ) AT TIME ZONE 'UTC'
+        )
+      ORDER BY s2."timestamp", s2."id"
       LIMIT p_batch_size
     );
 
@@ -57,7 +63,6 @@ BEGIN
 END;
 $$;
 
--- Cleanup is server-only. The public API must never be able to invoke it.
 REVOKE EXECUTE ON FUNCTION public.cleanup_game_snapshots(integer, integer)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.cleanup_game_snapshots(integer, integer)
@@ -67,10 +72,8 @@ ALTER FUNCTION public.cleanup_game_snapshots(integer, integer)
   SET search_path = public, pg_temp;
 
 COMMENT ON FUNCTION public.cleanup_game_snapshots(integer, integer)
-  IS 'Deletes GameSnapshot rows older than the approved retention window. Minimum retention is 31 days. Intended for scheduled server-side execution.';
+  IS 'Deletes GameSnapshot rows older than the approved retention window only when the corresponding UTC day has been summarized. Intended for scheduled server-side execution.';
 
--- Daily at 00:20 UTC / 08:20 PHT, after the daily summary at 00:05 UTC.
--- Idempotent: rerunning this entire file will not create a duplicate job.
 DO $do$
 BEGIN
   IF NOT EXISTS (
