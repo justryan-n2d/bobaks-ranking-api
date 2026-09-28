@@ -189,6 +189,7 @@ test("collector verifies stale active games without changing coverage rules", as
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
       assert.deepEqual(body.p_attempted_universe_ids, ["2002"]);
       assert.deepEqual(body.p_found_universe_ids, ["2002"]);
+      assert.deepEqual(body.p_confirmed_missing_universe_ids, []);
       assert.deepEqual(body.p_uncertain_universe_ids, []);
       return response(0);
     }
@@ -282,6 +283,7 @@ test("collector does not count a Roblox source gap as a miss", async () => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
       assert.deepEqual(body.p_attempted_universe_ids, ["2002", "2003", "2004"]);
       assert.deepEqual(new Set(body.p_found_universe_ids as string[]), new Set(["2002", "2003"]));
+      assert.deepEqual(body.p_confirmed_missing_universe_ids, []);
       assert.deepEqual(body.p_uncertain_universe_ids, ["2004"]);
       return response(1);
     }
