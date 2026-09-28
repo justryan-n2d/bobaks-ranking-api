@@ -294,7 +294,7 @@ async function getHistory(
     summaryRowsPromise
   ]);
 
-  const data = [
+  const data: JsonRow[] = [
     ...summaryRows.map(row => ({
       id: row.id,
       gameId: row.gameId,
@@ -307,10 +307,12 @@ async function getHistory(
       resolution: "daily"
     })),
     ...rawRows.map(row => ({ ...row, resolution: "snapshot" }))
-  ].sort((a, b) => {
-    const at = Date.parse(String(a.timestamp));
-    const bt = Date.parse(String(b.timestamp));
-    return at - bt || String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+  ];
+
+  data.sort((a, b) => {
+    const at = Date.parse(String(a.timestamp ?? ""));
+    const bt = Date.parse(String(b.timestamp ?? ""));
+    return at - bt || String(a.id ?? "").localeCompare(String(b.id ?? ""), undefined, { numeric: true });
   });
 
   return { resolution: "mixed", data };
