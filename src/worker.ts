@@ -22,6 +22,7 @@ const ROBLOX_OFFICIAL_BASE = 'https://apis.roblox.com';
 const ROBLOX_OFFICIAL_GAMES = 'https://games.roblox.com/v1/games';
 const ROBLOX_PROXY_BASE = 'https://apis.roproxy.com';
 const ROBLOX_PROXY_GAMES = 'https://games.roproxy.com/v1/games';
+const ROBLOX_DEVELOP_UNIVERSES = 'https://develop.roblox.com/v1/universes';
 const ROBLOX_OFFICIAL_ICONS = 'https://thumbnails.roblox.com/v1/games/icons';
 const ROBLOX_PROXY_ICONS = 'https://thumbnails.roproxy.com/v1/games/icons';
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -367,6 +368,177 @@ async function listStaleActiveGames(
   });
 }
 
+interface VerificationPresenceResult {
+  foundUniverseIds: string[];
+  confirmedMissingUniverseIds: string[];
+  uncertainUniverseIds: string[];
+}
+
+function universeIdsFromInfo(infos: Array<Record<string, unknown>>): Set<string> {
+  return new Set(
+    infos
+      .map(info => String(info.id ?? info.universeId ?? ''))
+      .filter(id => /^\d+$/.test(id))
+  );
+}
+
+async function getVerificationInfo(
+  universeIds: string[],
+  fetchImpl: FetchLike,
+  env: Env,
+  baseUrl: string
+): Promise<{ found: Set<string>; requestFailed: boolean }> {
+  const found = new Set<string>();
+  let requestFailed = false;
+
+  for (let i = 0; i < universeIds.length; i += 10) {
+    const batch = universeIds.slice(i, i + 10);
+    const query = batch.join(',');
+
+    try {
+      const response = await robloxJson(`${baseUrl}?universeIds=${query}`, fetchImpl, env);
+      if (!Array.isArray(response.data)) {
+        requestFailed = true;
+      } else {
+        for (const id of universeIdsFromInfo(response.data as Array<Record<string, unknown>>)) {
+          found.add(id);
+        }
+      }
+    } catch (error) {
+      requestFailed = true;
+      console.warn(`Roblox verification source failed: ${baseUrl}`, error);
+    }
+
+    const throttle = intEnv(env.ROBLOX_THROTTLE_MS, DEFAULT_THROTTLE_MS);
+    if (throttle && i + 10 < universeIds.length) {
+      await new Promise(resolve => setTimeout(resolve, throttle));
+    }
+  }
+
+  return { found, requestFailed };
+}
+
+async function getVerificationThumbnailIds(
+  universeIds: string[],
+  fetchImpl: FetchLike,
+  env: Env,
+  baseUrl: string
+): Promise<{ found: Set<string>; requestFailed: boolean }> {
+  const found = new Set<string>();
+  let requestFailed = false;
+
+  for (let i = 0; i < universeIds.length; i += 100) {
+    const batch = universeIds.slice(i, i + 100);
+    if (!batch.length) continue;
+
+    const params = `?universeIds=${encodeURIComponent(batch.join(','))}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false`;
+
+    try {
+      const response = await robloxJson(`${baseUrl}${params}`, fetchImpl, env);
+      if (!Array.isArray(response.data)) {
+        requestFailed = true;
+        continue;
+      }
+
+      for (const item of response.data) {
+        if (!item || typeof item !== 'object') continue;
+        const row = item as Record<string, unknown>;
+        const id = String(row.targetId ?? '');
+        if (/^\d+$/.test(id) && universeIds.includes(id)) {
+          found.add(id);
+        }
+      }
+    } catch (error) {
+      requestFailed = true;
+      console.warn(`Roblox verification thumbnail source failed: ${baseUrl}`, error);
+    }
+  }
+
+  return { found, requestFailed };
+}
+
+async function probeVerificationUniverse(
+  universeId: string,
+  fetchImpl: FetchLike,
+  env: Env
+): Promise<'found' | 'missing' | 'uncertain'> {
+  try {
+    const response = await robloxJson(`${ROBLOX_DEVELOP_UNIVERSES}/${encodeURIComponent(universeId)}`, fetchImpl, env);
+    if (!response || typeof response !== 'object') return 'uncertain';
+    return 'found';
+  } catch (error) {
+    const message = formatError(error);
+    if (message.includes('Roblox HTTP 404')) return 'missing';
+    console.warn(`Roblox universe existence probe failed for ${universeId}:`, error);
+    return 'uncertain';
+  }
+}
+
+async function verifyUniversePresence(
+  universeIds: string[],
+  fetchImpl: FetchLike,
+  env: Env
+): Promise<VerificationPresenceResult> {
+  const found = new Set<string>();
+
+  const officialGames = await getVerificationInfo(
+    universeIds,
+    fetchImpl,
+    env,
+    ROBLOX_OFFICIAL_GAMES
+  );
+  const proxyGames = await getVerificationInfo(
+    universeIds,
+    fetchImpl,
+    env,
+    ROBLOX_PROXY_GAMES
+  );
+
+  for (const id of officialGames.found) found.add(id);
+  for (const id of proxyGames.found) found.add(id);
+
+  let unresolved = universeIds.filter(id => !found.has(id));
+
+  if (unresolved.length) {
+    const officialThumbs = await getVerificationThumbnailIds(
+      unresolved,
+      fetchImpl,
+      env,
+      ROBLOX_OFFICIAL_ICONS
+    );
+    const proxyThumbs = await getVerificationThumbnailIds(
+      unresolved,
+      fetchImpl,
+      env,
+      ROBLOX_PROXY_ICONS
+    );
+
+    for (const id of officialThumbs.found) found.add(id);
+    for (const id of proxyThumbs.found) found.add(id);
+  }
+
+  unresolved = universeIds.filter(id => !found.has(id));
+  const confirmedMissingUniverseIds: string[] = [];
+  const uncertainUniverseIds: string[] = [];
+
+  for (const id of unresolved) {
+    const probe = await probeVerificationUniverse(id, fetchImpl, env);
+    if (probe === 'found') {
+      found.add(id);
+    } else if (probe === 'missing') {
+      confirmedMissingUniverseIds.push(id);
+    } else {
+      uncertainUniverseIds.push(id);
+    }
+  }
+
+  return {
+    foundUniverseIds: [...found],
+    confirmedMissingUniverseIds,
+    uncertainUniverseIds
+  };
+}
+
 async function verifyStaleGames(
   env: Env,
   fetchImpl: FetchLike,
@@ -377,20 +549,30 @@ async function verifyStaleGames(
   if (!candidates.length) return 0;
 
   const attemptedUniverseIds = candidates.map(game => game.universeId);
-  const infos = await getUniverseInfo(attemptedUniverseIds, fetchImpl, env);
-  const foundUniverseIds = [
-    ...new Set(
-      infos
-        .map(info => String(info.id ?? info.universeId ?? ''))
-        .filter(id => /^\d+$/.test(id))
-    )
-  ];
+  const presence = await verifyUniversePresence(attemptedUniverseIds, fetchImpl, env);
+
+  if (presence.uncertainUniverseIds.length) {
+    console.warn(
+      `Skipping miss increments for ${presence.uncertainUniverseIds.length} stale games because Roblox verification was inconclusive.`
+    );
+  }
+
+  const classifiedCount =
+    presence.foundUniverseIds.length +
+    presence.confirmedMissingUniverseIds.length +
+    presence.uncertainUniverseIds.length;
+
+  if (classifiedCount !== attemptedUniverseIds.length) {
+    throw new Error('Roblox verification classification did not cover every attempted universe');
+  }
 
   const response = await supabaseRequest(env, 'rpc/verify_game_activity', fetchImpl, {
     method: 'POST',
     body: JSON.stringify({
       p_attempted_universe_ids: attemptedUniverseIds,
-      p_found_universe_ids: foundUniverseIds,
+      p_found_universe_ids: presence.foundUniverseIds,
+      p_confirmed_missing_universe_ids: presence.confirmedMissingUniverseIds,
+      p_uncertain_universe_ids: presence.uncertainUniverseIds,
       p_verified_at: verifiedAt
     })
   });
