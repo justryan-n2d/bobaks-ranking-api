@@ -557,11 +557,21 @@ async function verifyStaleGames(
     );
   }
 
+  const classifiedCount =
+    presence.foundUniverseIds.length +
+    presence.confirmedMissingUniverseIds.length +
+    presence.uncertainUniverseIds.length;
+
+  if (classifiedCount !== attemptedUniverseIds.length) {
+    throw new Error('Roblox verification classification did not cover every attempted universe');
+  }
+
   const response = await supabaseRequest(env, 'rpc/verify_game_activity', fetchImpl, {
     method: 'POST',
     body: JSON.stringify({
       p_attempted_universe_ids: attemptedUniverseIds,
       p_found_universe_ids: presence.foundUniverseIds,
+      p_confirmed_missing_universe_ids: presence.confirmedMissingUniverseIds,
       p_uncertain_universe_ids: presence.uncertainUniverseIds,
       p_verified_at: verifiedAt
     })
