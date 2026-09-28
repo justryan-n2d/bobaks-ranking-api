@@ -250,9 +250,12 @@ async function getHistory(
 ): Promise<{ data: JsonRow[]; resolution: "snapshot" | "mixed" }> {
   const now = new Date();
   const requestedSince = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  const rawSince = new Date(now.getTime() - RAW_HISTORY_DAYS * 24 * 60 * 60 * 1000);
+  const rollingRawSince = new Date(now.getTime() - RAW_HISTORY_DAYS * 24 * 60 * 60 * 1000);
+  // Split long history at a UTC day boundary so daily summaries and raw
+  // snapshots do not leave a partial-day gap at the retention boundary.
+  const rawSince = utcDayStart(rollingRawSince);
 
-  const rawFrom = requestedSince > rawSince ? requestedSince : rawSince;
+  const rawFrom = requestedSince > rollingRawSince ? requestedSince : rawSince;
   const rawRowsPromise = supabaseGet(
     env,
     "GameSnapshot",
