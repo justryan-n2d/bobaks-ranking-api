@@ -99,6 +99,18 @@ function makeFetch(calls: { url: string; headers: Headers }[]): typeof fetch {
       }]);
     }
 
+    if (url.includes("/rest/v1/DailyGameStat?")) {
+      return response([{
+        id: "88",
+        gameId: "1",
+        date: "2026-01-15T00:00:00.000Z",
+        averagePlayers: 80.5,
+        peakPlayers: 140,
+        lowestPlayers: 20,
+        totalSamples: 120
+      }]);
+    }
+
     if (url.includes("/rest/v1/GamePeak?")) {
       return response([{
         id: "7",
@@ -168,11 +180,40 @@ test("game, history, peak, and search endpoints return data", async () => {
   assert.equal((await game.json() as { data: { name: string } }).data.name, "Test Game");
 
   const history = await handleApi(new Request("https://api.example/api/games/1/history?days=30"), env, fetchImpl);
-  const historyBody = await history.json() as { gameId: string; days: number; data: unknown[] };
+  const historyBody = await history.json() as {
+    gameId: string;
+    days: number;
+    resolution: string;
+    data: Array<{ resolution: string }>;
+  };
   assert.equal(history.status, 200);
   assert.equal(historyBody.gameId, "1");
   assert.equal(historyBody.days, 30);
+  assert.equal(historyBody.resolution, "snapshot");
   assert.equal(historyBody.data.length, 1);
+  assert.equal(historyBody.data[0].resolution, "snapshot");
+
+  const longHistory = await handleApi(
+    new Request("https://api.example/api/games/1/history?days=365"),
+    env,
+    fetchImpl
+  );
+  const longHistoryBody = await longHistory.json() as {
+    gameId: string;
+    days: number;
+    resolution: string;
+    data: Array<{ resolution: string; playerCount: number }>;
+  };
+  assert.equal(longHistory.status, 200);
+  assert.equal(longHistoryBody.gameId, "1");
+  assert.equal(longHistoryBody.days, 365);
+  assert.equal(longHistoryBody.resolution, "mixed");
+  assert.equal(longHistoryBody.data.length, 2);
+  assert.equal(longHistoryBody.data[0].resolution, "daily");
+  assert.equal(longHistoryBody.data[0].playerCount, 80.5);
+  assert.equal(longHistoryBody.data[1].resolution, "snapshot");
+  assert.ok(calls.some(call => call.url.includes("/rest/v1/DailyGameStat?")));
+  assert.ok(calls.some(call => call.url.includes("date.lt=")));
 
   const peak = await handleApi(new Request("https://api.example/api/games/1/peak"), env, fetchImpl);
   assert.equal(peak.status, 200);

@@ -232,24 +232,90 @@ async function getGameById(env: Env, id: string, fetchImpl: FetchLike): Promise<
   return rows[0] ?? null;
 }
 
+const RAW_HISTORY_DAYS = 31;
+
+function utcDayStart(date: Date): Date {
+  return new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  ));
+}
+
 async function getHistory(
   env: Env,
   gameId: string,
   days: number,
   fetchImpl: FetchLike
-): Promise<JsonRow[]> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  return supabaseGet(
+): Promise<{ data: JsonRow[]; resolution: "snapshot" | "mixed" }> {
+  const now = new Date();
+  const requestedSince = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const rawSince = new Date(now.getTime() - RAW_HISTORY_DAYS * 24 * 60 * 60 * 1000);
+
+  const rawFrom = requestedSince > rawSince ? requestedSince : rawSince;
+  const rawRowsPromise = supabaseGet(
     env,
     "GameSnapshot",
     {
       select: "id,gameId,playerCount,timestamp",
       gameId: `eq.${gameId}`,
-      timestamp: `gte.${since}`,
+      timestamp: `gte.${rawFrom.toISOString()}`,
       order: "timestamp.asc,id.asc"
     },
     fetchImpl
   );
+
+  if (requestedSince >= rawSince) {
+    const rawRows = await rawRowsPromise;
+    return {
+      resolution: "snapshot",
+      data: rawRows.map(row => ({ ...row, resolution: "snapshot" }))
+    };
+  }
+
+  const summaryFrom = utcDayStart(requestedSince).toISOString();
+  const summaryUntil = utcDayStart(rawSince).toISOString();
+
+  const summaryRowsPromise = supabaseGet(
+    env,
+    "DailyGameStat",
+    {
+      select: "id,gameId,date,averagePlayers,peakPlayers,lowestPlayers,totalSamples",
+      gameId: `eq.${gameId}`,
+      date: `gte.${summaryFrom}`,
+      "date.lt": summaryUntil,
+      order: "date.asc,id.asc"
+    },
+    fetchImpl
+  );
+
+  const [rawRows, summaryRows] = await Promise.all([
+    rawRowsPromise,
+    summaryRowsPromise
+  ]);
+
+  const data: JsonRow[] = [
+    ...summaryRows.map(row => ({
+      id: row.id,
+      gameId: row.gameId,
+      playerCount: Number(row.averagePlayers),
+      timestamp: row.date,
+      averagePlayers: Number(row.averagePlayers),
+      peakPlayers: Number(row.peakPlayers),
+      lowestPlayers: Number(row.lowestPlayers),
+      totalSamples: Number(row.totalSamples),
+      resolution: "daily"
+    })),
+    ...rawRows.map(row => ({ ...row, resolution: "snapshot" }))
+  ];
+
+  data.sort((a, b) => {
+    const at = Date.parse(String(a.timestamp ?? ""));
+    const bt = Date.parse(String(b.timestamp ?? ""));
+    return at - bt || String(a.id ?? "").localeCompare(String(b.id ?? ""), undefined, { numeric: true });
+  });
+
+  return { resolution: "mixed", data };
 }
 
 async function getPeak(env: Env, gameId: string, fetchImpl: FetchLike): Promise<JsonRow | null> {
@@ -493,8 +559,13 @@ async function handleApi(
     }
 
     try {
-      const data = await getHistory(env, historyMatch[1], days, fetchImpl);
-      return json({ gameId: historyMatch[1], days, data });
+      const history = await getHistory(env, historyMatch[1], days, fetchImpl);
+      return json({
+        gameId: historyMatch[1],
+        days,
+        resolution: history.resolution,
+        data: history.data
+      });
     } catch (error) {
       console.error("GET /api/games/:id/history failed:", error);
       return json({ error: "Database unavailable" }, 503);

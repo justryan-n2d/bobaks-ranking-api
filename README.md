@@ -20,7 +20,7 @@ Backend and data collection services for Bobaks Ranking.
 - GET /api/rankings/methodology
 - GET /api/rankings/audit
 - GET /api/games
-- GET /api/games/:id/history?days=7
+- GET /api/games/:id/history?days=7 (1-31 days: raw snapshots; over 31 days: older daily averages plus recent raw snapshots)
 - GET /api/search?q=...
 
 ### Collector
