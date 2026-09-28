@@ -557,8 +557,13 @@ async function handleApi(
     }
 
     try {
-      const data = await getHistory(env, historyMatch[1], days, fetchImpl);
-      return json({ gameId: historyMatch[1], days, data });
+      const history = await getHistory(env, historyMatch[1], days, fetchImpl);
+      return json({
+        gameId: historyMatch[1],
+        days,
+        resolution: history.resolution,
+        data: history.data
+      });
     } catch (error) {
       console.error("GET /api/games/:id/history failed:", error);
       return json({ error: "Database unavailable" }, 503);
