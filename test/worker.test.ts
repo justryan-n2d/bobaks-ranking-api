@@ -189,7 +189,101 @@ test("collector verifies stale active games without changing coverage rules", as
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
       assert.deepEqual(body.p_attempted_universe_ids, ["2002"]);
       assert.deepEqual(body.p_found_universe_ids, ["2002"]);
+      assert.deepEqual(body.p_uncertain_universe_ids, []);
       return response(0);
+    }
+
+    if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  const verification = calls.find(call => call.url.includes("/rest/v1/rpc/verify_game_activity"));
+  assert.ok(verification);
+});
+
+test("collector does not count a Roblox source gap as a miss", async () => {
+  const calls: { url: string; method: string; body?: string }[] = [];
+  let verificationMode = false;
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    calls.push({
+      url,
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : undefined
+    });
+
+    if (url.includes("/get-sorts?")) {
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+    if (url.includes("/get-sort-content?")) {
+      return response({ data: [{ universeId: "1001" }] });
+    }
+    if (url.startsWith("https://thumbnails.roblox.com/v1/games/icons")) {
+      return verificationMode
+        ? response({ data: [{ targetId: 2003, imageUrl: "https://cdn.example/2003.png" }] })
+        : response({ data: [] });
+    }
+    if (url.startsWith("https://thumbnails.roproxy.com/v1/games/icons")) {
+      return response({ data: [] });
+    }
+
+    if (url.startsWith("https://games.roblox.com/v1/games")) {
+      if (verificationMode) {
+        return response({
+          data: [
+            { id: 2002, rootPlaceId: 3002, name: "Found", creator: { id: 3002, name: "B" }, playing: 34 }
+          ]
+        });
+      }
+      return response({
+        data: [
+          { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }
+        ]
+      });
+    }
+
+    if (url.startsWith("https://games.roproxy.com/v1/games")) {
+      return response({ data: [] });
+    }
+
+    if (url.startsWith("https://develop.roblox.com/v1/universes/2004")) {
+      return new Response(JSON.stringify("not-an-object"), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }
+
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) {
+      verificationMode = true;
+      return response([
+        { id: "22", universeId: "2002", lastVerificationAttemptAt: null, verificationMisses: 0 },
+        { id: "23", universeId: "2003", lastVerificationAttemptAt: null, verificationMisses: 1 },
+        { id: "24", universeId: "2004", lastVerificationAttemptAt: null, verificationMisses: 2 }
+      ]);
+    }
+
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      return response([{ id: "11", universeId: "1001" }]);
+    }
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+
+    if (url.includes("/rest/v1/rpc/verify_game_activity")) {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      assert.deepEqual(body.p_attempted_universe_ids, ["2002", "2003", "2004"]);
+      assert.deepEqual(new Set(body.p_found_universe_ids as string[]), new Set(["2002", "2003"]));
+      assert.deepEqual(body.p_uncertain_universe_ids, ["2004"]);
+      return response(1);
     }
 
     if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
