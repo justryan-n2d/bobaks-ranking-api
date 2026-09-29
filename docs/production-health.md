@@ -29,7 +29,13 @@ GitHub Actions runs `.github/workflows/production-health.yml` every 15 minutes a
 
 A failing check causes the workflow run to fail. GitHub Actions notifications can then surface the incident through the repository's configured notification settings.
 
-This is intentionally a first monitoring layer. Later phases can add alert routing, metrics, and longer-term reliability tracking.
+## Failure detection and alerting
+
+Phase 4 Part 4 adds explicit failure telemetry to the API deep-health response. The API reports collection failures and ranking-refresh failures from the last 30 minutes, plus stale ranking-refresh attempts.
+
+The collector records each ranking refresh as `pending`, `success`, or `failed` on the collection run. A refresh failure does not invalidate the collected snapshots.
+
+GitHub Actions runs `.github/workflows/production-alerting.yml` every 15 minutes. It checks the API and collector, creates one open `🚨 Bobaks production incident` issue while an incident is active, and closes that issue automatically after recovery. This turns transient failures into a visible incident record instead of relying only on the live health page.
 
 ## Current R2 status
 
