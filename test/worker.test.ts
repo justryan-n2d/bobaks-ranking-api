@@ -54,8 +54,13 @@ test("collector retries Roblox HTTP 429 and continues without recording a failur
     if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
 
     if (url.includes("/rest/v1/DataCollectionLog")) {
+      const method = init?.method ?? "GET";
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      logStatus = String(body.status);
+      if (method === "POST") {
+        logStatus = String(body.status);
+      } else if (method === "PATCH") {
+        assert.equal(body.rankingRefreshStatus, "success");
+      }
       return new Response("", { status: 201 });
     }
 
@@ -142,7 +147,8 @@ test("scheduled collector performs the complete collection cycle", async () => {
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/GameSnapshot")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/record_game_peaks")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/refresh_rankings")).length, 1);
-  assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog")).length, 1);
+  assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog") && c.method === "POST").length, 1);
+  assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog") && c.method === "PATCH").length, 1);
 });
 
 test("thumbnail collection falls back from empty official data and preserves missing icons", async () => {
@@ -479,7 +485,7 @@ test("collector records ranking refresh failure without invalidating the collect
         refreshError = String(payload.rankingRefreshErrorMessage);
         assert.equal(payload.rankingRefreshStatus, "failed");
       }
-      return new Response("", { status: 204 });
+      return new Response("", { status: 201 });
     }
     if (url.includes("/rest/v1/rpc/refresh_rankings")) return new Response("refresh failed", { status: 500 });
     throw new Error(`Unhandled URL: ${url}`);
