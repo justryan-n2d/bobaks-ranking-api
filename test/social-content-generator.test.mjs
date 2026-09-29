@@ -43,3 +43,53 @@ test("scheduled workflow runs daily, supports manual dispatch, and retains artif
   assert.match(workflow, /retention-days: 14/);
   assert.match(workflow, /permissions:\n\s+contents: read/);
 });
+
+import { buildDiscordPayload, publishDiscordPost } from "../scripts/publish-social-discord.mjs";
+
+test("Discord publisher builds a plain webhook payload and accepts 204", async () => {
+  assert.deepEqual(
+    buildDiscordPayload("🔥 Top 10 Roblox games this week"),
+    { content: "🔥 Top 10 Roblox games this week" }
+  );
+
+  let requested = null;
+  const fakeFetch = async (url, init) => {
+    requested = { url, init };
+    return new Response(null, { status: 204 });
+  };
+
+  const result = await publishDiscordPost(
+    "https://discord.com/api/webhooks/123/token",
+    "🔥 Top 10 Roblox games this week",
+    fakeFetch
+  );
+
+  assert.equal(result, true);
+  assert.equal(requested.init.method, "POST");
+  assert.equal(requested.init.headers["content-type"], "application/json");
+  assert.equal(requested.init.headers["user-agent"], "Bobaks-Ranking-Social/1.0");
+  assert.match(requested.url, /wait=true$/);
+  assert.deepEqual(
+    JSON.parse(requested.init.body),
+    { content: "🔥 Top 10 Roblox games this week" }
+  );
+});
+
+test("Discord publisher rejects non-success responses", async () => {
+  const fakeFetch = async () => new Response("rate limited", { status: 429 });
+  await assert.rejects(
+    () => publishDiscordPost(
+      "https://discord.com/api/webhooks/123/token",
+      "hello",
+      fakeFetch
+    ),
+    /Discord webhook failed: HTTP 429/
+  );
+});
+
+test("Discord publisher rejects empty content", async () => {
+  await assert.rejects(
+    () => publishDiscordPost("https://discord.com/api/webhooks/123/token", "   ", async () => new Response(null, {status:204})),
+    /content is empty/i
+  );
+});
