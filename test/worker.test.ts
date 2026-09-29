@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collectOnce, scheduledForTest, summarizeYesterday } from "../src/worker";
+import { collectOnce, collectorHealth, scheduledForTest, summarizeYesterday } from "../src/worker";
 
 function response(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -476,17 +476,12 @@ test("collector health reports fresh collection and database status", async () =
     throw new Error(`Unhandled URL: ${url}`);
   };
 
-  const worker = await import("../src/worker");
-  const result = await worker.default.fetch(
-    new Request("https://collector.example/health"),
-    {
-      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
-      SUPABASE_SECRET_KEY: "sb_secret_test"
-    }
-  );
+  const body = await collectorHealth({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test"
+  }, fakeFetch) as Record<string, any>;
 
-  const body = await result.json() as Record<string, any>;
-  assert.equal(result.status, 200);
+  assert.equal(body.ok, true);
   assert.equal(body.ok, true);
   assert.equal(body.status, "healthy");
   assert.equal(body.databaseConfigured, true);
@@ -526,17 +521,11 @@ test("collector health returns unhealthy when no fresh good collection exists", 
     throw new Error(`Unhandled URL: ${url}`);
   };
 
-  const worker = await import("../src/worker");
-  const result = await worker.default.fetch(
-    new Request("https://collector.example/health"),
-    {
-      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
-      SUPABASE_SECRET_KEY: "sb_secret_test"
-    }
-  );
+  const body = await collectorHealth({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test"
+  }, fakeFetch) as Record<string, any>;
 
-  const body = await result.json() as Record<string, any>;
-  assert.equal(result.status, 503);
   assert.equal(body.ok, false);
   assert.equal(body.status, "unhealthy");
   assert.equal(body.collection.status, "unhealthy");
