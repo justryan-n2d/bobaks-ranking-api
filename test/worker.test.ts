@@ -405,6 +405,7 @@ test("collector finalizes the run before refreshing rankings", async () => {
   const order: string[] = [];
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
+    const method = init?.method ?? "GET";
     if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
     if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
     if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
@@ -422,9 +423,14 @@ test("collector finalizes the run before refreshing rankings", async () => {
       return response(1);
     }
     if (url.includes("/rest/v1/DataCollectionLog")) {
-      order.push("log");
       const payload = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      assert.equal(payload.status, "success");
+      if (method === "POST") {
+        order.push("log");
+        assert.equal(payload.status, "success");
+      } else if (method === "PATCH") {
+        order.push("log-update");
+        assert.equal(payload.rankingRefreshStatus, "success");
+      }
       return new Response("", { status: 201 });
     }
     if (url.includes("/rest/v1/rpc/refresh_rankings")) {
@@ -440,14 +446,17 @@ test("collector finalizes the run before refreshing rankings", async () => {
     ROBLOX_THROTTLE_MS: "0"
   }, fakeFetch);
 
-  assert.deepEqual(order, ["snapshot", "peaks", "log", "refresh"]);
+  assert.deepEqual(order, ["snapshot", "peaks", "log", "refresh", "log-update"]);
 });
 
-test("collector keeps a collected run valid when ranking refresh fails", async () => {
-  let logCount = 0;
-  let logStatus = "";
+test("collector records ranking refresh failure without invalidating the collection run", async () => {
+  let insertLogCount = 0;
+  let refreshUpdateCount = 0;
+  let refreshStatus = "";
+  let refreshError = "";
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
+    const method = init?.method ?? "GET";
     if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
     if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
     if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
@@ -459,9 +468,18 @@ test("collector keeps a collected run valid when ranking refresh fails", async (
     if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
     if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
     if (url.includes("/rest/v1/DataCollectionLog")) {
-      logCount++;
-      logStatus = String((JSON.parse(String(init?.body)) as Record<string, unknown>).status);
-      return new Response("", { status: 201 });
+      const payload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      if (method === "POST") {
+        insertLogCount++;
+        assert.equal(payload.status, "success");
+        assert.equal(payload.rankingRefreshStatus, "pending");
+      } else if (method === "PATCH") {
+        refreshUpdateCount++;
+        refreshStatus = String(payload.rankingRefreshStatus);
+        refreshError = String(payload.rankingRefreshErrorMessage);
+        assert.equal(payload.rankingRefreshStatus, "failed");
+      }
+      return new Response("", { status: 204 });
     }
     if (url.includes("/rest/v1/rpc/refresh_rankings")) return new Response("refresh failed", { status: 500 });
     throw new Error(`Unhandled URL: ${url}`);
@@ -473,8 +491,10 @@ test("collector keeps a collected run valid when ranking refresh fails", async (
     ROBLOX_THROTTLE_MS: "0"
   }, fakeFetch), /refresh_rankings HTTP 500/);
 
-  assert.equal(logCount, 1);
-  assert.equal(logStatus, "success");
+  assert.equal(insertLogCount, 1);
+  assert.equal(refreshUpdateCount, 1);
+  assert.equal(refreshStatus, "failed");
+  assert.match(refreshError, /refresh_rankings HTTP 500/);
 });
 
 test("collector records failure when Roblox is unavailable", async () => {
