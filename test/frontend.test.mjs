@@ -213,3 +213,41 @@ test("share helper communicates platform limitations instead of claiming guarant
   assert.match(html, /Some apps accept an image and text together/);
   assert.match(html, /prepares the caption and image separately/);
 });
+
+test("game rank cards use ordinal rank labels and rank-specific TOP badges", () => {
+  const html = readHtml();
+
+  assert.match(html, /function ordinalRank\(rank\)/);
+  assert.match(html, /const suffix=\(/);
+  assert.match(html, /ctx\.fillText\(ord\.number/);
+  assert.match(html, /ctx\.fillText\(ord\.suffix/);
+  assert.match(html, /badge:'TOP 1'/);
+  assert.match(html, /badge:'TOP 3'/);
+  assert.match(html, /badge:'TOP 10'/);
+  assert.match(html, /badge:'TOP 25'/);
+  assert.match(html, /badge:'TOP 100'/);
+  assert.match(html, /badge:'DISCOVERED'/);
+  assert.match(html, /drawOrdinalRank\(ctx,rank,W\/2,315\)/);
+});
+
+test("game rank cards embed a self-contained QR code linked to the Bobaks website", () => {
+  const html = readHtml();
+
+  assert.match(html, /<script src="\/qrcode-generator\.js"><\/script>/);
+  assert.match(html, /function drawCardQr\(ctx,text,x,y,size,tier\)/);
+  assert.match(html, /const qr=qrcode\(0,'M'\)/);
+  assert.match(html, /qr\.addData\(text,'Byte'\)/);
+  assert.match(html, /drawCardQr\(ctx,cardLink,930,1430,150,tier\)/);
+  assert.match(html, /Scan the QR code to visit Bobaks Ranking/);
+});
+
+test("social helper buttons use custom neutral share icons and a consistent stacked layout", () => {
+  const html = readHtml();
+
+  assert.match(html, /function shareIconSvg\(key\)/);
+  assert.match(html, /data-platform/);
+  assert.match(html, /platform-icon/);
+  assert.match(html, /<strong>\$\{name\}<\/strong>/);
+  assert.match(html, /<small>\$\{sub\}<\/small>/);
+  assert.match(html, /rank-card-platform-grid/);
+});
