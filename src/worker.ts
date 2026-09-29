@@ -29,6 +29,30 @@ const DEFAULT_TIMEOUT_MS = 15000;
 const DEFAULT_THROTTLE_MS = 150;
 const ROBLOX_RETRY_ATTEMPTS = 3;
 const ROBLOX_RETRY_DELAYS_MS = [500, 1000];
+const ROBLOX_MAX_RETRY_AFTER_MS = 15000;
+
+function retryDelayMs(response: Response, attempt: number): number {
+  const retryAfter = response.headers.get('Retry-After');
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.min(Math.floor(seconds * 1000), ROBLOX_MAX_RETRY_AFTER_MS);
+    }
+
+    const retryAt = Date.parse(retryAfter);
+    if (Number.isFinite(retryAt)) {
+      return Math.max(
+        0,
+        Math.min(retryAt - Date.now(), ROBLOX_MAX_RETRY_AFTER_MS)
+      );
+    }
+  }
+
+  return Math.min(
+    ROBLOX_RETRY_DELAYS_MS[attempt - 1] ?? 2000,
+    ROBLOX_MAX_RETRY_AFTER_MS
+  );
+}
 
 function requiredSupabaseKey(env: Env): string {
   const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -65,14 +89,30 @@ async function robloxJson(url: string, fetchImpl: FetchLike, env: Env): Promise<
         headers: { 'User-Agent': 'BobaksRanking/2.0' },
         signal: controller.signal
       });
-      if (!response.ok) throw new Error(`Roblox HTTP ${response.status}`);
-      return (await response.json()) as Json;
+
+      if (response.ok) {
+        return (await response.json()) as Json;
+      }
+
+      if (response.status === 429 && attempt < ROBLOX_RETRY_ATTEMPTS) {
+        const delay = retryDelayMs(response, attempt);
+        console.warn(
+          `Roblox HTTP 429 (attempt ${attempt}/${ROBLOX_RETRY_ATTEMPTS}), retrying in ${delay}ms`
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw new Error(`Roblox HTTP ${response.status}`);
     } catch (error) {
       if (attempt === ROBLOX_RETRY_ATTEMPTS || !isRetryableRobloxError(error)) {
         throw error;
       }
 
-      const delay = ROBLOX_RETRY_DELAYS_MS[attempt - 1] ?? 1000;
+      const delay = Math.min(
+        ROBLOX_RETRY_DELAYS_MS[attempt - 1] ?? 1000,
+        ROBLOX_MAX_RETRY_AFTER_MS
+      );
       console.warn(`Roblox request failed (attempt ${attempt}/${ROBLOX_RETRY_ATTEMPTS}), retrying in ${delay}ms:`, error);
       await new Promise(resolve => setTimeout(resolve, delay));
     } finally {
