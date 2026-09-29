@@ -1,0 +1,189 @@
+name: Bobaks Backup and Disaster Recovery
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bobaks-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pg_dump >/dev/null 2>&1 || ! command -v pg_restore >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Install AWS CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v aws >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y awscli
+          fi
+
+      - name: Validate backup configuration
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_DB_URL}" || { echo "Missing GitHub secret: SUPABASE_DB_URL"; exit 1; }
+          test -n "${R2_ENDPOINT}" || { echo "Missing GitHub secret: BOBAKS_R2_ENDPOINT"; exit 1; }
+          test -n "${R2_BUCKET}" || { echo "Missing GitHub secret: BOBAKS_R2_BUCKET"; exit 1; }
+          test -n "${R2_ACCESS_KEY_ID}" || { echo "Missing GitHub secret: BOBAKS_R2_ACCESS_KEY_ID"; exit 1; }
+          test -n "${R2_SECRET_ACCESS_KEY}" || { echo "Missing GitHub secret: BOBAKS_R2_SECRET_ACCESS_KEY"; exit 1; }
+          test -n "${BACKUP_ENCRYPTION_KEY}" || { echo "Missing GitHub secret: BACKUP_ENCRYPTION_KEY"; exit 1; }
+
+      - name: Create encrypted logical backup
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+
+          export PGCONNECT_TIMEOUT=30
+
+          TIMESTAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
+          DATE_UTC="$(date -u '+%Y-%m-%d')"
+          YEAR_UTC="$(date -u '+%Y')"
+          MONTH_UTC="$(date -u '+%m')"
+          DAY_UTC="$(date -u '+%d')"
+          DUMP="bobaks-public-${TIMESTAMP}.dump"
+          ENCRYPTED="${DUMP}.enc"
+
+          pg_dump             --dbname="${SUPABASE_DB_URL}"             --format=custom             --compress=6             --schema=public             --no-owner             --no-acl             --file="${DUMP}"
+
+          openssl enc             -aes-256-cbc             -salt             -pbkdf2             -iter 310000             -in "${DUMP}"             -out "${ENCRYPTED}"             -pass env:BACKUP_ENCRYPTION_KEY
+
+          SHA256="$(sha256sum "${ENCRYPTED}" | awk '{print $1}')"
+
+          printf '%s\n' "${TIMESTAMP}" > backup-timestamp.txt
+          printf '%s\n' "${DATE_UTC}" > backup-date.txt
+          printf '%s\n' "${DUMP}" > backup-dump.txt
+          printf '%s\n' "${ENCRYPTED}" > backup-encrypted.txt
+          printf '%s\n' "${SHA256}" > backup-sha256.txt
+          printf '%s\n' "${YEAR_UTC}" > backup-year.txt
+          printf '%s\n' "${MONTH_UTC}" > backup-month.txt
+          printf '%s\n' "${DAY_UTC}" > backup-day.txt
+
+          cat > manifest.json <<EOF
+          {
+            "service": "bobaks-ranking",
+            "type": "logical-public-schema-backup",
+            "format": "postgres-custom",
+            "encrypted": true,
+            "cipher": "aes-256-cbc",
+            "keyDerivation": "pbkdf2",
+            "timestampUtc": "${TIMESTAMP}",
+            "dateUtc": "${DATE_UTC}",
+            "gitCommit": "${GITHUB_SHA}",
+            "encryptedFile": "${ENCRYPTED}",
+            "sha256": "${SHA256}"
+          }
+          EOF
+
+      - name: Upload daily backup to R2
+        shell: bash
+        env:
+          R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+
+          TIMESTAMP="$(cat backup-timestamp.txt)"
+          YEAR="$(cat backup-year.txt)"
+          MONTH="$(cat backup-month.txt)"
+          DATE_UTC="$(cat backup-date.txt)"
+          ENCRYPTED="$(cat backup-encrypted.txt)"
+
+          DAILY_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
+          MANIFEST_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
+
+          aws s3 cp "${ENCRYPTED}"             "s3://${R2_BUCKET}/${DAILY_KEY}"             --endpoint-url "${R2_ENDPOINT}"             --content-type "application/octet-stream"             --no-progress
+
+          aws s3 cp manifest.json             "s3://${R2_BUCKET}/${MANIFEST_KEY}"             --endpoint-url "${R2_ENDPOINT}"             --content-type "application/json"             --no-progress
+
+          if [[ "$(date -u '+%u')" == "7" ]]; then
+            WEEKLY_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
+            WEEKLY_MANIFEST_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
+
+            aws s3 cp "${ENCRYPTED}"               "s3://${R2_BUCKET}/${WEEKLY_KEY}"               --endpoint-url "${R2_ENDPOINT}"               --content-type "application/octet-stream"               --no-progress
+
+            aws s3 cp manifest.json               "s3://${R2_BUCKET}/${WEEKLY_MANIFEST_KEY}"               --endpoint-url "${R2_ENDPOINT}"               --content-type "application/json"               --no-progress
+
+            printf '%s\n' "${WEEKLY_KEY}" > backup-weekly-key.txt
+          else
+            : > backup-weekly-key.txt
+          fi
+
+      - name: Verify remote backup integrity
+        shell: bash
+        env:
+          R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+
+          YEAR="$(cat backup-year.txt)"
+          MONTH="$(cat backup-month.txt)"
+          DATE_UTC="$(cat backup-date.txt)"
+          ENCRYPTED="$(cat backup-encrypted.txt)"
+          EXPECTED_SHA="$(cat backup-sha256.txt)"
+
+          DAILY_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
+          aws s3api head-object             --bucket "${R2_BUCKET}"             --key "${DAILY_KEY}"             --endpoint-url "${R2_ENDPOINT}" >/dev/null
+
+          aws s3 cp             "s3://${R2_BUCKET}/${DAILY_KEY}"             remote-backup.enc             --endpoint-url "${R2_ENDPOINT}"             --no-progress
+
+          ACTUAL_SHA="$(sha256sum remote-backup.enc | awk '{print $1}')"
+          test "${ACTUAL_SHA}" = "${EXPECTED_SHA}"
+
+          openssl enc             -d             -aes-256-cbc             -pbkdf2             -iter 310000             -in remote-backup.enc             -out restored-check.dump             -pass env:BACKUP_ENCRYPTION_KEY
+
+          pg_restore --list restored-check.dump >/dev/null
+
+          echo "Remote backup uploaded, checksum-verified, decrypted, and structurally readable."
+
+      - name: Publish backup summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Backup date: $(cat backup-date.txt)"
+          echo "Encrypted backup SHA-256: $(cat backup-sha256.txt)"
+          if [[ -s backup-weekly-key.txt ]]; then
+            echo "Weekly archive: $(cat backup-weekly-key.txt)"
+          else
+            echo "Weekly archive: not scheduled today"
+          fi
