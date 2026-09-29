@@ -540,6 +540,111 @@ html[data-theme="light"] .foot{color:#66819C}
 html[data-theme="light"] .foot button{color:#577490}
 html[data-theme="light"] .row:hover{background:rgba(1,158,251,.055)}
 html[data-theme="light"] .row:first-child{background:linear-gradient(90deg,rgba(1,158,251,.10),transparent 72%)}
+html[data-theme="light"] .nav button,
+html[data-theme="light"] .btn{color:#14304D;background:#FFFFFF;border-color:rgba(2,35,89,.14)}
+html[data-theme="light"] .nav button.active,
+html[data-theme="light"] .btn.primary{color:#fff;background:var(--accent);border-color:var(--accent)}
+html[data-theme="light"] .tabs{background:#FFFFFF}
+html[data-theme="light"] .tabs button{color:#4F6B88}
+html[data-theme="light"] .tabs button:hover{color:#14304D;background:#EEF6FD}
+html[data-theme="light"] .search-icon{color:#4E759D}
+html[data-theme="light"] .results button{color:#14304D}
+html[data-theme="light"] .results b{color:#14304D}
+html[data-theme="light"] .results small{color:#587490}
+html[data-theme="light"] .tag{color:#17547E;background:rgba(1,158,251,.08);border-color:rgba(1,158,251,.22)}
+html[data-theme="light"] .moving-label{color:#587490}
+html[data-theme="light"] .movement-badge{background:rgba(2,35,89,.045)}
+html[data-theme="light"] .up.movement-badge{background:rgba(55,214,162,.10)}
+html[data-theme="light"] .down.movement-badge{background:rgba(255,117,134,.10)}
+html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
+
+@media(max-width:760px){
+  .top{height:70px;padding:0 12px}
+  .brand{font-size:14px;gap:9px}
+  .mark{width:40px;height:40px;border-radius:12px}
+  .nav{gap:5px}
+  .nav button{padding:10px 11px;font-size:11px;min-height:40px}
+  .wrap{width:calc(100% - 20px);padding:24px 0 40px}
+  .hero{padding:24px 20px;border-radius:17px;margin-bottom:16px}
+  .hero h1{font-size:46px;line-height:1;letter-spacing:-.055em;margin:10px 0 12px}
+  .hero p{font-size:15px;line-height:1.6}
+  .eyebrow{font-size:11px;letter-spacing:.14em}
+  .hero-status{width:100%;max-width:none;margin-top:18px;padding:15px 16px;border-radius:14px}
+  .hero-status .status-label{font-size:10px}
+  .hero-status strong{font-size:13px}
+  .hero-status div{font-size:11px!important}
+  .controls{gap:10px;margin-bottom:14px}
+  .tabs{padding:4px;border-radius:13px}
+  .tabs button{padding:12px 9px;font-size:12px}
+  .controls>.btn{height:52px;font-size:14px}
+  .search{margin-bottom:18px}
+  .search input{height:54px;padding-left:45px;font-size:16px;border-radius:13px}
+  .search-icon{left:16px;font-size:17px}
+  .moving-section{margin-bottom:20px}
+  .moving-head{margin-bottom:12px;gap:6px}
+  .moving-head h2{font-size:20px}
+  .moving-head p{font-size:12px;line-height:1.45}
+  .moving-head .updated{font-size:10px}
+  .moving-grid{gap:11px}
+  .moving-card{padding:16px;border-radius:15px}
+  .moving-card-head{gap:12px}
+  .moving-card img{width:58px;height:58px;border-radius:12px}
+  .moving-info b{font-size:14px}
+  .moving-info small{font-size:10px;margin-top:4px}
+  .moving-rank{width:36px;height:36px;border-radius:10px;font-size:11px}
+  .moving-change{margin-top:12px;font-size:11px}
+  .moving-change strong{font-size:11px}
+  .moving-bar{height:5px;margin-top:9px}
+  .moving-label{font-size:10px;margin-top:2px}
+  .main-card,.side-card,.detail-head,.panel,.stat{border-radius:14px}
+  .listhead{padding:18px 15px 13px}
+  .listhead h2{font-size:20px}
+  .listhead p{font-size:11px}
+  .updated{font-size:10px}
+  .row{grid-template-columns:38px minmax(0,1fr) 92px;min-height:96px;padding:11px 13px}
+  .row img,.cover{width:56px;height:56px;border-radius:12px}
+  .game{gap:11px}
+  .game b{font-size:13px}
+  .game small{font-size:10px;margin-top:4px}
+  .game-tags{margin-top:7px}
+  .tag{padding:4px 8px;font-size:9px}
+  .players b{font-size:13px}
+  .players small{font-size:10px}
+  .movement{font-size:11px}
+  .movement-badge{padding:5px 8px}
+  .actions{gap:6px}
+  .mini{padding:8px 10px;font-size:10px;min-height:34px}
+  .empty{padding:56px 16px;font-size:13px}
+  .side-card{padding:17px}
+  .side-card h3{font-size:14px}
+  .side-card p{font-size:11px}
+  .data-list li,.data-list strong{font-size:11px}
+  .health-row{font-size:11px}
+  .health small{font-size:10px}
+  .foot{font-size:10px;line-height:1.6}
+  .foot button{font-size:10px}
+  .detail-head{padding:17px}
+  .detail-head h1{font-size:30px}
+  .detail-head p{font-size:12px}
+  .actions-wide .btn{font-size:12px;min-height:40px}
+  .stat{padding:14px}
+  .stat strong{font-size:21px}
+  .stat span,.stat small{font-size:10px}
+  .panel{padding:16px}
+  .panel h2{font-size:17px}
+  .panel p{font-size:11px}
+  .info h1{font-size:34px}
+  .info p{font-size:13px}
+}
+@media(max-width:390px){
+  .brand{font-size:13px}
+  .brand .brand-accent{display:none}
+  .nav button{padding:9px 9px;font-size:10px}
+  .hero h1{font-size:42px}
+  .moving-card img{width:54px;height:54px}
+  .moving-info b{font-size:13px}
+  .row{grid-template-columns:34px minmax(0,1fr) 86px}
+}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
