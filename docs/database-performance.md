@@ -90,3 +90,51 @@ The next database task can use this baseline to optimize the expensive audit and
 ## References
 
 The audit approach follows Supabase's current guidance to inspect query plans, index usage, cache hit rates, pg_stat_statements, and the Index Advisor rather than adding indexes indiscriminately.
+
+
+## Phase 4 Part 6.2: Query Optimization
+
+Production query optimization was completed on 2026-09-29 using the 6.1 baseline above and real PostgreSQL execution plans.
+
+### Before and after
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| refresh_rankings() mean from pg_stat_statements | 272.58 ms | 105.49 ms |
+| get_rankings_audit() direct EXPLAIN ANALYZE | 414.87 ms | 133.80 ms |
+| get_historical_recovery_audit(31) direct EXPLAIN ANALYZE | 199.02 ms | 42.90 ms |
+| Live latest-snapshot query | 110.56 ms | 3.62 ms |
+
+The measured reductions were approximately 61% for the end-to-end ranking refresh, 68% for the ranking audit, 78% for the historical recovery audit, and 97% for the standalone live latest-snapshot query.
+
+### Execution-plan changes
+
+The live ranking path no longer sorts the entire GameSnapshot table to find the newest row per game. It now performs an indexed per-game latest lookup using the existing GameSnapshot_gameId_timestamp_idx path and keeps the existing collection-run qualification and 15-minute freshness rule.
+
+Weekly and monthly ranking calculations share one current-period aggregation in the refresh and ranking-integrity SQL. The lower bound includes a UTC week that crosses a month boundary, so the existing calendar-period behavior is preserved.
+
+The historical recovery audit no longer joins DailyGameStat back to GameSnapshot just to count observed summary days. Raw snapshot min/max timestamps are derived from the existing source aggregation, while summary-day coverage is read directly from DailyGameStat.
+
+No new index was added in 4.6.2. The optimization uses indexes already justified by the 6.1 workload audit.
+
+### Correctness verification
+
+At a single fixed production timestamp, the old and optimized standalone ranking queries produced:
+
+| Ranking workload | Old rows | New rows | Differences |
+| --- | ---: | ---: | ---: |
+| Live | 121 | 121 | 0 |
+| Weekly | 120 | 120 | 0 |
+| Monthly | 124 | 124 | 0 |
+
+After the optimized functions were deployed, the production audit returned `auditStatus: passed`, historical recovery reported `recoverableDailyRows: 0`, and the persisted Ranking table contained 100 rows for live, weekly, monthly, and yearly, each with ranks 1 through 100 and 100 distinct games.
+
+### Production migration history
+
+The optimization was recorded in Supabase migration `20260929090843_optimize_ranking_and_audit_queries`. A follow-up correction migration `20260929091030_fix_query_optimization_audit_regressions` records the production-safe fixes made immediately after the first deployment.
+
+The repository contains the corresponding migration files under `supabase/migrations/`.
+
+### Scope
+
+Phase 4 Part 6.2 changed query execution strategy only. Ranking formulas, 50% coverage rules, game-activity rules, retention windows, and public API contracts remain unchanged.
