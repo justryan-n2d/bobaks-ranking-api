@@ -48,7 +48,8 @@ The implementation does not intentionally send player names, Roblox account IDs,
 ## Still pending in Phase 6
 
 These items should be implemented as separate, evidence-backed follow-up work:
-- actual third-party publishing to supported social platforms using explicitly configured credentials
+- enable the shipped Discord publisher by configuring the repository secret
+- add additional third-party publishers only when their credentials, APIs, and permissions are explicitly configured
 - community/Discord integration
 - game alerts and milestone notifications
 - richer return-loop surfaces for daily/weekly movers and new peaks
@@ -82,3 +83,17 @@ Actual third-party publishing remains separate so Bobaks can add platform-specif
 ## Phase 6.2 scheduled content generation
 
 The repository now has `.github/workflows/social-content-generation.yml`, which runs daily at 00:30 UTC and can also be started manually. It fetches all four ranking periods from `/api/social/feed`, generates Top 10 and Trending post files plus a Peak Records file, and uploads them as the `bobaks-social-content` artifact with 14-day retention.
+
+
+## Phase 6.2 Discord publishing
+
+The social content workflow now includes an optional Discord webhook publisher. It reads DISCORD_SOCIAL_WEBHOOK_URL from a GitHub Actions repository secret and publishes selected generated content to the configured Discord channel.
+
+Publishing behavior:
+- Daily: Top 10 live rankings and live trending content
+- Mondays (UTC): also publish the weekly Top 10 ranking
+- Peak Records remain generated and manually shareable, but are not auto-posted by default
+- Missing webhook secret: publishing is skipped safely and content generation still succeeds
+- Webhook failures fail the publishing step rather than being silently treated as a successful post
+
+The publisher enforces Discord's 2,000-character message limit by splitting oversized content into separate messages. Discord documents webhooks as an automation mechanism for sending messages to a selected server channel. 
