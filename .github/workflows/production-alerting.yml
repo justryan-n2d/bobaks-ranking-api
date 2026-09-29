@@ -2,8 +2,10 @@ name: Production Failure Alerting
 
 on:
   workflow_run:
-    workflows: ["Production Health Monitor"]
-    types: [completed]
+    workflows:
+      - Production Health Monitor
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -15,52 +17,77 @@ concurrency:
 
 jobs:
   incident:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Create or maintain incident issue
-        if: github.event.workflow_run.conclusion == 'failure'
+      - name: Create or close production incident
+        uses: actions/github-script@v8
         env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TITLE="🚨 Bobaks production incident"
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bobaks production incident"' --limit 20 --json number,title)
-          issue_number=$(echo "$existing" | jq -r --arg title "$TITLE" '.[] | select(.title == $title) | .number' | head -n 1)
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = 'Bobaks production incident';
+            const conclusion = process.env.RUN_CONCLUSION;
+            const runNumber = process.env.RUN_NUMBER;
+            const runUrl = process.env.RUN_URL;
 
-          if [ -n "$issue_number" ]; then
-            echo "Active production incident issue #$issue_number already exists."
-            exit 0
-          fi
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
 
-          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "Production Health Monitor detected a failure.
+            const existing = openIssues.find((issue) => issue.title === title);
 
-Run #$RUN_NUMBER
-Run URL: $RUN_URL
+            if (conclusion === 'failure') {
+              if (existing) {
+                core.info(`Active production incident #${existing.number} already exists.`);
+                return;
+              }
 
-The issue stays open until a later Production Health Monitor run succeeds."
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: [
+                  'Production Health Monitor detected a failure.',
+                  '',
+                  `Run #${runNumber}`,
+                  `Run URL: ${runUrl}`,
+                  '',
+                  'The issue stays open until a later Production Health Monitor run succeeds.'
+                ].join('\\n')
+              });
 
-      - name: Close recovered incident
-        if: github.event.workflow_run.conclusion == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TITLE="🚨 Bobaks production incident"
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bobaks production incident"' --limit 20 --json number,title)
-          issue_number=$(echo "$existing" | jq -r --arg title "$TITLE" '.[] | select(.title == $title) | .number' | head -n 1)
+              core.info(`Created production incident #${issue.data.number}.`);
+              return;
+            }
 
-          if [ -z "$issue_number" ]; then
-            echo "No active production incident issue."
-            exit 0
-          fi
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Production Health Monitor recovered at ${new Date().toISOString()}. Closing this incident.`
+              });
 
-          gh issue comment "$issue_number" --repo "$GITHUB_REPOSITORY" --body "Production Health Monitor recovered at $(date -u +%Y-%m-%dT%H:%M:%SZ). Closing this incident."
-          gh issue close "$issue_number" --repo "$GITHUB_REPOSITORY"
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed'
+              });
+
+              core.info(`Closed recovered production incident #${existing.number}.`);
+              return;
+            }
+
+            core.info('No active production incident to close.');
 
       - name: Alerting summary
         run: echo "Production failure alerting completed."
