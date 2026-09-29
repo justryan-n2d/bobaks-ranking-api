@@ -19,6 +19,7 @@ Backend and data collection services for Bobaks Ranking.
 - GET /api/rankings/yearly
 - GET /api/rankings/methodology
 - GET /api/rankings/audit
+- GET /api/observability?hours=24 (1-168 hours: operational telemetry)
 - GET /api/games
 - GET /api/games/:id/history?days=7 (1-31 days: raw snapshots; over 31 days: older daily averages plus recent raw snapshots)
 - GET /api/search?q=...
@@ -80,3 +81,6 @@ Bobaks publishes the current ranking methodology and a server-side audit summary
 - GET /api/rankings/audit
 
 The website exposes these under **How Bobaks Rankings Work**.
+## Operational observability
+
+Phase 4 Part 5 exposes read-only operational telemetry through [docs/operational-observability.md](docs/operational-observability.md). The endpoint summarizes collection throughput, run outcomes, duration percentiles, ranking-refresh latency, and observed collection gaps using retained `DataCollectionLog` data.
