@@ -284,18 +284,67 @@ async function getGames(env: Env, fetchImpl: FetchLike): Promise<JsonRow[]> {
 }
 
 async function getGameById(env: Env, id: string, fetchImpl: FetchLike): Promise<JsonRow | null> {
-  const rows = await supabaseGet(
-    env,
-    "Game",
-    {
-      select: gameSelect(),
-      id: `eq.${id}`,
-      isActive: "eq.true",
-      limit: "1"
-    },
-    fetchImpl
-  );
-  return rows[0] ?? null;
+  const [rows, currentStatsRaw, rankingRows] = await Promise.all([
+    supabaseGet(
+      env,
+      "Game",
+      {
+        select: gameSelect(),
+        id: `eq.${id}`,
+        isActive: "eq.true",
+        limit: "1"
+      },
+      fetchImpl
+    ),
+    supabaseRpc(
+      env,
+      "get_game_current_stats",
+      { p_game_id: Number(id) },
+      fetchImpl
+    ),
+    supabaseGet(
+      env,
+      "Ranking",
+      {
+        select: "period,rank,score,previousRank,calculatedAt",
+        gameId: `eq.${id}`,
+        order: "period.asc",
+        limit: "10"
+      },
+      fetchImpl
+    )
+  ]);
+
+  const game = rows[0];
+  if (!game) return null;
+
+  const currentStats = Array.isArray(currentStatsRaw)
+    ? currentStatsRaw[0]
+    : currentStatsRaw && typeof currentStatsRaw === "object"
+      ? currentStatsRaw as JsonRow
+      : null;
+
+  const rankings: Record<string, JsonRow> = {};
+  for (const row of rankingRows) {
+    const rank = Number(row.rank);
+    const previousRank = row.previousRank == null ? null : Number(row.previousRank);
+    rankings[String(row.period)] = {
+      rank,
+      score: Number(row.score),
+      previousRank,
+      rankChange: previousRank == null ? null : previousRank - rank,
+      calculatedAt: row.calculatedAt ?? null
+    };
+  }
+
+  const liveRanking = rankings.live;
+
+  return {
+    ...game,
+    currentPlayers: Number(currentStats?.playerCount ?? liveRanking?.score ?? 0),
+    currentSnapshotAt: currentStats?.snapshotAt ?? null,
+    rankings
+  };
 }
 
 const RAW_HISTORY_DAYS = 31;
@@ -395,6 +444,34 @@ async function getHistory(
   return { resolution, data };
 }
 
+async function getGameRankHistory(
+  env: Env,
+  gameId: string,
+  days: number,
+  fetchImpl: FetchLike
+): Promise<JsonRow[]> {
+  const result = await supabaseRpc(
+    env,
+    "get_game_rank_history",
+    {
+      p_game_id: Number(gameId),
+      p_days: days
+    },
+    fetchImpl
+  );
+
+  if (!Array.isArray(result)) {
+    throw new Error("Game rank history returned an invalid response");
+  }
+
+  return result.map(row => ({
+    date: row.date,
+    rank: Number(row.rank),
+    averagePlayers: Number(row.averagePlayers),
+    gamesRanked: Number(row.gamesRanked)
+  }));
+}
+
 async function getPeak(env: Env, gameId: string, fetchImpl: FetchLike): Promise<JsonRow | null> {
   const rows = await supabaseGet(
     env,
@@ -443,7 +520,7 @@ async function getRankings(
     env,
     "Ranking",
     {
-      select: "id,gameId,period,rank,score,calculatedAt",
+      select: "id,gameId,period,rank,score,previousRank,calculatedAt",
       period: `eq.${dbPeriod}`,
       order: "rank.asc",
       limit: "100"
@@ -462,6 +539,8 @@ async function getRankings(
     gameId: row.gameId == null ? null : String(row.gameId),
     rank: Number(row.rank),
     score: Number(row.score),
+    previousRank: row.previousRank == null ? null : Number(row.previousRank),
+    rankChange: row.previousRank == null ? null : Number(row.previousRank) - Number(row.rank),
     game: gameMap.get(String(row.gameId ?? "")) ?? null
   }));
 }
@@ -533,18 +612,43 @@ async function searchGames(
   q: string,
   fetchImpl: FetchLike
 ): Promise<JsonRow[]> {
-  return supabaseGet(
-    env,
-    "Game",
-    {
-      select: gameSelect(),
-      isActive: "eq.true",
-      name: `ilike.*${q}*`,
-      order: "name.asc",
-      limit: "50"
-    },
-    fetchImpl
-  );
+  const [nameMatches, creatorMatches] = await Promise.all([
+    supabaseGet(
+      env,
+      "Game",
+      {
+        select: gameSelect(),
+        isActive: "eq.true",
+        name: `ilike.*${q}*`,
+        order: "name.asc",
+        limit: "50"
+      },
+      fetchImpl
+    ),
+    supabaseGet(
+      env,
+      "Game",
+      {
+        select: gameSelect(),
+        isActive: "eq.true",
+        creatorName: `ilike.*${q}*`,
+        order: "name.asc",
+        limit: "50"
+      },
+      fetchImpl
+    )
+  ]);
+
+  const byId = new Map<string, JsonRow>();
+  for (const row of [...nameMatches, ...creatorMatches]) {
+    if (row.id != null) byId.set(String(row.id), row);
+  }
+
+  return [...byId.values()]
+    .sort((a, b) =>
+      String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" })
+    )
+    .slice(0, 50);
 }
 
 async function getRankingAudit(
@@ -950,6 +1054,29 @@ async function handleApi(
       });
     } catch (error) {
       console.error("GET /api/games/:id/history failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  const rankHistoryMatch = path.match(/^\/api\/games\/(\d+)\/rank-history$/);
+  if (rankHistoryMatch) {
+    let days: number;
+    try {
+      days = parseHistoryDays(url.searchParams.get("days"));
+    } catch {
+      return json({ error: "Invalid days parameter. Use an integer from 1 to 365." }, 400);
+    }
+
+    try {
+      return json({
+        gameId: rankHistoryMatch[1],
+        days,
+        data: await getGameRankHistory(env, rankHistoryMatch[1], days, fetchImpl)
+      }, 200, {
+        "cache-control": "public, max-age=60, s-maxage=60"
+      });
+    } catch (error) {
+      console.error("GET /api/games/:id/rank-history failed:", error);
       return json({ error: "Database unavailable" }, 503);
     }
   }
