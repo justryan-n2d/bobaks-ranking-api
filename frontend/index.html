@@ -786,6 +786,7 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 <body>
 <header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button><button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ Dark</button></nav></header>
 <main id="app" class="wrap"></main>
+<script src="/qrcode-generator.js"></script>
 <script>
 'use strict';
 const API='https://bobaks-ranking-api-service.ryan-oledan0.workers.dev';
@@ -925,22 +926,22 @@ function cardTier(rank){
   if(n===1)return {
     name:'LEGENDARY',family:'gold',
     accent:'#FFD34F',accent2:'#FFF4B0',accent3:'#FFFDF0',
-    badge:'👑 #1',glow:1.45,foil:'gold'
+    badge:'TOP 1',glow:1.45,foil:'gold'
   };
   if(n>=2&&n<=3)return {
     name:'EPIC',family:'purple',
     accent:'#A66CFF',accent2:'#E4C8FF',accent3:'#FBF5FF',
-    badge:'✦ TOP 3',glow:1.18,foil:'purple'
+    badge:'TOP 3',glow:1.18,foil:'purple'
   };
   if(n>=4&&n<=10)return {
     name:'RARE',family:'blue',
     accent:'#25C7FF',accent2:'#B9F1FF',accent3:'#F0FEFF',
-    badge:'◆ TOP 10',glow:1.02,foil:'blue'
+    badge:'TOP 10',glow:1.02,foil:'blue'
   };
   if(n>=11&&n<=25)return {
     name:'UNCOMMON',family:'green',
     accent:'#45E28C',accent2:'#C9FFDD',accent3:'#F1FFF5',
-    badge:'● TOP 25',glow:.92,foil:'green'
+    badge:'TOP 25',glow:.92,foil:'green'
   };
   if(n>=26&&n<=100)return {
     name:'COMMON',family:'white',
@@ -950,7 +951,7 @@ function cardTier(rank){
   return {
     name:'DISCOVERED',family:'discovered',
     accent:'#9FB3C8',accent2:'#E2EAF2',accent3:'#FFFFFF',
-    badge:'BOBAKS',glow:.64,foil:'discovered'
+    badge:'DISCOVERED',glow:.64,foil:'discovered'
   };
 }
 
@@ -1010,6 +1011,79 @@ async function loadCardImage(url){
     img.src=url;
     return await Promise.race([loaded,new Promise((_,reject)=>setTimeout(()=>reject(new Error('image timeout')),4500))]);
   }catch{return null}
+}
+
+
+function ordinalRank(rank){
+  const n=Number(rank);
+  if(!Number.isFinite(n)||n<1)return {number:'',suffix:''};
+  const mod100=n%100;
+  const suffix=(mod100>=11&&mod100<=13)?'TH':(n%10===1?'ST':n%10===2?'ND':n%10===3?'RD':'TH');
+  return {number:String(n),suffix};
+}
+
+function drawOrdinalRank(ctx,rank,x,y){
+  const ord=ordinalRank(rank);
+  if(!ord.number){ctx.fillText('UNRANKED',x,y);return}
+  const baseSize=rank===1?154:rank&&rank<=3?138:126;
+  ctx.font='900 '+baseSize+'px Inter,system-ui,sans-serif';
+  const numberWidth=ctx.measureText(ord.number).width;
+  ctx.font='900 '+Math.round(baseSize*.43)+'px Inter,system-ui,sans-serif';
+  const suffixWidth=ctx.measureText(ord.suffix).width;
+  const gap=7;
+  const total=numberWidth+gap+suffixWidth;
+  let start=x-total/2;
+  ctx.font='900 '+baseSize+'px Inter,system-ui,sans-serif';
+  ctx.fillText(ord.number,start,y);
+  start+=numberWidth+gap;
+  ctx.font='900 '+Math.round(baseSize*.43)+'px Inter,system-ui,sans-serif';
+  ctx.fillText(ord.suffix,start,y-baseSize*.48);
+}
+
+function drawCardQr(ctx,text,x,y,size,tier){
+  if(typeof qrcode!=='function')return false;
+  try{
+    const qr=qrcode(0,'M');
+    qr.addData(text,'Byte');
+    qr.make();
+    const modules=qr.getModuleCount();
+    const quiet=4;
+    const cell=Math.max(2,Math.floor((size*0.76)/(modules+quiet*2)));
+    const actual=(modules+quiet*2)*cell;
+    const ox=x+(size-actual)/2;
+    const oy=y+(size-actual)/2;
+    ctx.save();
+    roundRect(ctx,x,y,size,size,12);
+    ctx.fillStyle='#FFFFFF';
+    ctx.fill();
+    ctx.strokeStyle=hexToRgba(tier.accent,0.55);
+    ctx.lineWidth=3;
+    ctx.stroke();
+    ctx.fillStyle='#FFFFFF';
+    ctx.fillRect(ox,oy,actual,actual);
+    ctx.fillStyle='#111111';
+    for(let row=0;row<modules;row++){
+      for(let col=0;col<modules;col++){
+        if(qr.isDark(row,col)){
+          ctx.fillRect(ox+(col+quiet)*cell,oy+(row+quiet)*cell,cell,cell);
+        }
+      }
+    }
+    ctx.restore();
+    return true;
+  }catch{return false}
+}
+
+function shareIconSvg(key){
+  const common='viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  if(key==='messenger')return '<svg '+common+'><path d="M4 12c0-4.3 3.5-7.5 8-7.5s8 3.2 8 7.5-3.5 7.5-8 7.5c-1.3 0-2.5-.3-3.6-.8L5 20l.9-2.9C4.7 15.8 4 14 4 12Z"/><path d="m8 13 3-3 2.2 2 2.8-2"/></svg>';
+  if(key==='instagram')return '<svg '+common+'><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.7" r=".8" fill="currentColor" stroke="none"/></svg>';
+  if(key==='tiktok')return '<svg '+common+'><path d="M14 4v10.3a4.2 4.2 0 1 1-3.3-4.1"/><path d="M14 4c.8 2 2.1 3.3 4.5 3.8"/></svg>';
+  if(key==='whatsapp')return '<svg '+common+'><path d="M20.2 11.7a8.2 8.2 0 0 1-12.1 7.2L4 20l1.2-3.8a8.2 8.2 0 1 1 15-4.5Z"/><path d="M9 9.3c.3-.4.7-.4 1-.1l1 .9c.3.2.3.6.1.9l-.5.6c.8 1.1 1.5 1.7 2.7 2.3l.6-.5c.3-.2.7-.2.9.1l.9 1c.3.3.2.7-.1 1-.5.5-1.1.7-1.8.5-2.8-.8-5-2.6-6.4-5.1-.3-.6-.2-1.2.2-1.6Z"/></svg>';
+  if(key==='facebook')return '<svg '+common+'><circle cx="12" cy="12" r="8.7"/><path d="M13.5 19v-6h2l.3-2.1h-2.3V9.5c0-.7.2-1.1 1.2-1.1h1.2V6.5c-.4-.1-1.1-.1-1.8-.1-2.2 0-3.6 1.3-3.6 3.7v.8H9v2.1h1.5v6"/></svg>';
+  if(key==='x')return '<svg '+common+'><path d="m5 4 14 16"/><path d="M19 4 5 20"/></svg>';
+  if(key==='discord')return '<svg '+common+'><path d="M7 7.5A8.4 8.4 0 0 1 12 6a8.4 8.4 0 0 1 5 1.5l1.8 9.2c-1.5 1.1-3.1 1.7-4.7 1.8l-.9-1.2"/><path d="M17 16.7c-1.6-.8-3.2-1.2-5-1.2s-3.4.4-5 1.2"/><circle cx="9.3" cy="11.2" r=".8" fill="currentColor" stroke="none"/><circle cx="14.7" cy="11.2" r=".8" fill="currentColor" stroke="none"/></svg>';
+  return '<svg '+common+'><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7h14v-7"/></svg>';
 }
 
 async function generateRankCard(g){
@@ -1208,7 +1282,7 @@ function drawFrame(time=0,preview=true){
     ctx.fillStyle=tier.accent;
     ctx.font=rank===1?'900 158px Inter,system-ui,sans-serif':rank&&rank<=3?'900 142px Inter,system-ui,sans-serif':'900 128px Inter,system-ui,sans-serif';
     ctx.shadowColor=hexToRgba(tier.accent,.68);ctx.shadowBlur=rank===1?46:30;
-    ctx.fillText(rank?'#'+rank:'UNRANKED',W/2,315);
+    drawOrdinalRank(ctx,rank,W/2,315);
     ctx.shadowBlur=0;
     ctx.fillStyle=tier.accent2;ctx.font='900 24px Inter,system-ui,sans-serif';
     ctx.fillText(tier.badge,W/2,360);
@@ -1274,12 +1348,16 @@ function drawFrame(time=0,preview=true){
     const msgLines=wrapLines(ctx,cardMessage({...g,isNewEntry:previousRank==null},rank),980,2);
     msgLines.forEach((line,i)=>ctx.fillText(line,100,1423+i*30));
 
+    const cardLink=location.origin;
+    drawCardQr(ctx,cardLink,930,1430,150,tier);
+
     ctx.fillStyle='#7A91A8';ctx.font='700 17px Inter,system-ui,sans-serif';
-    ctx.fillText('Track this game and discover more rankings at',100,1512);
+    ctx.fillText('Track this game and discover more rankings at',100,1492);
     ctx.fillStyle=tier.accent2;ctx.font='900 19px Inter,system-ui,sans-serif';
-    ctx.fillText(location.host,100,1544);
-    ctx.textAlign='right';ctx.fillStyle='#6C849D';ctx.font='700 15px Inter,system-ui,sans-serif';
-    ctx.fillText('BOBAKS · GAME RANK CARD',1080,1544);
+    ctx.fillText(location.host,100,1524);
+    ctx.fillStyle='#6C849D';ctx.font='700 14px Inter,system-ui,sans-serif';
+    ctx.fillText('Scan the QR code to visit Bobaks Ranking',100,1555);
+    ctx.textAlign='right';ctx.fillText('BOBAKS · GAME RANK CARD',1080,1555);
     ctx.textAlign='left';
   }
 
@@ -1390,15 +1468,15 @@ async function share(id){
     const platforms=document.createElement('div');
     platforms.className='rank-card-platform-grid';
     platforms.innerHTML=[
-      ['Messenger','💬','messenger'],
-      ['Instagram','◎','instagram'],
-      ['TikTok','♪','tiktok'],
-      ['WhatsApp','◌','whatsapp'],
-      ['Facebook','f','facebook'],
-      ['X','𝕏','x'],
-      ['Discord','☯','discord'],
-      ['More apps','↗','native']
-    ].map(([name,icon,key])=>'<button class="btn" data-platform="'+key+'"><span class="platform-icon">'+icon+'</span><strong>'+name+'</strong><small>Prepare share</small></button>').join('');
+      ['Messenger','messenger','Prepare share'],
+      ['Instagram','instagram','Prepare post'],
+      ['TikTok','tiktok','Prepare post'],
+      ['WhatsApp','whatsapp','Prepare share'],
+      ['Facebook','facebook','Prepare post'],
+      ['X','x','Prepare post'],
+      ['Discord','discord','Prepare share'],
+      ['More apps','native','Use share sheet']
+    ].map(([name,key,sub])=>'<button class="btn platform" data-platform="'+key+'"><span class="platform-icon">'+shareIconSvg(key)+'</span><strong>'+name+'</strong><small>'+sub+'</small></button>').join('');
     wrap.parentElement.appendChild(platforms);
 
     const note=document.createElement('div');
