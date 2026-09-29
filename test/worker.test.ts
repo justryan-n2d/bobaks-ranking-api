@@ -439,6 +439,109 @@ test("collector records failure when Roblox is unavailable", async () => {
   assert.equal(typeof failedLog.collectionRunId, "string");
 });
 
+test("collector health reports fresh collection and database status", async () => {
+  const recent = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const calls: string[] = [];
+
+  const fakeFetch: typeof fetch = async (input) => {
+    const url = String(input);
+    calls.push(url);
+
+    if (url.includes("/rest/v1/Game?")) {
+      return response([{ id: "1" }]);
+    }
+
+    if (url.includes("status=in.(success,partial,failed)")) {
+      return response([{
+        startedAt: recent,
+        finishedAt: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+        status: "success",
+        gamesChecked: 123,
+        gamesUpdated: 123,
+        errors: 0
+      }]);
+    }
+
+    if (url.includes("status=in.(success,partial)")) {
+      return response([{
+        startedAt: recent,
+        finishedAt: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+        status: "success",
+        gamesChecked: 123,
+        gamesUpdated: 123,
+        errors: 0
+      }]);
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const worker = await import("../src/worker");
+  const result = await worker.default.fetch(
+    new Request("https://collector.example/health"),
+    {
+      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      SUPABASE_SECRET_KEY: "sb_secret_test"
+    }
+  );
+
+  const body = await result.json() as Record<string, any>;
+  assert.equal(result.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.status, "healthy");
+  assert.equal(body.databaseConfigured, true);
+  assert.equal(body.supabaseAuthOk, true);
+  assert.equal(body.collection.status, "healthy");
+  assert.equal(body.collection.latestStatus, "success");
+  assert.ok(body.collection.ageSeconds <= 5 * 60 + 5);
+  assert.equal(body.collection.freshnessThresholdSeconds, 900);
+  assert.equal(calls.length, 3);
+});
+
+test("collector health returns unhealthy when no fresh good collection exists", async () => {
+  const stale = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+
+  const fakeFetch: typeof fetch = async (input) => {
+    const url = String(input);
+
+    if (url.includes("/rest/v1/Game?")) {
+      return response([{ id: "1" }]);
+    }
+
+    if (url.includes("status=in.(success,partial,failed)")) {
+      return response([{
+        startedAt: stale,
+        finishedAt: stale,
+        status: "failed",
+        gamesChecked: 0,
+        gamesUpdated: 0,
+        errors: 1
+      }]);
+    }
+
+    if (url.includes("status=in.(success,partial)")) {
+      return response([]);
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const worker = await import("../src/worker");
+  const result = await worker.default.fetch(
+    new Request("https://collector.example/health"),
+    {
+      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      SUPABASE_SECRET_KEY: "sb_secret_test"
+    }
+  );
+
+  const body = await result.json() as Record<string, any>;
+  assert.equal(result.status, 503);
+  assert.equal(body.ok, false);
+  assert.equal(body.status, "unhealthy");
+  assert.equal(body.collection.status, "unhealthy");
+});
+
 test("daily summarization calls the protected Supabase RPC", async () => {
   let called = false;
   const fakeFetch: typeof fetch = async (input, init) => {
