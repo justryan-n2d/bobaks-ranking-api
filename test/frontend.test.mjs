@@ -121,6 +121,21 @@ test("frontend ranking share content includes game name, rank, players, and cano
   assert.match(html, /Visit Bobaks Ranking:/);
 });
 
+test("frontend records direct-entry page views and loads the analytics client", () => {
+  const html = readHtml();
+  assert.match(
+    html,
+    /if\(initialGame\)\{openGame\(initialGame\[1\],\{push:false\}\);track\('page_view',\{gameId:initialGame\[1\],period:state\.period\}\);\}/
+  );
+  assert.match(
+    html,
+    /else \{setPageMeta\(null\);render\(\);track\('page_view',\{period:state\.period\}\);loadRankings\(\);\}/
+  );
+
+  const client = fs.readFileSync(path.resolve("frontend/analytics-client.js"), "utf8");
+  assert.doesNotThrow(() => new Function(client));
+});
+
 test("frontend uses a device-local watchlist and bounded comparison", () => {
   const html = readHtml();
   assert.match(html, /bobaks\.watchlist/);
