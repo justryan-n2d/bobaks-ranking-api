@@ -35,3 +35,9 @@ jobs:
           path: social-output/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish selected social content to Discord
+        env:
+          DISCORD_SOCIAL_WEBHOOK_URL: ${{ secrets.DISCORD_SOCIAL_WEBHOOK_URL }}
+          SOCIAL_OUTPUT_DIR: social-output
+        run: node scripts/publish-social-discord.mjs
