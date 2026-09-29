@@ -70,6 +70,8 @@ Historical recovery behavior and the recovery audit are documented in [docs/hist
 
 Production health monitoring is documented in [docs/production-health.md](docs/production-health.md). The API exposes liveness and deep health endpoints, and GitHub Actions checks the API and collector every 15 minutes.
 
+Collection reliability behavior is documented in [docs/collection-reliability.md](docs/collection-reliability.md). Roblox 429 responses are retried using `Retry-After` when available, with bounded fallback delays.
+
 ## Ranking transparency
 
 Bobaks publishes the current ranking methodology and a server-side audit summary through the public API:
