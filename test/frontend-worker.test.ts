@@ -77,9 +77,9 @@ test("game routes return an indexable SEO page with canonical metadata and JSON-
   const html = await result.text();
   assert.equal(result.status, 200);
   assert.match(html, /<title>Example Experience \| Bobaks Ranking<\/title>/);
-  assert.match(html, /rel="canonical" href="https://bobaks.example/game/42"/);
+  assert.ok(html.includes('rel="canonical" href="https://bobaks.example/game/42"'));
   assert.match(html, /property="og:title" content="Example Experience \| Bobaks Ranking"/);
-  assert.match(html, /property="og:url" content="https://bobaks.example/game/42"/);
+  assert.ok(html.includes('property="og:url" content="https://bobaks.example/game/42"'));
   assert.match(html, /Bobaks Live Rank: <strong>#7<\/strong>/);
   assert.match(html, /Recorded Peak: <strong>4321<\/strong>/);
   assert.match(html, /application\/ld\+json/);
@@ -127,7 +127,7 @@ test("robots.txt exposes the sitemap and excludes API paths", async () => {
   assert.equal(result.status, 200);
   assert.match(body, /Allow: \/\//);
   assert.match(body, /Disallow: \/api\//);
-  assert.match(body, /Sitemap: https://bobaks.example/sitemap.xml/);
+  assert.ok(body.includes("Sitemap: https://bobaks.example/sitemap.xml"));
 });
 
 test("analytics endpoint only accepts bounded allowlisted events", async () => {
