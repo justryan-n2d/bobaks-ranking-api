@@ -779,7 +779,7 @@ function home(){
   const movingHtml=visibleMovers.length?visibleMovers.map((g,i)=>{
     const change=Number(g.rankChange||0),positive=change>0,label=positive?(change>=5?'Strong rise':'Rising'):'Falling';
     const width=Math.max(8,Math.round((g.playing/moverMax)*100));
-    return '<button class="moving-card" data-game="'+g.gameId+'">'+icon(g.icon)+'<div class="moving-card-head"><span class="moving-info"><b>'+esc(g.name)+'</b><small>'+esc(g.creator)+'</small></span><span class="moving-rank">#'+g.rank+'</span></div><div class="moving-change"><span class="'+(positive?'up':'down')+'">'+(positive?'▲ ':'▼ ')+Math.abs(change)+' rank'+(Math.abs(change)===1?'':'s')+'</span><strong>'+label+'</strong></div><div class="moving-bar"><span style="width:'+width+'%"></span></div><span class="moving-label">'+fmt(g.playing)+' current players</span></button>'
+    return '<button class="moving-card" data-game="'+g.gameId+'"><div class="moving-card-head">'+icon(g.icon)+'<span class="moving-info"><b>'+esc(g.name)+'</b><small>'+esc(g.creator)+'</small></span><span class="moving-rank">#'+g.rank+'</span></div><div class="moving-change"><span class="'+(positive?'up':'down')+'">'+(positive?'▲ ':'▼ ')+Math.abs(change)+' rank'+(Math.abs(change)===1?'':'s')+'</span><strong>'+label+'</strong></div><div class="moving-bar"><span style="width:'+width+'%"></span></div><span class="moving-label">'+fmt(g.playing)+' current players</span></button>'
   }).join(''):'<div class="empty">No major rank changes in the current ranking set.</div>';
   const movingButton=movers.length>2?'<div class="load-more-wrap"><button class="load-more-btn" id="movingToggle">'+(state.movingLimit>2?'Show less':'Load more')+(state.movingLimit>2?' ↑':' ↓')+'</button></div>':'';
 
