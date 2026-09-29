@@ -233,8 +233,6 @@ async function renderGamePage(
   headers.set("cache-control", "public, max-age=300, s-maxage=600");
   headers.set("x-robots-tag", "index, follow");
 
-  recordAnalytics(env, "page_view", { route: "/game/" + gameId, gameId });
-
   return new Response(output, { status: 200, headers });
 }
 
@@ -371,6 +369,19 @@ export async function handleFrontendRequest(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return handleFrontendRequest(request, env);
+    const response = await handleFrontendRequest(request, env);
+
+    if (request.method === "GET" && response.ok) {
+      const url = new URL(request.url);
+      if (url.pathname !== "/sitemap.xml" && url.pathname !== "/robots.txt") {
+        const gameMatch = url.pathname.match(/^\/game\/(\d+)$/);
+        recordAnalytics(env, "page_view", {
+          route: url.pathname,
+          gameId: gameMatch?.[1]
+        });
+      }
+    }
+
+    return response;
   }
 };
