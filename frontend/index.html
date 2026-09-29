@@ -194,10 +194,30 @@ a{color:inherit;text-decoration:none}
 .social-status{min-height:16px;margin:7px 0 0;color:var(--muted-2);font-size:9px;line-height:1.4}
 .social-status.show{color:var(--accent)}
 .social-peaks{margin-bottom:18px;padding:17px}
+.community-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.community-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--surface);min-width:0}
+.community-card.community-primary{grid-column:1 / -1;background:linear-gradient(135deg,var(--brand),var(--surface-2));border-color:var(--line-strong)}
+.community-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface-3);border:1px solid var(--line);color:#A8DFFF;font-weight:900}
+.community-label{color:#A8DFFF;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.community-card h2{margin:0;font-family:Manrope,Inter,sans-serif;font-size:16px}
+.community-card p{margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
+.community-card .btn{white-space:nowrap}
+.community-disabled{cursor:default;opacity:.72}
+.community-note{margin-bottom:18px}
+.community-note h2{margin:0 0 5px;font-family:Manrope,Inter,sans-serif;font-size:16px}
+.community-note p{margin:0;color:var(--muted);font-size:10px;line-height:1.6}
 .social-peaks-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .social-peaks h2{margin:4px 0 0;font-family:Manrope,Inter,sans-serif;font-size:16px}
 .social-peaks p{margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.5}
-@media(max-width:760px){.social-peaks-head{align-items:flex-start;flex-direction:column}.social-peaks-head .btn{width:100%}}
+@media(max-width:760px){
+  .social-peaks-head{align-items:flex-start;flex-direction:column}.social-peaks-head .btn{width:100%}
+  .community-grid{grid-template-columns:1fr}
+  .community-card.community-primary{grid-column:auto}
+  .community-card{grid-template-columns:auto minmax(0,1fr);align-items:start}
+  .community-card .btn{grid-column:1 / -1;width:100%}
+  .nav{max-width:60vw;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+}
 @media(max-width:760px){.social-actions{width:100%}.social-actions .btn{flex:1}.social-status{font-size:10px}}
 .search{position:relative;margin-bottom:18px}
 .search-wrap{position:relative}
@@ -1101,7 +1121,7 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button><button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ Dark</button></nav></header>
+<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button><button id="communityNav">Community</button><button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ Dark</button></nav></header>
 <main id="app" class="wrap"></main>
 <script src="/qrcode-generator.js"></script>
 <script>
@@ -1109,6 +1129,9 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 const API='https://bobaks-ranking-api-service.ryan-oledan0.workers.dev';
 const periods=[['live','Live'],['week','This Week'],['month','This Month'],['year','This Year']];
 const RANKING_PATHS={live:'/',week:'/rankings/weekly',month:'/rankings/monthly',year:'/rankings/yearly'};
+const COMMUNITY_META={title:'Bobaks Ranking Community | Discord, Feedback & Game Discovery',description:'Join the Bobaks Ranking community, share feedback, request features, report bugs, and discuss Roblox game discovery.'};
+const DISCORD_INVITE_URL=window.__BOBAKS_COMMUNITY__?.discordInviteUrl||'';
+const COMMUNITY_DISCORD_URL=DISCORD_INVITE_URL;
 const RANKING_META={
   live:{title:'Live Roblox Game Rankings | Bobaks Ranking',description:'See the latest live Roblox experience rankings, player counts, and rank movement collected by Bobaks Ranking.'},
   week:{title:"This Week's Roblox Game Rankings | Bobaks Ranking",description:"See this week's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."},
@@ -1141,6 +1164,51 @@ function setRankingMeta(period){
   const twDesc=document.querySelector('#seo-twitter-description');if(twDesc)twDesc.content=meta.description;
   const twImage=document.querySelector('#seo-twitter-image');if(twImage)twImage.content=new URL('/assets/bobaks-logo.png',location.origin).toString();
 }
+function setCommunityMeta(){
+  document.title=COMMUNITY_META.title;
+  const desc=document.querySelector('#seo-description');if(desc)desc.content=COMMUNITY_META.description;
+  const canonical=new URL('/community',location.origin).toString();
+  const canonicalEl=document.querySelector('#seo-canonical');if(canonicalEl)canonicalEl.href=canonical;
+  const ogTitle=document.querySelector('#seo-og-title');if(ogTitle)ogTitle.content=COMMUNITY_META.title;
+  const ogDesc=document.querySelector('#seo-og-description');if(ogDesc)ogDesc.content=COMMUNITY_META.description;
+  const ogUrl=document.querySelector('#seo-og-url');if(ogUrl)ogUrl.content=canonical;
+  const twTitle=document.querySelector('#seo-twitter-title');if(twTitle)twTitle.content=COMMUNITY_META.title;
+  const twDesc=document.querySelector('#seo-twitter-description');if(twDesc)twDesc.content=COMMUNITY_META.description;
+  const twImage=document.querySelector('#seo-twitter-image');if(twImage)twImage.content=new URL('/assets/bobaks-logo.png',location.origin).toString();
+}
+function goCommunity({push=true}={}){
+  if(push&&location.pathname!=='/community')history.pushState({view:'community'},'', '/community');
+  state.view='community';state.selected=null;state.error='';setCommunityMeta();render();track('page_view',{route:'/community'});
+}
+
+function communityAction(title,copy,href,label,disabled=false){
+  const action=disabled
+    ? '<span class="btn community-disabled" aria-disabled="true">'+label+'</span>'
+    : '<a class="btn primary" href="'+esc(href)+'">'+label+'</a>';
+  return '<article class="community-card"><div class="community-icon" aria-hidden="true">'+title.slice(0,1)+'</div><div><h2>'+esc(title)+'</h2><p>'+esc(copy)+'</p></div>'+action+'</article>';
+}
+function communityPage(){
+  const discordReady=!!COMMUNITY_DISCORD_URL;
+  const discordHref=discordReady?COMMUNITY_DISCORD_URL:'#';
+  const discordAction=discordReady
+    ? '<a class="btn primary" target="_blank" rel="noreferrer noopener" href="'+esc(discordHref)+'">Join Discord</a>'
+    : '<span class="btn community-disabled" aria-disabled="true">Discord link not configured yet.</span>';
+  const pollAction=discordReady
+    ? '<a class="btn primary" target="_blank" rel="noreferrer noopener" href="'+esc(discordHref)+'">Open Discord</a>'
+    : '<a class="btn" href="mailto:bobaksranking@gmail.com?subject=Community%20poll">Suggest a poll</a>';
+  const discoveryAction=discordReady
+    ? '<a class="btn primary" target="_blank" rel="noreferrer noopener" href="'+esc(discordHref)+'">Open Discord</a>'
+    : '<a class="btn" href="mailto:bobaksranking@gmail.com?subject=Game%20discovery">Send a game</a>';
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">BOBAKS COMMUNITY</div><h1>Build Bobaks <em>with us</em></h1><p>Talk about Roblox games, share ideas, report problems, and help shape what Bobaks builds next.</p></div></section><section class="community-grid">'+
+    '<article class="community-card community-primary"><div class="community-icon" aria-hidden="true">D</div><div><div class="community-label">COMMUNITY HOME</div><h2>Discord community</h2><p>Chat with other gamers, discuss rankings, share discoveries, and take part in Bobaks community activity.</p></div>'+discordAction+'</article>'+
+    communityAction('Feedback','Tell us what is useful, confusing, missing, or worth improving.','mailto:bobaksranking@gmail.com?subject=Bobaks%20Feedback','Send feedback')+
+    communityAction('Feature requests','Suggest a feature and explain what problem it would solve for you.','mailto:bobaksranking@gmail.com?subject=Bobaks%20Feature%20Request','Request a feature')+
+    communityAction('Bug reports','Report a broken page, wrong display, or other issue with the page URL included.','mailto:bobaksranking@gmail.com?subject=Bobaks%20Bug%20Report','Report a bug')+
+    '<article class="community-card"><div class="community-icon" aria-hidden="true">P</div><div><h2>Community polls</h2><p>Help guide future improvements and vote on community questions through Discord when the server link is configured.</p></div>'+pollAction+'</article>'+
+    '<article class="community-card"><div class="community-icon" aria-hidden="true">G</div><div><h2>Game discovery</h2><p>Share Roblox experiences you think Bobaks should track or discuss with the community.</p></div>'+discoveryAction+'</article>'+
+    '</section><section class="panel community-note"><h2>Keep reports useful</h2><p>For bug reports, include the Bobaks page URL, what you expected, and what happened. For feature requests, describe the problem first so the community can discuss the need behind the idea.</p></section>'+footer();
+}
+
 function setPageMeta(game){
   const name=String(game?.name||'');
   if(game&&name){
@@ -1183,7 +1251,7 @@ function loadTheme(){try{const saved=localStorage.getItem('bobaks.theme');state.
 function setTheme(theme){state.theme=theme==='light'?'light':'dark';document.documentElement.setAttribute('data-theme',state.theme);try{localStorage.setItem('bobaks.theme',state.theme)}catch{};nav()}
 function loadSaved(){try{const v=JSON.parse(localStorage.getItem('bobaks.watchlist')||'[]');if(Array.isArray(v))state.saved=[...new Set(v.map(String))].slice(0,25)}catch{state.saved=[]}}
 function saveSaved(){try{localStorage.setItem('bobaks.watchlist',JSON.stringify(state.saved))}catch{}}
-function nav(){ $('rankNav').classList.toggle('active',state.view==='home');$('savedNav').classList.toggle('active',state.view==='saved');$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')';const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'☾ Dark':'☀ Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}}
+function nav(){ $('rankNav').classList.toggle('active',state.view==='home');$('savedNav').classList.toggle('active',state.view==='saved');$('communityNav').classList.toggle('active',state.view==='community');$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')';const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'☾ Dark':'☀ Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}}
 function fallbackNext(){const n=Date.now(),step=600000;return new Date((Math.floor(n/step)+1)*step+15000).toISOString()}
 function schedule(){if(state.timer)clearTimeout(state.timer);if(state.next)state.timer=setTimeout(loadRankings,Math.max(1000,new Date(state.next).getTime()-Date.now()))}
 const RANKING_SHARE_LABELS={live:'Top 10 Roblox games right now',week:"Top 10 Roblox games this week",month:"Top 10 Roblox games this month",year:"Top 10 Roblox games this year"};
@@ -1328,7 +1396,7 @@ async function comparePage(){
   return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Compare current popularity and live rank for selected games.</p></div></section><section class="compare">'+cards.map(g=>'<article class="panel"><div class="side-top"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt=""><div><h2>'+esc(g.name)+'</h2><p>'+esc(g.creatorName||'Unknown creator')+'</p></div></div><div class="stats"><div class="stat"><span>Players</span><strong>'+fmt(g.currentPlayers)+'</strong></div><div class="stat"><span>Live Rank</span><strong>'+(g.rankings?.live?.rank?'#'+g.rankings.live.rank:'N/A')+'</strong></div></div><button class="btn primary" data-game="'+g.id+'">Open game</button></article>').join('')+'</section>'+footer();
 }
 function info(key){const data={privacy:['Privacy Policy','Bobaks Ranking focuses on game-level analytics. No player-level profiles are required for the public ranking experience.'],terms:['Terms of Use','Bobaks Ranking is an independent third-party analytics site. Player counts and rankings may change, be delayed, or become unavailable.'],sources:['Data Sources','Bobaks Ranking uses permitted public Roblox game-level data and calculates rankings from collected snapshots.']};if(key==='methodology')return '<section class="info"><button class="btn" id="back">← Back</button><h1>How Bobaks Rankings Work</h1><p>Rankings use qualifying Bobaks collection data. Live rankings require a recent qualifying snapshot. Weekly and monthly rankings use qualifying samples and the existing 50% coverage rule. Rank movement compares the current persisted ranking with the previous ranking set.</p><p>Recorded Peak means the highest player count Bobaks has recorded, not Roblox-wide all-time history.</p><p>Historical coverage depends on what Bobaks has successfully collected.</p></section>';const d=data[key]||data.privacy;return '<section class="info"><button class="btn" id="back">← Back</button><h1>'+d[0]+'</h1><p>'+d[1]+'</p><p>Contact: bobaksranking@gmail.com</p></section>'}
-function render(){nav();if(state.view==='detail'){$('app').innerHTML=detail();bind();return}if(state.view==='saved'){$('app').innerHTML='<div class="banner">Loading saved games...</div>';savedPage().then(html=>{if(state.view==='saved'){$('app').innerHTML=html;bind()}});return}if(state.view==='compare'){$('app').innerHTML='<div class="banner">Loading comparison...</div>';comparePage().then(html=>{if(state.view==='compare'){$('app').innerHTML=html;bind()}});return}if(state.view==='info'){$('app').innerHTML=info(state.infoKey);bind();return}$('app').innerHTML=home();bind()}
+function render(){nav();if(state.view==='community'){$('app').innerHTML=communityPage();bind();return}if(state.view==='detail'){$('app').innerHTML=detail();bind();return}if(state.view==='saved'){$('app').innerHTML='<div class="banner">Loading saved games...</div>';savedPage().then(html=>{if(state.view==='saved'){$('app').innerHTML=html;bind()}});return}if(state.view==='compare'){$('app').innerHTML='<div class="banner">Loading comparison...</div>';comparePage().then(html=>{if(state.view==='compare'){$('app').innerHTML=html;bind()}});return}if(state.view==='info'){$('app').innerHTML=info(state.infoKey);bind();return}$('app').innerHTML=home();bind()}
 function bind(){animateLiveValues();const q=$('search');if(q){q.oninput=e=>{state.query=e.target.value;clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>search(state.query),250)}}document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.period=b.dataset.period;state.rankingLimit=15;state.movingLimit=2;goHome({push:true})});const r=$('refresh');if(r)r.onclick=loadRankings;const shareRankingBtn=$('shareRanking');if(shareRankingBtn)shareRankingBtn.onclick=shareRanking;const shareTrendingBtn=$('shareTrending');if(shareTrendingBtn)shareTrendingBtn.onclick=()=>shareSocialPost('trending');const sharePeaksBtn=$('sharePeaks');if(sharePeaksBtn)sharePeaksBtn.onclick=()=>shareSocialPost('peaks');const rankingToggle=$('rankingToggle');if(rankingToggle)rankingToggle.onclick=()=>{state.rankingExpanded=!state.rankingExpanded;render()};const rankingLoadMore=$('rankingLoadMore');if(rankingLoadMore)rankingLoadMore.onclick=()=>{if(state.rankingLimit<50)state.rankingLimit=50;else if(state.rankingLimit<state.games.length)state.rankingLimit=state.games.length;else state.rankingLimit=15;render()};const movingToggle=$('movingToggle');if(movingToggle)movingToggle.onclick=()=>{state.movingLimit=state.movingLimit>2?2:6;render()};const back=$('back');if(back)back.onclick=()=>{state.view='home';state.selected=null;state.error='';render();loadRankings()};document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});document.querySelectorAll('[data-save]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.save);const had=state.saved.includes(id);state.saved=had?state.saved.filter(x=>x!==id):state.saved.length<25?[...state.saved,id]:state.saved;saveSaved();track(had?'watchlist_remove':'watchlist_add',{gameId:id});render()});document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.compare);const had=state.compare.includes(id);state.compare=had?state.compare.filter(x=>x!==id):state.compare.length<2?[...state.compare,id]:state.compare;track(had?'compare_remove':'compare_add',{gameId:id});render()});document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>{track('share_opened',{gameId:b.dataset.share,channel:'rank_card'});share(b.dataset.share)});document.querySelectorAll('[data-info]').forEach(b=>b.onclick=()=>{state.view='info';state.infoKey=b.dataset.info;render()})}
 function animateLiveValues(){
   document.querySelectorAll('.live-value[data-from][data-to]').forEach(el=>{
@@ -2119,14 +2187,16 @@ async function share(id){
   }
 }
 
-$('homeBtn').onclick=()=>goHome();$('rankNav').onclick=()=>goHome();$('savedNav').onclick=()=>{state.view='saved';render();track('saved_view')};$('compareNav').onclick=()=>{state.view='compare';render();track('compare_view')};$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
+$('homeBtn').onclick=()=>goHome();$('rankNav').onclick=()=>goHome();$('communityNav').onclick=()=>goCommunity();$('savedNav').onclick=()=>{state.view='saved';render();track('saved_view')};$('compareNav').onclick=()=>{state.view='compare';render();track('compare_view')};$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
 window.addEventListener('popstate',()=>{
+  if(location.pathname==='/community'){state.view='community';state.selected=null;setCommunityMeta();render();track('page_view',{route:'/community'});return}
   const gameMatch=location.pathname.match(GAME_ROUTE);
   if(gameMatch){openGame(gameMatch[1],{push:false});return}
   state.period=periodFromLocation();state.view='home';state.selected=null;setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();
 });
 loadTheme();loadSaved();
 state.period=periodFromLocation();
+if(location.pathname==='/community'){state.view='community';setCommunityMeta();render();track('page_view',{route:'/community'});}
 const initialGame=location.pathname.match(GAME_ROUTE);
 if(initialGame){openGame(initialGame[1],{push:false});}
 else {setPageMeta(null);render();loadRankings();}

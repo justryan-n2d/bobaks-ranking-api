@@ -310,3 +310,32 @@ test("social helper buttons use custom neutral share icons and a consistent stac
   assert.match(html, /data-platform/);
   assert.match(html, /rank-card-platform-grid/);
 });
+
+
+test("frontend exposes a Community hub with the Phase 6.3 community actions", () => {
+  const html = readHtml();
+  assert.ok(html.includes("Community"));
+  assert.ok(html.includes("/community"));
+  for (const label of [
+    "Discord community",
+    "Feedback",
+    "Feature requests",
+    "Bug reports",
+    "Community polls",
+    "Game discovery"
+  ]) {
+    assert.ok(html.includes(label), "missing community label: " + label);
+  }
+  assert.ok(html.includes("bobaksranking@gmail.com"));
+  assert.ok(html.includes("DISCORD_INVITE_URL"));
+});
+
+test("frontend community page keeps the Discord destination configurable and gives email fallbacks", () => {
+  const html = readHtml();
+  assert.ok(html.includes("const COMMUNITY_DISCORD_URL="));
+  assert.ok(html.includes("mailto:bobaksranking@gmail.com"));
+  assert.ok(html.includes("Feature request"));
+  assert.ok(html.includes("Bug report"));
+  assert.ok(html.includes("Community polls"));
+  assert.ok(html.includes("Game discovery"));
+});

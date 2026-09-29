@@ -229,3 +229,56 @@ test("analytics endpoint only accepts bounded allowlisted events", async () => {
   );
   assert.equal(invalid.status, 400);
 });
+
+
+test("community route returns an indexable hub with configurable Discord and public contact paths", async () => {
+  const env = { ...makeEnv([]), DISCORD_INVITE_URL: "https://discord.gg/example" };
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/community"),
+    env
+  );
+  const html = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.match(html, /<title>Bobaks Ranking Community/);
+  assert.ok(html.includes('rel="canonical" href="https://bobaks.example/community"'));
+  assert.ok(html.includes("Discord community"));
+  assert.ok(html.includes("Feature requests"));
+  assert.ok(html.includes("Bug reports"));
+  assert.ok(html.includes("Community polls"));
+  assert.ok(html.includes("Game discovery"));
+  assert.ok(html.includes("https://discord.gg/example"));
+  assert.ok(html.includes("bobaksranking@gmail.com"));
+  assert.match(result.headers.get("cache-control") || "", /max-age=300/);
+});
+
+test("community route shows a safe unconfigured Discord state instead of inventing an invite", async () => {
+  const env = { ...makeEnv([]), DISCORD_INVITE_URL: "" };
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/community"),
+    env
+  );
+  const html = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.ok(html.includes("Discord link is not configured yet."));
+  assert.ok(html.includes("mailto:bobaksranking@gmail.com"));
+  assert.ok(!html.includes("discord.gg/example"));
+});
+
+test("sitemap includes the public community hub", async () => {
+  const env = makeEnv([]);
+  const fakeFetch: typeof fetch = async input => {
+    const url = String(input);
+    if (url.endsWith("/api/games")) return response({ data: [] });
+    throw new Error("Unexpected API request: " + url);
+  };
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/sitemap.xml"),
+    env,
+    fakeFetch
+  );
+  const xml = await result.text();
+  assert.equal(result.status, 200);
+  assert.ok(xml.includes("https://bobaks.example/community"));
+});
