@@ -57,6 +57,26 @@ test("frontend script parses as valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(match[1]));
 });
 
+test("frontend exposes a social ranking share flow for every ranking period", () => {
+  const html = readHtml();
+  assert.match(html, /function rankingShareText\(period,games\)/);
+  assert.match(html, /id="shareRanking"/);
+  assert.match(html, /rankingPath\(state\.period\)/);
+  assert.match(html, /channel:'ranking_list'/);
+  assert.match(html, /Top 10/);
+  assert.match(html, /navigator\.share/);
+  assert.match(html, /navigator\.clipboard\.writeText/);
+});
+
+test("frontend ranking share content includes game name, rank, players, and canonical ranking link", () => {
+  const html = readHtml();
+  assert.match(html, /const lines=\(games\|\|\[\]\)\.slice\(0,10\)/);
+  assert.match(html, /const rank=Number\(g\.rank\|\|index\+1\)/);
+  assert.match(html, /const players=fmt\(g\.playing\)/);
+  assert.match(html, /const url=new URL\(rankingPath\(period\),location\.origin\)\.toString\(\)/);
+  assert.match(html, /Visit Bobaks Ranking:/);
+});
+
 test("frontend uses a device-local watchlist and bounded comparison", () => {
   const html = readHtml();
   assert.match(html, /bobaks\.watchlist/);
