@@ -849,7 +849,7 @@ test("operational observability summarizes recent collection and ranking-refresh
 
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /DataCollectionLog/);
-  assert.equal(new URL(calls[0].url).searchParams.get("limit"), "100");
+  assert.equal(new URL(calls[0].url).searchParams.get("limit"), "500");
 });
 
 
