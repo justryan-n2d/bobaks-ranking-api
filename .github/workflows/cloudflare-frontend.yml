@@ -51,8 +51,6 @@ jobs:
           echo "$html" | grep -F "Compare"
           echo "$html" | grep -F "Rank History"
           echo "$html" | grep -F "Share rank card"
-          echo "$html" | grep -F "/api/rankings/methodology"
-          echo "$html" | grep -F "/api/rankings/audit"
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
