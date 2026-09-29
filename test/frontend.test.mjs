@@ -23,7 +23,7 @@ test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
   assert.match(html, /function track\(event,data=\{\}\)/);
   assert.match(html, /sendBeacon\('\/analytics'/);
   assert.match(html, /const gameUrl=id=>new URL\('\/game\/'/);
-  assert.match(html, /sitemap\.xml/);
+  assert.ok(html.includes("sitemap.xml"));
   assert.match(html, /robots\.txt/);
 });
 
@@ -105,7 +105,7 @@ test("data-driven rank card generator is wired for dynamic rank tiers and export
   assert.match(html, /function generateRankCard\(g\)/);
   assert.match(html, /CURRENT PLAYERS/);
   assert.match(html, /RECORDED PEAK/);
-  assert.match(html, /Track this game and discover more rankings at/);
+  assert.ok(html.includes("Track this game on Bobaks Ranking"));
   assert.match(html, /location\.host/);
   assert.match(html, /canvas\.toBlob/);
   assert.match(html, /Download PNG/);
@@ -254,7 +254,7 @@ test("game rank cards embed a self-contained QR code linked to the Bobaks websit
   assert.match(html, /function drawCardQr\(ctx,text,x,y,size,tier\)/);
   assert.match(html, /const qr=qrcode\(0,'M'\)/);
   assert.match(html, /qr\.addData\(text,'Byte'\)/);
-  assert.match(html, /drawCardQr\(ctx,cardLink,930,1430,150,tier\)/);
+  assert.ok(html.includes("drawCardQr(ctx,cardLink,945,1396,112,tier)"));
   assert.match(html, /Scan the QR code to visit Bobaks Ranking/);
 });
 
