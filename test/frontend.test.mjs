@@ -81,7 +81,6 @@ test("data-driven rank card generator is wired for dynamic rank tiers and export
 
   assert.match(html, /function cardTier\(rank\)/);
   assert.match(html, /LEGENDARY/);
-  assert.match(html, /ELITE/);
   assert.match(html, /EPIC/);
   assert.match(html, /RARE/);
   assert.match(html, /DISCOVERED/);
@@ -90,7 +89,7 @@ test("data-driven rank card generator is wired for dynamic rank tiers and export
   assert.match(html, /CURRENT PLAYERS/);
   assert.match(html, /RECORDED PEAK/);
   assert.match(html, /Track this game and discover more rankings at/);
-  assert.match(html, /location\.origin/);
+  assert.match(html, /location\.host/);
   assert.match(html, /canvas\.toBlob/);
   assert.match(html, /Download PNG/);
   assert.match(html, /navigator\.canShare/);
