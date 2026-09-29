@@ -174,3 +174,4 @@ $function$;
 REVOKE ALL ON FUNCTION public.get_rankings_audit() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_rankings_audit() TO service_role;
 ALTER FUNCTION public.get_rankings_audit() SET search_path = public, pg_temp;
+ALTER FUNCTION public.get_rankings_audit() SET search_path = public, pg_temp;
