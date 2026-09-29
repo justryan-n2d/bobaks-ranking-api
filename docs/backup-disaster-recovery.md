@@ -67,6 +67,15 @@ The `weekly/` prefix is the long-term archive. Configure an R2 Bucket Lock rule 
 
 Do not configure a lifecycle expiration rule that can delete the weekly archive.
 
+Example Wrangler configuration after creating the bucket:
+
+```bash
+npx wrangler r2 bucket lifecycle add bobaks-backups daily-cleanup daily/ --expire-days 90
+npx wrangler r2 bucket lock add bobaks-backups weekly-archive weekly/ --retention-indefinite
+```
+
+These commands assume the bucket is named `bobaks-backups`. Replace it with the value used for `BOBAKS_R2_BUCKET`.
+
 ## Restore procedure
 
 The repository includes `scripts/restore-backup.sh`.
