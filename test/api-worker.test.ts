@@ -255,6 +255,63 @@ test("long history reports snapshot resolution when no daily summaries exist", a
 });
 
 
+
+test("long history paginates raw snapshots beyond the Supabase page limit", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fallback = makeFetch(calls);
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("/rest/v1/GameSnapshot?")) {
+      const parsed = new URL(url);
+      const offset = parsed.searchParams.get("offset");
+      calls.push({ url, headers: new Headers(init?.headers) });
+
+      if (offset === "0") {
+        return response(Array.from({ length: 500 }, (_, i) => ({
+          id: String(1000 + i),
+          gameId: "1",
+          playerCount: 100 + i,
+          timestamp: "2026-09-27T01:15:00.000Z"
+        })));
+      }
+
+      if (offset === "500") {
+        return response([{
+          id: "2000",
+          gameId: "1",
+          playerCount: 999,
+          timestamp: "2026-09-27T02:15:00.000Z"
+        }]);
+      }
+
+      return response([]);
+    }
+
+    return fallback(input, init);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/games/1/history?days=365"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as {
+    data: unknown[];
+    resolution: string;
+  };
+
+  assert.equal(result.status, 200);
+  assert.equal(body.resolution, "mixed");
+  assert.equal(body.data.length, 502);
+
+  const snapshotCalls = calls.filter(call => call.url.includes("/rest/v1/GameSnapshot?"));
+  assert.equal(snapshotCalls.length, 2);
+  assert.equal(new URL(snapshotCalls[0].url).searchParams.get("limit"), "500");
+  assert.equal(new URL(snapshotCalls[0].url).searchParams.get("offset"), "0");
+  assert.equal(new URL(snapshotCalls[1].url).searchParams.get("offset"), "500");
+});
+
+
 test("invalid inputs are rejected before database access", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const fetchImpl = makeFetch(calls);
