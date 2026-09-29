@@ -99,11 +99,10 @@ async function assetShell(env: Env, request: Request): Promise<Response> {
 function replaceTagById(html: string, id: string, tag: string): string {
   const escapedId = id.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(
-    `<(?:meta|link)[^>]*\\\\bid=["']${escapedId}["'][^>]*>`,
+    `<(?:meta|link)[^>]*\\bid=["\']${escapedId}["\'][^>]*>`,
     "i"
   );
   return html.replace(pattern, tag);
-}
 }
 
 function safeJsonLd(data: unknown): string {
