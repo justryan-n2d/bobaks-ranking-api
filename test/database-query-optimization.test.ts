@@ -12,7 +12,7 @@ test("ranking refresh uses indexed per-game latest lookups and one current-month
   );
 
   assert.match(sql, /JOIN LATERAL\s*\(\s*SELECT[\s\S]*?FROM public\."GameSnapshot"/);
-  assert.match(sql, /current_month_samples AS \(/);
+  assert.match(sql, /current_(?:period|month)_samples AS MATERIALIZED \(/);
   assert.match(sql, /weekly_score/);
   assert.match(sql, /monthly_score/);
 
