@@ -64,6 +64,8 @@ Bobaks keeps detailed raw \`GameSnapshot\` data for 31 days so the database does
 
 The long-term history API combines daily summaries with the retained raw snapshot window, so historical data can continue beyond the raw 31-day window.
 
+Backup and disaster recovery procedures are documented in [docs/backup-disaster-recovery.md](docs/backup-disaster-recovery.md).
+
 ## Ranking transparency
 
 Bobaks publishes the current ranking methodology and a server-side audit summary through the public API:
