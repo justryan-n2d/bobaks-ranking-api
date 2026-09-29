@@ -15,6 +15,10 @@ Phase 6 starts from the existing Phase 5 gamer experience and adds the infrastru
 ### Social distribution
 - Existing rank-card sharing now links to the actual Bobaks game page instead of only the homepage.
 - Rank-card QR codes use the game page URL as their destination.
+- Ranking-list sharing supports Live, Weekly, Monthly, and Yearly Top 10 content.
+- Trending Games sharing reuses the existing upward rank-movement signal.
+- Peak Records sharing exposes the highest recorded Bobaks peaks without inventing new historical data.
+- The UI consumes the read-only /api/social/feed endpoint for server-generated, automation-ready social posts.
 - The existing social sharing toolkit remains compatible with native sharing, image download, and caption copy.
 
 ### Return loops
@@ -44,8 +48,8 @@ The implementation does not intentionally send player names, Roblox account IDs,
 ## Still pending in Phase 6
 
 These items should be implemented as separate, evidence-backed follow-up work:
+- actual scheduled publishing to supported social platforms using explicitly configured credentials
 - community/Discord integration
-- automated content distribution such as scheduled “Top 10” posts
 - game alerts and milestone notifications
 - richer return-loop surfaces for daily/weekly movers and new peaks
 - deeper analytics reporting for retention/session depth
@@ -56,3 +60,18 @@ These items should be implemented as separate, evidence-backed follow-up work:
 ## Deployment model
 
 The frontend is now a Cloudflare Worker plus Static Assets. The API and collector remain separate Cloudflare Workers, with Supabase continuing as the database and GitHub Actions continuing CI/CD.
+
+
+## Phase 6.2 social content feed
+
+The API exposes a read-only automation seam:
+
+- GET /api/social/feed?period=live|week|month|year
+- Returns Top 10 ranking items, upward-moving trending items, and highest recorded peak items.
+- Returns ready-to-post text for ranking, trending, and peak-record content.
+- Ranking and trending post links use the canonical public ranking URL for the selected period.
+- Peak posts link directly to the affected Bobaks game pages.
+- The endpoint uses existing Ranking and GamePeak data only.
+- The endpoint does not publish to external social platforms or store third-party credentials.
+
+The social feed is intended to be the stable input for a future scheduled publisher or content workflow.
