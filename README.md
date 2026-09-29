@@ -68,7 +68,7 @@ Backup and disaster recovery procedures are documented in [docs/backup-disaster-
 
 Historical recovery behavior and the recovery audit are documented in [docs/historical-recovery.md](docs/historical-recovery.md).
 
-Production health monitoring is documented in [docs/production-health.md](docs/production-health.md). The API exposes liveness and deep health endpoints, and GitHub Actions checks the API and collector every 15 minutes.
+Production health monitoring and incident alerting are documented in [docs/production-health.md](docs/production-health.md). The API exposes liveness and deep health endpoints, GitHub Actions checks the API and collector every 15 minutes, and a separate alerting workflow creates and closes a production incident issue when failures are detected.
 
 Collection reliability behavior is documented in [docs/collection-reliability.md](docs/collection-reliability.md). Roblox 429 responses are retried using `Retry-After` when available, with bounded fallback delays.
 
