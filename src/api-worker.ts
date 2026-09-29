@@ -166,6 +166,37 @@ async function supabaseGet(
   return data as JsonRow[];
 }
 
+async function supabaseGetPaged(
+  env: Env,
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchLike,
+  pageSize = 500
+): Promise<JsonRow[]> {
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) {
+    throw new Error("Invalid Supabase page size");
+  }
+
+  const rows: JsonRow[] = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await supabaseGet(
+      env,
+      path,
+      { ...params, limit: String(pageSize), offset: String(offset) },
+      fetchImpl
+    );
+
+    rows.push(...page);
+
+    if (page.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return rows;
+}
+
 async function supabaseRpc(
   env: Env,
   functionName: string,
@@ -256,7 +287,7 @@ async function getHistory(
   const rawSince = utcDayStart(rollingRawSince);
 
   const rawFrom = requestedSince > rollingRawSince ? requestedSince : rawSince;
-  const rawRowsPromise = supabaseGet(
+  const rawRowsPromise = supabaseGetPaged(
     env,
     "GameSnapshot",
     {
