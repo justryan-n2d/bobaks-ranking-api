@@ -635,6 +635,26 @@ async function writeLog(env: Env, row: Record<string, unknown>, fetchImpl: Fetch
   await expectOk(response, 'DataCollectionLog insert');
 }
 
+async function updateRankingRefreshLog(
+  env: Env,
+  collectionRunId: string,
+  fields: Record<string, unknown>,
+  fetchImpl: FetchLike
+): Promise<void> {
+  const path = 'DataCollectionLog?collectionRunId=eq.' + encodeURIComponent(collectionRunId);
+  const response = await supabaseRequest(
+    env,
+    path,
+    fetchImpl,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(fields)
+    }
+  );
+  await expectOk(response, 'DataCollectionLog ranking refresh update');
+}
+
 export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promise<{ gamesChecked: number; gamesUpdated: number; errors: number }> {
   requiredSupabaseKey(env);
   const startedAt = new Date();
@@ -737,21 +757,54 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
 
     // Finalize the collection log before refreshing rankings so the current
     // run is visible in both the coverage denominator and snapshot validation.
+    const rankingRefreshStartedAt = new Date().toISOString();
     await writeLog(env, {
       collectionRunId,
       startedAt: startedAt.toISOString(),
-      finishedAt: new Date().toISOString(),
+      finishedAt: rankingRefreshStartedAt,
       gamesChecked,
       gamesUpdated,
       errors,
-      status: errors ? 'partial' : 'success'
+      status: errors ? 'partial' : 'success',
+      rankingRefreshStatus: 'pending',
+      rankingRefreshStartedAt
     }, fetchImpl);
     collectionLogWritten = true;
 
     // Ranking refresh is downstream of data collection. If it fails, the
-    // collected snapshots remain valid and the next successful run will retry
-    // the refresh without misclassifying this collection run as failed.
-    await refreshRankings(env, fetchImpl);
+    // collected snapshots remain valid and the collection run stays usable.
+    // The refresh result is recorded separately so an alert can distinguish
+    // a healthy collection from a failed ranking publication.
+    try {
+      await refreshRankings(env, fetchImpl);
+      await updateRankingRefreshLog(
+        env,
+        collectionRunId,
+        {
+          rankingRefreshStatus: 'success',
+          rankingRefreshFinishedAt: new Date().toISOString(),
+          rankingRefreshErrorMessage: null
+        },
+        fetchImpl
+      );
+    } catch (refreshError) {
+      try {
+        await updateRankingRefreshLog(
+          env,
+          collectionRunId,
+          {
+            rankingRefreshStatus: 'failed',
+            rankingRefreshFinishedAt: new Date().toISOString(),
+            rankingRefreshErrorMessage: formatError(refreshError).slice(0, 1000)
+          },
+          fetchImpl
+        );
+      } catch (logError) {
+        console.error('Failed to record ranking refresh failure:', logError);
+      }
+
+      throw refreshError;
+    }
 
     return { gamesChecked, gamesUpdated, errors };
   } catch (error) {
