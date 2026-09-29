@@ -800,7 +800,7 @@ export async function scheduled(
 
 const COLLECTION_HEALTH_THRESHOLD_SECONDS = 15 * 60;
 
-async function collectorHealth(env: Env): Promise<Record<string, unknown>> {
+export async function collectorHealth(env: Env, fetchImpl: FetchLike = fetch): Promise<Record<string, unknown>> {
   const databaseConfigured = Boolean(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY);
   let supabaseAuthOk = false;
   let supabaseStatus: number | null = null;
@@ -829,17 +829,17 @@ async function collectorHealth(env: Env): Promise<Record<string, unknown>> {
 
   try {
     const [dbCheck, latestRows, goodRows] = await Promise.all([
-      supabaseRequest(env, 'Game?select=id&limit=1', fetch, { method: 'GET' }),
+      supabaseRequest(env, 'Game?select=id&limit=1', fetchImpl, { method: 'GET' }),
       supabaseRequest(
         env,
         'DataCollectionLog?select=startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors&status=in.(success,partial,failed)&order=startedAt.desc&limit=1',
-        fetch,
+        fetchImpl,
         { method: 'GET' }
       ),
       supabaseRequest(
         env,
         'DataCollectionLog?select=startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors&status=in.(success,partial)&order=startedAt.desc&limit=1',
-        fetch,
+        fetchImpl,
         { method: 'GET' }
       )
     ]);
@@ -936,7 +936,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
-      const body = await collectorHealth(env);
+      const body = await collectorHealth(env, fetch);
       return Response.json(body, { status: body.status === 'unhealthy' ? 503 : 200 });
     }
 
