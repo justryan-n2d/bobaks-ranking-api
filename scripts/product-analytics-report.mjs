@@ -28,7 +28,7 @@ export function querySet(hours) {
   return {
     summary:
       "SELECT SUM(_sample_interval * double1) AS events, " +
-      "count(DISTINCT blob6) AS visitors, " +
+      "count(DISTINCT if(blob6 = '', '', blob6)) - if(countIf(blob6 = '') > 0, 1, 0) AS visitors, " +
       "count(DISTINCT blob7) AS sessions, " +
       "max(_sample_interval) AS max_sample_interval " +
       "FROM " + TABLE +
