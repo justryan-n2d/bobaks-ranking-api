@@ -98,14 +98,15 @@ Production query optimization was completed on 2026-09-29 using the 6.1 baseline
 
 ### Before and after
 
-| Workload | Before | After |
+| Workload | 6.1 baseline | 6.2 verification |
 | --- | ---: | ---: |
-| refresh_rankings() mean from pg_stat_statements | 272.58 ms | 105.49 ms |
 | get_rankings_audit() direct EXPLAIN ANALYZE | 414.87 ms | 133.80 ms |
 | get_historical_recovery_audit(31) direct EXPLAIN ANALYZE | 199.02 ms | 42.90 ms |
 | Live latest-snapshot query | 110.56 ms | 3.62 ms |
 
-The measured reductions were approximately 61% for the end-to-end ranking refresh, 68% for the ranking audit, 78% for the historical recovery audit, and 97% for the standalone live latest-snapshot query.
+These three measurements use the same direct EXPLAIN ANALYZE method. They show approximately 68% lower ranking-audit time, 78% lower historical-recovery-audit time, and 97% lower standalone live latest-snapshot time.
+
+The end-to-end refresh function also measured 105.49 ms in a post-change direct EXPLAIN ANALYZE run. The 6.1 baseline for refresh_rankings() was a historical pg_stat_statements aggregate of 272.58 ms, so that pair is treated as directional evidence rather than an apples-to-apples percentage comparison.
 
 ### Execution-plan changes
 
@@ -114,6 +115,8 @@ The live ranking path no longer sorts the entire GameSnapshot table to find the 
 Weekly and monthly ranking calculations share one current-period aggregation in the refresh and ranking-integrity SQL. The lower bound includes a UTC week that crosses a month boundary, so the existing calendar-period behavior is preserved.
 
 The historical recovery audit no longer joins DailyGameStat back to GameSnapshot just to count observed summary days. Raw snapshot min/max timestamps are derived from the existing source aggregation, while summary-day coverage is read directly from DailyGameStat.
+
+The combined current-period aggregation was evaluated against the old separate weekly and monthly plans. On the current dataset, the combined standalone aggregate measured 183.76 ms, while the old weekly and monthly aggregates measured 45.22 ms and 64.79 ms respectively. It remains in the end-to-end refresh because the overall refresh function is faster after the live-query optimization, but this tradeoff should be re-evaluated as snapshot volume grows.
 
 No new index was added in 4.6.2. The optimization uses indexes already justified by the 6.1 workload audit.
 
