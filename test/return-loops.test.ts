@@ -63,3 +63,39 @@ test("new peak detection ignores a first-time baseline", () => {
     true
   );
 });
+
+
+test("stale home decorations are rejected after ranking navigation", async () => {
+  const core = await import("../frontend/return-loops-core.mjs");
+  assert.equal(typeof core.isCurrentHomeDecoration, "function");
+
+  const oldDashboard = {};
+  const newDashboard = {};
+  assert.equal(
+    core.isCurrentHomeDecoration({
+      capturedHost: oldDashboard,
+      currentHost: newDashboard,
+      capturedPath: "/rankings/weekly",
+      currentPath: "/"
+    }),
+    false
+  );
+  assert.equal(
+    core.isCurrentHomeDecoration({
+      capturedHost: newDashboard,
+      currentHost: newDashboard,
+      capturedPath: "/",
+      currentPath: "/"
+    }),
+    true
+  );
+  assert.equal(
+    core.isCurrentHomeDecoration({
+      capturedHost: newDashboard,
+      currentHost: newDashboard,
+      capturedPath: "/rankings/weekly",
+      currentPath: "/"
+    }),
+    false
+  );
+});
