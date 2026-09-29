@@ -163,3 +163,53 @@ test("rank card sharing includes game name, rank, message, link, and PNG file", 
   assert.match(html, /files:\[file\]/);
   assert.match(html, /title:String\(g\.name\|\|'Bobaks Game'\)/);
 });
+
+test("rank card share toolkit supports caption/link copy and major social platforms", () => {
+  const html = readHtml();
+
+  for (const label of [
+    "Copy caption",
+    "Copy link",
+    "Messenger",
+    "Instagram",
+    "TikTok",
+    "WhatsApp",
+    "Facebook",
+    "Discord",
+    "More apps"
+  ]) {
+    assert.match(html, new RegExp(label));
+  }
+
+  assert.match(html, /navigator\.clipboard\.writeText/);
+  assert.match(html, /Visit Bobaks Ranking:/);
+  assert.match(html, /platform==='messenger'/);
+  assert.match(html, /platform==='instagram'/);
+  assert.match(html, /platform==='tiktok'/);
+  assert.match(html, /platform==='whatsapp'/);
+  assert.match(html, /platform==='facebook'/);
+  assert.match(html, /platform==='x'/);
+  assert.match(html, /platform==='discord'/);
+  assert.match(html, /platform==='native'/);
+  assert.match(html, /twitter\.com\/intent\/tweet/);
+  assert.match(html, /facebook\.com\/sharer\/sharer\.php/);
+  assert.match(html, /instagram\.com/);
+  assert.match(html, /tiktok\.com/);
+  assert.match(html, /discord\.com\/app/);
+});
+
+test("Messenger helper prepares the image plus copied caption for apps that split media and text", () => {
+  const html = readHtml();
+
+  assert.match(html, /if\(key==='messenger'\)/);
+  assert.match(html, /await copyText\(caption\)/);
+  assert.match(html, /files:\[file\]/);
+  assert.match(html, /paste the copied caption/);
+});
+
+test("share helper communicates platform limitations instead of claiming guaranteed combined sharing", () => {
+  const html = readHtml();
+
+  assert.match(html, /Some apps accept an image and text together/);
+  assert.match(html, /prepare the caption and image separately/);
+});
