@@ -58,10 +58,9 @@ Validate the TypeScript build:
 npm run build
 ```
 
-
 ## Data retention and storage
 
-Bobaks keeps detailed raw \`GameSnapshot\` data for 31 days so the database does not grow with every 10-minute collection forever. Long-term history is stored in \`DailyGameStat\` and \`GamePeak\`, while operational \`DataCollectionLog\` rows are retained for 365 days. Retention jobs run daily and protect raw snapshots and referenced collection logs from premature deletion.
+Bobaks keeps detailed raw `GameSnapshot` data for 31 days so the database does not grow with every 10-minute collection forever. Long-term history is stored in `DailyGameStat` and `GamePeak`, while operational `DataCollectionLog` rows are retained for 365 days. Retention jobs run daily and protect raw snapshots and referenced collection logs from premature deletion.
 
 The long-term history API combines daily summaries with the retained raw snapshot window, so historical data can continue beyond the raw 31-day window.
 
@@ -81,6 +80,11 @@ Bobaks publishes the current ranking methodology and a server-side audit summary
 - GET /api/rankings/audit
 
 The website exposes these under **How Bobaks Rankings Work**.
+
 ## Operational observability
 
 Phase 4 Part 5 exposes read-only operational telemetry through [docs/operational-observability.md](docs/operational-observability.md). The endpoint summarizes collection throughput, run outcomes, duration percentiles, ranking-refresh latency, and observed collection gaps using retained `DataCollectionLog` data.
+
+## Database performance
+
+Phase 4 Part 6.1 production baseline and index-audit evidence are documented in [docs/database-performance.md](docs/database-performance.md). The repeatable read-only baseline is in [database/database-performance-baseline.sql](database/database-performance-baseline.sql), and the evidence-backed index cleanup is in [database/database-performance-hardening.sql](database/database-performance-hardening.sql).
