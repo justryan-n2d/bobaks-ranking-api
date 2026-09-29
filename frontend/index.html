@@ -513,6 +513,26 @@ html[data-theme="light"] .rank-toggle:hover{color:#14304D;border-color:var(--acc
 .rank-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .rank-card-actions .btn{width:100%;justify-content:center}
 .rank-card-note{margin:9px 2px 1px;color:#738AA4;font-size:8px;line-height:1.5;text-align:center}
+.rank-card-share-status{
+  margin:9px 2px 0;padding:9px 10px;border:1px solid rgba(1,158,251,.18);
+  border-radius:9px;background:rgba(1,158,251,.045);color:#AFC3D9;
+  font-size:9px;line-height:1.45;text-align:center;display:none;
+}
+.rank-card-share-status.show{display:block}
+.rank-card-tools{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px;
+}
+.rank-card-tools .btn{width:100%;justify-content:center;min-height:34px}
+.rank-card-tools-label{
+  margin-top:12px;color:#7890A8;font-size:8px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+}
+.rank-card-platform-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:7px;
+}
+.rank-card-platform-grid .btn{padding:7px 5px;min-height:42px;flex-direction:column;gap:4px}
+.rank-card-platform-grid .btn small{font-size:7px;color:#7890A8}
+@media(max-width:420px){.rank-card-platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 .rank-card-generating{
   display:grid;place-items:center;min-height:240px;
   color:#9CB2C9;font-size:11px;gap:7px;
@@ -1311,8 +1331,6 @@ async function share(id){
     modal.className='rank-card-modal';
     modal.innerHTML='<div class="rank-card-dialog" role="dialog" aria-modal="true" aria-label="Bobaks Game Rank Card"><div class="rank-card-dialog-head"><div><h2 class="rank-card-dialog-title">Your Bobaks Game Rank Card</h2><p class="rank-card-dialog-sub">Data-driven from the current Bobaks ranking</p></div><button class="rank-card-close" aria-label="Close">×</button></div><div class="rank-card-canvas-wrap"><div class="rank-card-generating"><span class="spinner"></span><span>Generating your card…</span></div></div></div>';
     document.body.appendChild(modal);
-    modal.querySelector('.rank-card-close').onclick=closeRankCardModal;
-    modal.addEventListener('click',e=>{if(e.target===modal)closeRankCardModal()});
 
     const result=await generateRankCard(g);
     const wrap=modal.querySelector('.rank-card-canvas-wrap');
@@ -1320,74 +1338,252 @@ async function share(id){
     result.canvas.className='rank-card-canvas';
     wrap.appendChild(result.canvas);
 
-    const stopAnimation=result.startAnimation();
+    let stopAnimation=result.startAnimation();
+    const stop=()=>{if(stopAnimation){stopAnimation();stopAnimation=null}};
+    const restart=()=>{if(!stopAnimation)stopAnimation=result.startAnimation()};
 
-    modal.querySelector('.rank-card-close').onclick=()=>{
-      stopAnimation();
-      closeRankCardModal();
+    const filename='bobaks-'+String(g.name||'game').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()+'-rank-card.png';
+    const getBlob=async()=>{
+      const wasAnimating=!!stopAnimation;
+      if(wasAnimating)stop();
+      result.drawFrame(performance.now(),false);
+      const b=await new Promise((resolve,reject)=>result.canvas.toBlob(x=>x?resolve(x):reject(new Error('PNG export failed')),'image/png'));
+      if(wasAnimating)restart();
+      return b;
     };
-    modal.addEventListener('click',e=>{
-      if(e.target===modal){stopAnimation();closeRankCardModal()}
-    });
+    const copyText=async textValue=>{
+      if(!navigator.clipboard)throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(textValue);
+    };
+    const downloadBlob=async b=>{
+      const url=URL.createObjectURL(b);
+      const a=document.createElement('a');
+      a.href=url;a.download=filename;a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+    };
+    const setStatus=message=>{
+      const el=modal.querySelector('.rank-card-share-status');
+      if(el){el.textContent=message;el.classList.add('show')}
+    };
+
+    const caption=result.text;
+    const link=result.gameLink;
+
+    modal.querySelector('.rank-card-close').onclick=()=>{stop();closeRankCardModal()};
+    modal.addEventListener('click',e=>{if(e.target===modal){stop();closeRankCardModal()}});
 
     const actions=document.createElement('div');
     actions.className='rank-card-actions';
     actions.innerHTML='<button class="btn primary" data-download>Download PNG</button><button class="btn" data-share>Share Card</button>';
     wrap.parentElement.appendChild(actions);
+
+    const toolsBox=document.createElement('div');
+    toolsBox.className='rank-card-tools';
+    toolsBox.innerHTML='<button class="btn" data-copy-caption>Copy caption</button><button class="btn" data-copy-link>Copy link</button>';
+    wrap.parentElement.appendChild(toolsBox);
+
+    const label=document.createElement('div');
+    label.className='rank-card-tools-label';
+    label.textContent='Social share helpers';
+    wrap.parentElement.appendChild(label);
+
+    const platforms=document.createElement('div');
+    platforms.className='rank-card-platform-grid';
+    platforms.innerHTML=[
+      ['Messenger','💬','messenger'],
+      ['Instagram','◎','instagram'],
+      ['TikTok','♪','tiktok'],
+      ['WhatsApp','◌','whatsapp'],
+      ['Facebook','f','facebook'],
+      ['X','𝕏','x'],
+      ['Discord','☯','discord'],
+      ['More apps','↗','native']
+    ].map(([name,icon,key])=>'<button class="btn" data-platform="'+key+'"><span class="platform-icon">'+icon+'</span><strong>'+name+'</strong><small>Prepare share</small></button>').join('');
+    wrap.parentElement.appendChild(platforms);
+
     const note=document.createElement('div');
     note.className='rank-card-note';
-    note.textContent='Preview animation uses changing symbols and sparkles. Downloaded/shared PNGs are captured without the moving white glow line and include the game stats plus Bobaks visit link.';
+    note.textContent='Some apps accept an image and text together, while others may keep only the image. Bobaks prepares the caption and image separately so the user can post them together.';
     wrap.parentElement.appendChild(note);
 
-    const blob=()=>new Promise((resolve,reject)=>result.canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG export failed')),'image/png'));
+    const status=document.createElement('div');
+    status.className='rank-card-share-status';
+    wrap.parentElement.appendChild(status);
 
     modal.querySelector('[data-download]').onclick=async()=>{
       try{
-        stopAnimation();
-        result.drawFrame(performance.now(),false);
-        const b=await blob();
-        const url=URL.createObjectURL(b);
-        const a=document.createElement('a');a.href=url;a.download='bobaks-'+String(g.name||'game').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()+'-rank-card.png';a.click();
-        setTimeout(()=>URL.revokeObjectURL(url),1500);
-      }catch{state.error='The card could not be downloaded.';render();closeRankCardModal()}
+        const b=await getBlob();
+        await downloadBlob(b);
+        setStatus('PNG downloaded. Your caption is ready to copy for platforms that need it separately.');
+      }catch{setStatus('The card could not be downloaded. Try Copy caption or Share Card.')}
     };
 
     modal.querySelector('[data-share]').onclick=async()=>{
       try{
-        stopAnimation();
-        result.drawFrame(performance.now(),false);
-        const b=await blob();
-        const file=new File([b],'bobaks-rank-card.png',{type:'image/png'});
+        const b=await getBlob();
+        const file=new File([b],filename,{type:'image/png'});
         const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+
         if(navigator.share&&canShareFiles){
           await navigator.share({
             title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked')+' · Bobaks Ranking',
-            text:result.text,
-            url:result.gameLink,
+            text:caption,
+            url:link,
             files:[file]
           });
+          setStatus('Share sheet used. If the selected app drops the caption, use Copy caption and paste it after sending the image.');
         }else if(navigator.share){
           await navigator.share({
             title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked')+' · Bobaks Ranking',
-            text:result.text,
-            url:result.gameLink
+            text:caption,
+            url:link
           });
+          setStatus('Text and link shared. Download PNG separately when the app requires the image.');
         }else{
-          const url=URL.createObjectURL(b);
-          const a=document.createElement('a');a.href=url;a.download='bobaks-rank-card.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+          await copyText(caption);
+          await downloadBlob(b);
+          setStatus('Caption copied + PNG downloaded. You can post both on any platform.');
         }
       }catch(error){
         if(error?.name==='AbortError')return;
-        state.error='Sharing is unavailable on this device. Use Download PNG instead.';
-        render();closeRankCardModal();
+        setStatus('Sharing is unavailable here. Use Download PNG + Copy caption instead.');
       }
     };
+
+    modal.querySelector('[data-copy-caption]').onclick=async()=>{
+      try{
+        await copyText(caption);
+        setStatus('Caption copied. Paste it into Messenger, Instagram, TikTok, Facebook, WhatsApp, X, Discord, or another app.');
+      }catch{
+        setStatus('Clipboard access is unavailable. Use the device share action instead.');
+      }
+    };
+
+    modal.querySelector('[data-copy-link]').onclick=async()=>{
+      try{
+        await copyText(link);
+        setStatus('Bobaks link copied. Paste it below your caption on any platform.');
+      }catch{setStatus('Clipboard access is unavailable.')}
+    };
+
+    const preparePlatform=async key=>{
+      const b=await getBlob();
+      const open=url=>window.open(url,'_blank','noopener,noreferrer');
+
+      if(key==='messenger'){
+        await copyText(caption);
+        if(navigator.share){
+          const file=new File([b],filename,{type:'image/png'});
+          const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+          if(canShareFiles){
+            try{
+              await navigator.share({
+                title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked'),
+                text:caption,
+                url:link,
+                files:[file]
+              });
+              setStatus('Caption copied. Choose Messenger in the share sheet, send the card, then paste the copied caption if Messenger sends only the image.');
+              return;
+            }catch(error){
+              if(error?.name==='AbortError')return;
+            }
+          }
+        }
+        await downloadBlob(b);
+        setStatus('Caption copied + PNG downloaded. Open Messenger, attach the image, then paste the copied caption.');
+        return;
+      }
+
+      if(key==='whatsapp'){
+        await downloadBlob(b);
+        open('https://wa.me/?text='+encodeURIComponent(caption));
+        setStatus('WhatsApp opened with the caption and Bobaks link. Attach the downloaded PNG if needed.');
+        return;
+      }
+
+      if(key==='x'){
+        await downloadBlob(b);
+        open('https://twitter.com/intent/tweet?text='+encodeURIComponent(caption)+'&url='+encodeURIComponent(link));
+        setStatus('X opened with the caption and Bobaks link. Add the downloaded PNG if you want the image attached.');
+        return;
+      }
+
+      if(key==='facebook'){
+        await copyText(caption);
+        await downloadBlob(b);
+        open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(link));
+        setStatus('Facebook opened for the Bobaks link. Caption copied + PNG downloaded for your post.');
+        return;
+      }
+
+      if(key==='instagram'){
+        await copyText(caption);
+        await downloadBlob(b);
+        open('https://www.instagram.com/');
+        setStatus('Instagram opened. Caption copied + PNG downloaded. Create a post and paste the caption.');
+        return;
+      }
+
+      if(key==='tiktok'){
+        await copyText(caption);
+        await downloadBlob(b);
+        open('https://www.tiktok.com/');
+        setStatus('TikTok opened. Caption copied + PNG downloaded. Create a photo post and paste the caption.');
+        return;
+      }
+
+      if(key==='discord'){
+        await copyText(caption);
+        await downloadBlob(b);
+        open('https://discord.com/app');
+        setStatus('Discord opened. Caption copied + PNG downloaded. Attach the card and paste the caption.');
+        return;
+      }
+
+      if(key==='native'){
+        const file=new File([b],filename,{type:'image/png'});
+        if(navigator.share){
+          try{
+            if(navigator.canShare&&navigator.canShare({files:[file]})){
+              await navigator.share({
+                title:String(g.name||'Bobaks Game')+' · Bobaks Ranking',
+                text:caption,
+                url:link,
+                files:[file]
+              });
+            }else{
+              await navigator.share({
+                title:String(g.name||'Bobaks Game')+' · Bobaks Ranking',
+                text:caption,
+                url:link
+              });
+            }
+            setStatus('Native share sheet opened. Choose any supported app.');
+            return;
+          }catch(error){
+            if(error?.name==='AbortError')return;
+          }
+        }
+        await copyText(caption);
+        await downloadBlob(b);
+        setStatus('Caption copied + PNG downloaded. Use any app you like.');
+      }
+    };
+
+    platforms.querySelectorAll('[data-platform]').forEach(btn=>{
+      btn.onclick=async()=>{
+        try{await preparePlatform(btn.dataset.platform)}
+        catch{setStatus('Could not prepare this platform. Use Download PNG + Copy caption instead.')}
+      };
+    });
   }catch{
     if(modal)modal.remove();
     state.error='The Bobaks rank card could not be generated right now.';
     render();
   }
 }
+
 $('homeBtn').onclick=()=>{state.view='home';render();loadRankings()};$('rankNav').onclick=()=>{state.view='home';render();loadRankings()};$('savedNav').onclick=()=>{state.view='saved';render()};$('compareNav').onclick=()=>{state.view='compare';render()};$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
 loadTheme();loadSaved();render();loadRankings();
 </script>
