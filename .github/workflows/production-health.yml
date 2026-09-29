@@ -39,7 +39,8 @@ jobs:
             .checks.collection.status == "healthy" and
             .checks.dailySummary.status == "healthy" and
             .checks.rankings.status == "healthy" and
-            .checks.historicalRecovery.status == "healthy"
+            .checks.historicalRecovery.status == "healthy" and
+            .alerts.active == false
           ' >/dev/null
 
       - name: Check collector health

@@ -545,38 +545,66 @@ async function health(env: Env, fetchImpl: FetchLike): Promise<Response> {
 
 const HEALTH_THRESHOLDS = {
   collectionFreshnessSeconds: 15 * 60,
-  dailySummaryFreshnessSeconds: 26 * 60 * 60
+  dailySummaryFreshnessSeconds: 26 * 60 * 60,
+  rankingRefreshPendingSeconds: 5 * 60,
+  failureLookbackSeconds: 30 * 60
 };
 
 async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<string, unknown>> {
   const nowMs = Date.now();
 
-  const [audit, latestCollectionRows, latestGoodCollectionRows, latestDailySummaryRows] =
-    await Promise.all([
-      getRankingAudit(env, fetchImpl),
-      supabaseGet(env, "DataCollectionLog", {
-        select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors,errorMessage",
-        status: "in.(success,partial,failed)",
-        order: "startedAt.desc",
-        limit: "1"
-      }, fetchImpl),
-      supabaseGet(env, "DataCollectionLog", {
-        select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors",
-        status: "in.(success,partial)",
-        order: "startedAt.desc",
-        limit: "1"
-      }, fetchImpl),
-      supabaseGet(env, "DataCollectionLog", {
-        select: "startedAt,finishedAt,status,gamesUpdated,errors,errorMessage",
-        status: "in.(daily_summary_success,daily_summary_failed)",
-        order: "startedAt.desc",
-        limit: "1"
-      }, fetchImpl)
-    ]);
+  const failureCutoff = new Date(
+    nowMs - HEALTH_THRESHOLDS.failureLookbackSeconds * 1000
+  ).toISOString();
+
+  const [
+    audit,
+    latestCollectionRows,
+    latestGoodCollectionRows,
+    latestDailySummaryRows,
+    recentCollectionFailuresRows,
+    recentRankingRefreshFailuresRows
+  ] = await Promise.all([
+    getRankingAudit(env, fetchImpl),
+    supabaseGet(env, "DataCollectionLog", {
+      select: "collectionRunId,startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors,errorMessage,rankingRefreshStatus,rankingRefreshStartedAt,rankingRefreshFinishedAt,rankingRefreshErrorMessage",
+      status: "in.(success,partial,failed)",
+      order: "startedAt.desc",
+      limit: "1"
+    }, fetchImpl),
+    supabaseGet(env, "DataCollectionLog", {
+      select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors",
+      status: "in.(success,partial)",
+      order: "startedAt.desc",
+      limit: "1"
+    }, fetchImpl),
+    supabaseGet(env, "DataCollectionLog", {
+      select: "startedAt,finishedAt,status,gamesUpdated,errors,errorMessage",
+      status: "in.(daily_summary_success,daily_summary_failed)",
+      order: "startedAt.desc",
+      limit: "1"
+    }, fetchImpl),
+    supabaseGet(env, "DataCollectionLog", {
+      select: "collectionRunId,startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors,errorMessage",
+      status: "eq.failed",
+      startedAt: "gte." + failureCutoff,
+      order: "startedAt.desc",
+      limit: "20"
+    }, fetchImpl),
+    supabaseGet(env, "DataCollectionLog", {
+      select: "collectionRunId,startedAt,rankingRefreshStartedAt,rankingRefreshFinishedAt,rankingRefreshStatus,rankingRefreshErrorMessage",
+      rankingRefreshStatus: "eq.failed",
+      rankingRefreshStartedAt: "gte." + failureCutoff,
+      order: "rankingRefreshStartedAt.desc",
+      limit: "20"
+    }, fetchImpl)
+  ]);
 
   const latestCollection = latestCollectionRows[0] ?? {};
   const latestGoodCollection = latestGoodCollectionRows[0] ?? {};
   const latestDailySummary = latestDailySummaryRows[0] ?? {};
+  const recentCollectionFailures = recentCollectionFailuresRows;
+  const recentRankingRefreshFailures = recentRankingRefreshFailuresRows;
 
   const latestGoodCollectionMs = Date.parse(String(latestGoodCollection.startedAt ?? ""));
   const latestCollectionMs = Date.parse(String(latestCollection.startedAt ?? ""));
@@ -622,13 +650,34 @@ async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<str
     Number((rankings.monthly as Record<string, unknown> | undefined)?.rows) === 100 &&
     Number((rankings.yearly as Record<string, unknown> | undefined)?.rows) === 100;
 
-  const rankingsStatus =
+  const rankingRefreshStatus = String(latestCollection.rankingRefreshStatus ?? "unknown");
+  const rankingRefreshStartedMs = Date.parse(String(latestCollection.rankingRefreshStartedAt ?? ""));
+  const rankingRefreshAgeSeconds = Number.isFinite(rankingRefreshStartedMs)
+    ? Math.max(0, Math.floor((nowMs - rankingRefreshStartedMs) / 1000))
+    : null;
+  const rankingRefreshPendingStale =
+    rankingRefreshStatus === "pending" &&
+    (rankingRefreshAgeSeconds == null ||
+      rankingRefreshAgeSeconds > HEALTH_THRESHOLDS.rankingRefreshPendingSeconds);
+  const rankingRefreshOperationalStatus =
+    rankingRefreshStatus === "failed" || rankingRefreshPendingStale
+      ? "unhealthy"
+      : rankingRefreshStatus === "pending"
+        ? "degraded"
+        : "healthy";
+
+  const baseRankingsHealthy =
     auditStatus === "passed" &&
     rankingRowsHealthy &&
     Number.isFinite(liveAge) &&
-    liveAge <= HEALTH_THRESHOLDS.collectionFreshnessSeconds
-      ? "healthy"
-      : "unhealthy";
+    liveAge <= HEALTH_THRESHOLDS.collectionFreshnessSeconds;
+
+  const rankingsStatus =
+    !baseRankingsHealthy || rankingRefreshOperationalStatus === "unhealthy"
+      ? "unhealthy"
+      : rankingRefreshOperationalStatus === "degraded"
+        ? "degraded"
+        : "healthy";
 
   const historicalRecovery = audit.historicalRecovery &&
     typeof audit.historicalRecovery === "object"
@@ -641,7 +690,43 @@ async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<str
   const databaseStatus = "healthy";
   const degraded =
     collectionStatus === "degraded" ||
-    dailySummaryStatus === "degraded";
+    dailySummaryStatus === "degraded" ||
+    rankingsStatus === "degraded";
+
+  const recentCollectionFailureCount = recentCollectionFailures.length;
+  const recentRankingRefreshFailureCount = recentRankingRefreshFailures.length;
+  const alertReasons: string[] = [];
+
+  if (recentCollectionFailureCount > 0) {
+    alertReasons.push(
+      recentCollectionFailureCount === 1
+        ? "A collection run failed within the last 30 minutes."
+        : recentCollectionFailureCount + " collection runs failed within the last 30 minutes."
+    );
+  }
+
+  if (recentRankingRefreshFailureCount > 0) {
+    alertReasons.push(
+      recentRankingRefreshFailureCount === 1
+        ? "A ranking refresh failed within the last 30 minutes."
+        : recentRankingRefreshFailureCount + " ranking refreshes failed within the last 30 minutes."
+    );
+  }
+
+  if (rankingRefreshPendingStale) {
+    alertReasons.push("A ranking refresh has been pending for more than 5 minutes.");
+  }
+
+  if (
+    collectionStatus === "unhealthy" ||
+    dailySummaryStatus === "unhealthy" ||
+    rankingsStatus === "unhealthy" ||
+    historyStatus === "unhealthy"
+  ) {
+    alertReasons.push("Deep production health is currently unhealthy.");
+  }
+
+  const alertActive = alertReasons.length > 0;
   const unhealthy =
     collectionStatus === "unhealthy" ||
     dailySummaryStatus === "unhealthy" ||
@@ -679,6 +764,14 @@ async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<str
         yearlyRows: Number((rankings.yearly as Record<string, unknown> | undefined)?.rows ?? 0),
         maxLatestSnapshotAgeSeconds: Number.isFinite(liveAge) ? liveAge : null
       },
+      rankingRefresh: {
+        status: rankingRefreshOperationalStatus,
+        latestStatus: rankingRefreshStatus,
+        startedAt: latestCollection.rankingRefreshStartedAt ?? null,
+        finishedAt: latestCollection.rankingRefreshFinishedAt ?? null,
+        ageSeconds: rankingRefreshAgeSeconds,
+        errorMessage: latestCollection.rankingRefreshErrorMessage ?? null
+      },
       historicalRecovery: {
         status: historyStatus,
         recoverableDailyRows: Number(historicalRecovery.recoverableDailyRows ?? 0),
@@ -686,6 +779,26 @@ async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<str
           ? historicalRecovery.rawDaysWithoutSummary.length
           : null
       }
+    },
+    alerts: {
+      active: alertActive,
+      severity: alertActive ? "critical" : "clear",
+      lookbackSeconds: HEALTH_THRESHOLDS.failureLookbackSeconds,
+      recentCollectionFailureCount,
+      recentRankingRefreshFailureCount,
+      reasons: alertReasons,
+      recentCollectionFailures: recentCollectionFailures.map(row => ({
+        collectionRunId: row.collectionRunId ?? null,
+        startedAt: row.startedAt ?? null,
+        errorMessage: row.errorMessage ?? null
+      })),
+      recentRankingRefreshFailures: recentRankingRefreshFailures.map(row => ({
+        collectionRunId: row.collectionRunId ?? null,
+        startedAt: row.startedAt ?? null,
+        rankingRefreshStartedAt: row.rankingRefreshStartedAt ?? null,
+        rankingRefreshFinishedAt: row.rankingRefreshFinishedAt ?? null,
+        errorMessage: row.rankingRefreshErrorMessage ?? null
+      }))
     }
   };
 }

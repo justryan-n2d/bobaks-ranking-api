@@ -194,6 +194,10 @@ test("deep health reports healthy production dependencies", async () => {
         }]);
       }
 
+      if (status === "eq.failed" || parsed.searchParams.get("rankingRefreshStatus") === "eq.failed") {
+        return response([]);
+      }
+
       if (status === "in.(daily_summary_success,daily_summary_failed)") {
         return response([{
           startedAt: dailySummary,
@@ -267,6 +271,10 @@ test("deep health becomes unhealthy when the last good collection is stale", asy
         return response([]);
       }
 
+      if (status === "eq.failed" || parsed.searchParams.get("rankingRefreshStatus") === "eq.failed") {
+        return response([]);
+      }
+
       if (status === "in.(daily_summary_success,daily_summary_failed)") {
         return response([{ startedAt: dailySummary, status: "daily_summary_success", gamesUpdated: 158, errors: 0 }]);
       }
@@ -287,6 +295,123 @@ test("deep health becomes unhealthy when the last good collection is stale", asy
   assert.equal(body.status, "unhealthy");
   assert.equal(body.checks.collection.status, "unhealthy");
   assert.equal(body.checks.rankings.status, "unhealthy");
+});
+
+test("deep health surfaces recent collection and ranking refresh failures", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const now = Date.now();
+  const recent = new Date(now - 8 * 60 * 1000).toISOString();
+
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers);
+    calls.push({ url, headers });
+
+    if (url.includes("/rest/v1/rpc/get_rankings_audit")) {
+      return response({
+        methodologyVersion: "2026-09-28",
+        auditStatus: "passed",
+        historicalRecovery: {
+          status: "passed",
+          recoverableDailyRows: 0,
+          rawDaysWithoutSummary: []
+        },
+        rankings: {
+          live: { rows: 100, maxLatestSnapshotAgeSeconds: 300 },
+          weekly: { rows: 100 },
+          monthly: { rows: 100 },
+          yearly: { rows: 100 }
+        }
+      });
+    }
+
+    if (url.includes("/rest/v1/DataCollectionLog?")) {
+      const parsed = new URL(url);
+      const status = parsed.searchParams.get("status");
+
+      if (status === "in.(success,partial,failed)") {
+        return response([{
+          collectionRunId: "11111111-1111-1111-1111-111111111111",
+          startedAt: recent,
+          finishedAt: recent,
+          status: "success",
+          gamesChecked: 123,
+          gamesUpdated: 123,
+          errors: 0,
+          rankingRefreshStatus: "success",
+          rankingRefreshStartedAt: recent,
+          rankingRefreshFinishedAt: recent
+        }]);
+      }
+
+      if (status === "in.(success,partial)") {
+        return response([{
+          startedAt: recent,
+          finishedAt: recent,
+          status: "success",
+          gamesChecked: 123,
+          gamesUpdated: 123,
+          errors: 0
+        }]);
+      }
+
+      if (status === "eq.failed") {
+        return response([{
+          collectionRunId: "22222222-2222-2222-2222-222222222222",
+          startedAt: recent,
+          finishedAt: recent,
+          status: "failed",
+          gamesChecked: 0,
+          gamesUpdated: 0,
+          errors: 1,
+          errorMessage: "Roblox HTTP 429"
+        }]);
+      }
+
+      if (parsed.searchParams.get("rankingRefreshStatus") === "eq.failed") {
+        return response([{
+          collectionRunId: "33333333-3333-3333-3333-333333333333",
+          startedAt: recent,
+          rankingRefreshStartedAt: recent,
+          rankingRefreshFinishedAt: recent,
+          rankingRefreshStatus: "failed",
+          rankingRefreshErrorMessage: "refresh failed"
+        }]);
+      }
+
+      if (status === "in.(daily_summary_success,daily_summary_failed)") {
+        return response([{
+          startedAt: recent,
+          finishedAt: recent,
+          status: "daily_summary_success",
+          gamesUpdated: 123,
+          errors: 0
+        }]);
+      }
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/health/deep"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.alerts.active, true);
+  assert.equal(body.alerts.severity, "critical");
+  assert.equal(body.alerts.recentCollectionFailureCount, 1);
+  assert.equal(body.alerts.recentRankingRefreshFailureCount, 1);
+  assert.equal(body.checks.rankings.status, "healthy");
+  assert.equal(body.checks.rankingRefresh.status, "healthy");
+  assert.equal(body.checks.rankingRefresh.latestStatus, "success");
+  assert.equal(body.alerts.reasons.length, 2);
+  assert.match(body.alerts.reasons[0], /collection run failed/i);
+  assert.match(body.alerts.reasons[1], /ranking refresh failed/i);
 });
 
 test("ranking endpoint supports the current period query contract", async () => {

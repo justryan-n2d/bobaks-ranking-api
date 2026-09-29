@@ -1,0 +1,66 @@
+name: Production Failure Alerting
+
+on:
+  workflow_run:
+    workflows: ["Production Health Monitor"]
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bobaks-production-alerting
+  cancel-in-progress: true
+
+jobs:
+  incident:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create or maintain incident issue
+        if: github.event.workflow_run.conclusion == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TITLE="🚨 Bobaks production incident"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bobaks production incident"' --limit 20 --json number,title)
+          issue_number=$(echo "$existing" | jq -r --arg title "$TITLE" '.[] | select(.title == $title) | .number' | head -n 1)
+
+          if [ -n "$issue_number" ]; then
+            echo "Active production incident issue #$issue_number already exists."
+            exit 0
+          fi
+
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "Production Health Monitor detected a failure.
+
+Run #$RUN_NUMBER
+Run URL: $RUN_URL
+
+The issue stays open until a later Production Health Monitor run succeeds."
+
+      - name: Close recovered incident
+        if: github.event.workflow_run.conclusion == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TITLE="🚨 Bobaks production incident"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bobaks production incident"' --limit 20 --json number,title)
+          issue_number=$(echo "$existing" | jq -r --arg title "$TITLE" '.[] | select(.title == $title) | .number' | head -n 1)
+
+          if [ -z "$issue_number" ]; then
+            echo "No active production incident issue."
+            exit 0
+          fi
+
+          gh issue comment "$issue_number" --repo "$GITHUB_REPOSITORY" --body "Production Health Monitor recovered at $(date -u +%Y-%m-%dT%H:%M:%SZ). Closing this incident."
+          gh issue close "$issue_number" --repo "$GITHUB_REPOSITORY"
+
+      - name: Alerting summary
+        run: echo "Production failure alerting completed."
