@@ -213,7 +213,8 @@ test("game, history, peak, and search endpoints return data", async () => {
   assert.equal(longHistoryBody.data[0].playerCount, 80.5);
   assert.equal(longHistoryBody.data[1].resolution, "snapshot");
   assert.ok(calls.some(call => call.url.includes("/rest/v1/DailyGameStat?")));
-  assert.ok(calls.some(call => call.url.includes("date.lt=")));
+  assert.ok(calls.some(call => call.url.includes("/rest/v1/DailyGameStat?")));
+  assert.equal(calls.filter(call => call.url.includes("/rest/v1/DailyGameStat?")).every(call => !call.url.includes("date.lt=")), true);
 
   const peak = await handleApi(new Request("https://api.example/api/games/1/peak"), env, fetchImpl);
   assert.equal(peak.status, 200);
