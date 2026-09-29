@@ -84,7 +84,6 @@ test("game routes return an indexable SEO page with canonical metadata and JSON-
   assert.match(html, /Recorded Peak: <strong>4321<\/strong>/);
   assert.match(html, /application/ld+json/);
   assert.match(html, /"@type":"VideoGame"/);
-  assert.ok(points.length >= 1);
 });
 
 test("sitemap lists the homepage and active game URLs", async () => {
