@@ -68,3 +68,10 @@ test("search does not replace the input element while typing", () => {
     /setInterval\(\(\)=>\{if\(state\.view==='home'\|\|state\.view==='detail'\)render\(\)\},1000\)/
   );
 });
+
+test("frontend references the Bobaks logo as its favicon and brand mark", () => {
+  const html = fs.readFileSync(frontendPath, "utf8");
+  assert.match(html, /<link rel="icon" type="image\/png" sizes="32x32" href="\/assets\/bobaks-logo\.png">/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/assets\/bobaks-logo\.png">/);
+  assert.match(html, /<img class="mark" src="\/assets\/bobaks-logo\.png" alt="">/);
+});
