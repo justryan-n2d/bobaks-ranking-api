@@ -1020,29 +1020,96 @@ async function generateRankCard(g){
     ctx.restore();
   }
 
-  function drawFoil(ctx,time,preview=true){
-    const phase=((time||0)%5200)/5200;
-    const sweepX=-500+phase*(W+1000);
+  function seededRandom(seed){
+    const x=Math.sin(seed*12.9898+78.233)*43758.5453;
+    return x-Math.floor(x);
+  }
+
+  function drawSymbol(ctx,type,x,y,size,rotation,alpha,fill,stroke){
     ctx.save();
-    ctx.globalCompositeOperation='screen';
+    ctx.translate(x,y);
+    ctx.rotate(rotation);
+    ctx.globalAlpha=Math.max(0,Math.min(1,alpha));
+    ctx.fillStyle=fill;
+    ctx.strokeStyle=stroke;
+    ctx.lineWidth=Math.max(2,size*.055);
+    ctx.beginPath();
 
-    const shimmer=ctx.createLinearGradient(sweepX,0,sweepX+260,0);
-    shimmer.addColorStop(0,'rgba(255,255,255,0)');
-    shimmer.addColorStop(.43,'rgba(255,255,255,'+(preview?.24:.19)+')');
-    shimmer.addColorStop(.5,'rgba(255,255,255,'+(preview?.52:.38)+')');
-    shimmer.addColorStop(.57,'rgba(255,255,255,'+(preview?.20:.16)+')');
-    shimmer.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=shimmer;
-    ctx.fillRect(45,45,W-90,H-90);
-
-    ctx.translate(W/2,H/2);
-    ctx.rotate(-.24);
-    for(let i=-20;i<22;i++){
-      const y=i*70+((time||0)%140)-140;
-      ctx.fillStyle=hexToRgba(tier.accent,(preview?.045:.028));
-      ctx.fillRect(-1000,y,2000,12);
+    if(type==='circle'){
+      ctx.arc(0,0,size*.5,0,Math.PI*2);
+      ctx.fill();
+    }else if(type==='triangle'){
+      ctx.moveTo(0,-size*.55);
+      ctx.lineTo(size*.56,size*.47);
+      ctx.lineTo(-size*.56,size*.47);
+      ctx.closePath();
+      ctx.fill();
+    }else if(type==='square'){
+      ctx.rect(-size*.45,-size*.45,size*.9,size*.9);
+      ctx.fill();
+    }else if(type==='block'){
+      const w=size*.95,h=size*.56,r=size*.12;
+      roundRect(ctx,-w/2,-h/2,w,h,r);
+      ctx.fill();
+    }else if(type==='gamepad'){
+      const w=size*1.02,h=size*.58,r=size*.22;
+      roundRect(ctx,-w/2,-h/2,w,h,r);
+      ctx.fill();
+      ctx.fillStyle=stroke;
+      ctx.globalAlpha*=.72;
+      ctx.fillRect(-size*.28,-size*.045,size*.20,size*.09);
+      ctx.fillRect(-size*.235,-size*.09,size*.09,size*.18);
+      ctx.beginPath();
+      ctx.arc(size*.22,-size*.08,size*.06,0,Math.PI*2);
+      ctx.arc(size*.30,size*.05,size*.06,0,Math.PI*2);
+      ctx.fill();
     }
+
+    ctx.stroke();
     ctx.restore();
+  }
+
+  function drawRandomSymbols(ctx,time,preview){
+    if(!preview)return;
+
+    const slotCount=rank===1?11:rank&&rank<=3?9:8;
+    const step=500;
+    const t=Math.max(0,time||0);
+    const cycle=Math.floor(t/step);
+    const phase=(t%step)/step;
+    const fadeOut=Math.max(0,1-phase/.5);
+    const fadeIn=Math.min(1,phase/.5);
+    const types=['block','circle','triangle','square','gamepad'];
+
+    function sceneSymbol(slot,scene){
+      const base=scene*997+slot*113+rank*31;
+      return {
+        type:types[Math.floor(seededRandom(base+5)*types.length)%types.length],
+        x:90+seededRandom(base+1)*(W-180),
+        y:150+seededRandom(base+2)*(H-300),
+        size:22+seededRandom(base+3)*36,
+        rotation:(seededRandom(base+4)-.5)*Math.PI
+      };
+    }
+
+    for(let slot=0;slot<slotCount;slot++){
+      const oldSymbol=sceneSymbol(slot,cycle);
+      const newSymbol=sceneSymbol(slot,cycle+1);
+      const baseOpacity=.045;
+
+      drawSymbol(
+        ctx,oldSymbol.type,oldSymbol.x,oldSymbol.y,oldSymbol.size,oldSymbol.rotation,
+        baseOpacity*fadeOut,hexToRgba(tier.accent,1),hexToRgba(tier.accent2,.95)
+      );
+      drawSymbol(
+        ctx,newSymbol.type,newSymbol.x,newSymbol.y,newSymbol.size,newSymbol.rotation,
+        baseOpacity*fadeIn,hexToRgba(tier.accent,1),hexToRgba(tier.accent2,.95)
+      );
+    }
+  }
+
+  function drawFoil(ctx,time,preview=true){
+    drawRandomSymbols(ctx,time,preview);
 
     if(preview){
       const count=rank===1?26:rank&&rank<=3?18:12;
@@ -1050,14 +1117,13 @@ async function generateRankCard(g){
         const seed=i*1337+rank*97;
         const x=75+(Math.abs(Math.sin(seed))*1050);
         const y=120+(Math.abs(Math.cos(seed*.71))*1310);
-        const pulse=.7+.3*Math.sin((time||0)/500+i);
+        const pulse=.7+.3*Math.sin((time||0)/900+i);
         drawSpark(ctx,x,y,(rank===1?7:5)*pulse,.5*pulse,tier.accent2);
       }
     }
-    ctx.restore();
   }
 
-  function drawFrame(time=0,preview=true){
+function drawFrame(time=0,preview=true){
     ctx.clearRect(0,0,W,H);
 
     const bg=ctx.createLinearGradient(0,0,W,H);
@@ -1198,12 +1264,24 @@ async function generateRankCard(g){
   }
 
   drawFrame(performance.now(),true);
+  const gameLink=location.origin;
+  const shareMessage=cardMessage({...g,isNewEntry:previousRank==null},rank);
+  const shareText=[
+    String(g.name||'Unknown game')+' · '+(rank?'#'+rank:'Unranked'),
+    '',
+    shareMessage,
+    '',
+    'Visit Bobaks Ranking:',
+    gameLink
+  ].join('\n');
+
   return {
     canvas,
     rank,
     tier,
     rankChange,
-    text:'Bobaks Ranking · '+g.name+' · '+(rank?'#'+rank:'Unranked')+' · '+fmt(current)+' players',
+    text:shareText,
+    gameLink,
     drawFrame,
     startAnimation(){
       let raf;
@@ -1258,7 +1336,7 @@ async function share(id){
     wrap.parentElement.appendChild(actions);
     const note=document.createElement('div');
     note.className='rank-card-note';
-    note.textContent='Your card uses the live Bobaks rank, current player count, recorded peak, and rank movement available for this game.';
+    note.textContent='Preview animation uses changing symbols and sparkles. Downloaded/shared PNGs are captured without the moving white glow line and include the game stats plus Bobaks visit link.';
     wrap.parentElement.appendChild(note);
 
     const blob=()=>new Promise((resolve,reject)=>result.canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG export failed')),'image/png'));
@@ -1282,9 +1360,18 @@ async function share(id){
         const file=new File([b],'bobaks-rank-card.png',{type:'image/png'});
         const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
         if(navigator.share&&canShareFiles){
-          await navigator.share({title:'Bobaks Game Rank Card',text:result.text,url:location.origin,files:[file]});
+          await navigator.share({
+            title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked')+' · Bobaks Ranking',
+            text:result.text,
+            url:result.gameLink,
+            files:[file]
+          });
         }else if(navigator.share){
-          await navigator.share({title:'Bobaks Game Rank Card',text:result.text,url:location.origin});
+          await navigator.share({
+            title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked')+' · Bobaks Ranking',
+            text:result.text,
+            url:result.gameLink
+          });
         }else{
           const url=URL.createObjectURL(b);
           const a=document.createElement('a');a.href=url;a.download='bobaks-rank-card.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
