@@ -1,9 +1,6 @@
 name: Production Health Monitor
 
 on:
-  push:
-    paths:
-      - "e2e-alerting-test.txt"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
