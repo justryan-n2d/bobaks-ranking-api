@@ -116,7 +116,12 @@ BEGIN
 
   SELECT COUNT(DISTINCT day)
   INTO summary_days
-  FROM summary;
+  FROM (
+    SELECT (d."date" AT TIME ZONE 'UTC')::date AS day
+    FROM public."DailyGameStat" d
+    WHERE d."date" >= oldest_date::timestamp AT TIME ZONE 'UTC'
+      AND d."date" < current_utc_date::timestamp AT TIME ZONE 'UTC'
+  ) summary_days_source;
 
   SELECT
     COUNT(*) FILTER (WHERE "status" = 'success'),
