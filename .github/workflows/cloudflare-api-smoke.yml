@@ -1,6 +1,10 @@
 name: Cloudflare API Smoke Test
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloudflare-api-smoke.yml"
   workflow_dispatch:
 
 jobs:
