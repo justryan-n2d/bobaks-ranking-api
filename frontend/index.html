@@ -8,11 +8,438 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/bobaks-logo.png">
 <link rel="apple-touch-icon" href="/assets/bobaks-logo.png">
 <style>
-:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#eef2f7;background:#07090d}*{box-sizing:border-box}body{margin:0;background:#07090d}button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}.top{height:62px;position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid #20242b;background:#090b10}.brand{border:0;background:none;color:#fff;font-weight:850;letter-spacing:.1em;display:flex;align-items:center;gap:9px}.mark{width:30px;height:30px;border-radius:50%;display:block;object-fit:cover;flex:none}.nav{display:flex;gap:5px}.nav button,.btn{border:1px solid #242a33;background:#10151c;color:#c7cfd8;border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800}.nav button.active{color:#fff;background:#20262f}.wrap{width:min(1180px,calc(100% - 20px));margin:auto;padding:28px 0}.hero{padding:10px 0 25px}.eyebrow{color:#8d97a5;font-size:10px;font-weight:850;letter-spacing:.16em}.hero h1{font-size:clamp(42px,8vw,72px);line-height:.9;margin:12px 0 15px;letter-spacing:-.05em}.hero em{color:#ff4141;font-style:normal}.hero p{color:#8d97a5;font-size:14px}.controls{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:14px}.tabs{display:flex;gap:4px;padding:4px;border:1px solid #20252d;border-radius:11px;background:#0d1117;overflow:auto}.tabs button{border:0;background:none;color:#7e8997;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:800;white-space:nowrap}.tabs button.active{background:#20262f;color:#fff}.search{position:relative;margin-bottom:18px}.search input{width:100%;height:46px;border:1px solid #20252d;border-radius:11px;background:#0d1117;color:#fff;padding:0 13px;outline:none}.results{position:absolute;left:0;right:0;top:51px;z-index:4;background:#10151c;border:1px solid #252c36;border-radius:11px;overflow:hidden}.results:empty{display:none}.results button{width:100%;border:0;background:none;color:#fff;text-align:left;padding:10px 12px}.results button:hover{background:#1a2028}.banner{padding:11px 13px;margin-bottom:13px;border:1px solid #252c36;border-radius:10px;background:#11161d;color:#9aa4b1;font-size:11px}.error{color:#ff9d9d;border-color:#572a2a}.listhead{display:flex;justify-content:space-between;gap:10px;align-items:end;margin-bottom:10px}.listhead h2{margin:0;font-size:18px}.listhead p{margin:4px 0;color:#737e8c;font-size:10px}.updated{color:#737e8c;font-size:9px}.rows{border-top:1px solid #1c222a}.row{display:grid;grid-template-columns:36px 54px minmax(0,1fr) 90px 80px;gap:9px;align-items:center;min-height:72px;border-bottom:1px solid #1c222a}.row img,.cover{width:54px;height:54px;border-radius:10px;object-fit:cover;background:#171d25}.game{border:0;background:none;color:#eef2f7;text-align:left;display:flex;gap:10px;align-items:center;min-width:0}.game span{min-width:0}.game b,.game small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.game b{font-size:12px}.game small{color:#707b89;font-size:9px;margin-top:3px}.rank{color:#697381;text-align:center;font-weight:850;font-size:11px}.players{text-align:right;white-space:nowrap}.players b{display:block;font-size:12px}.players small{color:#707b89;font-size:9px}.movement{text-align:right;font-size:10px;font-weight:850}.up{color:#62d89d}.down{color:#ff7f7f}.new{color:#c2a7ff}.actions{display:flex;gap:5px;justify-content:flex-end}.mini{border:1px solid #252c36;background:#10151c;color:#9ba5b3;border-radius:7px;padding:6px 7px;font-size:9px}.empty{text-align:center;padding:50px;color:#697482}.detail-head{display:flex;gap:15px;align-items:flex-start}.detail-head h1{margin:4px 0;font-size:clamp(28px,6vw,48px)}.detail-head p{margin:0 0 10px;color:#7d8794;font-size:11px}.actions-wide{display:flex;gap:6px;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:15px 0}.stat{border:1px solid #1c222a;border-radius:12px;background:#0d1117;padding:13px}.stat span,.stat small{color:#707b89;font-size:9px}.stat strong{display:block;margin:7px 0 3px;font-size:20px}.panel{border:1px solid #1c222a;border-radius:12px;background:#0d1117;padding:14px;margin-bottom:12px}.panel h2{margin:0;font-size:16px}.panel p{color:#737e8c;font-size:10px}.chart{height:210px}.chart svg{width:100%;height:190px}.line{stroke:#ff4b4b;stroke-width:3;fill:none}.rankline{stroke:#93a2ff;stroke-width:3;fill:none}.gridline{stroke:#202630}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}.meta div{padding:10px;border:1px solid #202731;border-radius:9px}.meta small{display:block;color:#687381;font-size:8px}.meta b{font-size:10px;word-break:break-word}.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}.info{max-width:900px}.info h1{font-size:42px;margin:10px 0}.info p{color:#858f9d;font-size:12px;line-height:1.7}.foot{margin-top:22px;padding-top:18px;border-top:1px solid #171c23;color:#697482;font-size:9px;display:flex;justify-content:space-between;gap:12px}.foot button{border:0;background:none;color:#7d8794;font-size:9px}@media(max-width:800px){.stats{grid-template-columns:1fr 1fr}.row{grid-template-columns:30px 50px minmax(0,1fr) 75px}.actions{grid-column:3/5;justify-content:flex-start}.row{padding:8px 0}}@media(max-width:560px){.top{padding:0 10px}.brand{font-size:10px}.nav button{padding:7px}.wrap{padding-top:22px}.controls{align-items:stretch;flex-direction:column}.tabs{width:100%}.tabs button{flex:1}.listhead{align-items:flex-start;flex-direction:column}.row{grid-template-columns:24px 1fr 78px}.row img,.cover{width:50px;height:50px}.game{grid-column:2}.players{grid-column:3}.movement{grid-column:3;grid-row:2}.actions{grid-column:2/4}.detail-head h1{font-size:27px}.stats,.meta,.compare{grid-template-columns:1fr 1fr}.foot{display:block}}
+:root{
+  --brand:#022359;
+  --accent:#019EFB;
+  --page:#050B14;
+  --surface:#091527;
+  --surface-2:#0B1B31;
+  --surface-3:#0E223D;
+  --line:rgba(176,213,255,.12);
+  --line-strong:rgba(1,158,251,.38);
+  --text:#F7FAFF;
+  --muted:#8FA5C0;
+  --muted-2:#6E829D;
+  --positive:#37D6A2;
+  --negative:#FF7586;
+  --warning:#F4C95D;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:var(--text);
+  background:var(--page);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-width:320px;background:var(--page);color:var(--text)}
+button,input{font:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.top{
+  height:72px;
+  position:sticky;
+  top:0;
+  z-index:20;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 clamp(16px,4vw,42px);
+  background:var(--brand);
+  border-bottom:1px solid rgba(255,255,255,.12);
+  box-shadow:0 12px 36px rgba(0,0,0,.18);
+}
+.brand{
+  border:0;
+  background:transparent;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:0;
+  font-family:Manrope,Inter,sans-serif;
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:-.02em;
+}
+.brand .brand-accent{color:var(--accent)}
+.mark{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  display:block;
+  object-fit:cover;
+  flex:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.22);
+}
+.nav{display:flex;align-items:center;gap:6px}
+.nav button,.btn{
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  color:#DDE8F5;
+  border-radius:10px;
+  padding:9px 12px;
+  font-size:12px;
+  font-weight:700;
+  transition:.18s ease;
+}
+.nav button:hover,.btn:hover{border-color:rgba(1,158,251,.55);transform:translateY(-1px)}
+.nav button.active{
+  color:#fff;
+  background:var(--accent);
+  border-color:var(--accent);
+  box-shadow:0 8px 20px rgba(1,158,251,.22);
+}
+.wrap{width:min(1320px,calc(100% - 32px));margin:auto;padding:32px 0 50px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.09);
+  background:var(--brand);
+  border-radius:20px;
+  padding:28px clamp(20px,4vw,44px);
+  margin-bottom:20px;
+  box-shadow:0 22px 60px rgba(0,0,0,.24);
+}
+.hero:after{
+  content:"";
+  position:absolute;
+  width:360px;height:360px;
+  right:-110px;top:-150px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(1,158,251,.22),transparent 70%);
+  pointer-events:none;
+}
+.hero-main{position:relative;z-index:1;max-width:760px}
+.eyebrow{
+  color:#A8DFFF;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+.hero h1{
+  font-family:Manrope,Inter,sans-serif;
+  font-size:clamp(38px,6vw,68px);
+  line-height:.98;
+  margin:10px 0 10px;
+  letter-spacing:-.055em;
+}
+.hero em{color:var(--accent);font-style:normal}
+.hero p{margin:0;color:#C4D6EA;font-size:14px;line-height:1.65;max-width:650px}
+.hero-status{
+  position:absolute;
+  z-index:1;
+  right:24px;bottom:24px;
+  min-width:230px;
+  padding:13px 15px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:13px;
+  background:rgba(3,16,39,.42);
+  backdrop-filter:blur(10px);
+}
+.hero-status .status-label{display:block;color:#9FB6D0;font-size:9px;text-transform:uppercase;letter-spacing:.12em;font-weight:800}
+.hero-status strong{display:block;margin-top:4px;font-size:12px}
+.controls{
+  display:flex;
+  gap:12px;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+}
+.tabs{
+  display:flex;
+  gap:4px;
+  padding:4px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--surface);
+  overflow:auto;
+}
+.tabs button{
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  padding:10px 16px;
+  border-radius:9px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+  transition:.18s ease;
+}
+.tabs button:hover{color:#fff}
+.tabs button.active{
+  color:#fff;
+  background:var(--accent);
+  box-shadow:0 8px 18px rgba(1,158,251,.18);
+}
+.btn{
+  background:var(--surface);
+  border-color:var(--line);
+  color:#E4EEF9;
+}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 9px 22px rgba(1,158,251,.2)}
+.btn.ghost{background:transparent}
+.search{position:relative;margin-bottom:18px}
+.search-wrap{position:relative}
+.search-icon{
+  position:absolute;left:15px;top:50%;
+  transform:translateY(-50%);
+  color:#83A4C9;font-size:15px;pointer-events:none
+}
+.search input{
+  width:100%;
+  height:48px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--surface);
+  color:#fff;
+  padding:0 15px 0 42px;
+  outline:none;
+  transition:.18s ease;
+}
+.search input::placeholder{color:#68809F}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(1,158,251,.1)}
+.results{
+  position:absolute;left:0;right:0;top:54px;
+  z-index:15;
+  background:var(--surface-2);
+  border:1px solid var(--line-strong);
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 18px 50px rgba(0,0,0,.35)
+}
+.results:empty{display:none}
+.results button{width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;color:#fff;text-align:left;padding:11px 13px}
+.results button:last-child{border-bottom:0}
+.results button:hover{background:var(--surface-3)}
+.results b{font-size:12px}
+.results small{color:var(--muted);font-size:9px}
+.dashboard{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 310px;
+  gap:18px;
+  align-items:start;
+}
+.main-card,.side-card{
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:0 14px 38px rgba(0,0,0,.15)
+}
+.main-card{overflow:hidden}
+.listhead{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-end;
+  padding:19px 20px 14px;
+}
+.listhead h2{
+  font-family:Manrope,Inter,sans-serif;
+  margin:0;
+  font-size:18px;
+  letter-spacing:-.025em
+}
+.listhead p{margin:4px 0 0;color:var(--muted-2);font-size:10px}
+.updated{color:#8AA4C1;font-size:9px;text-align:right}
+.table-head{
+  display:grid;
+  grid-template-columns:54px minmax(280px,1.6fr) minmax(130px,.7fr) 110px 92px 120px;
+  gap:10px;
+  align-items:center;
+  padding:11px 20px;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  color:#6F89A6;
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  font-weight:800
+}
+.table-head span:nth-last-child(-n+2){text-align:right}
+.rows{border-top:0}
+.row{
+  display:grid;
+  grid-template-columns:54px minmax(280px,1.6fr) minmax(130px,.7fr) 110px 92px 120px;
+  gap:10px;
+  align-items:center;
+  min-height:78px;
+  padding:9px 20px;
+  border-bottom:1px solid var(--line);
+  transition:.16s ease;
+}
+.row:last-child{border-bottom:0}
+.row:hover{background:rgba(1,158,251,.045)}
+.row:first-child{background:linear-gradient(90deg,rgba(1,158,251,.10),transparent 70%)}
+.row img,.cover{
+  width:54px;height:54px;border-radius:12px;object-fit:cover;
+  background:#10223A;
+}
+.game{
+  border:0;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+  padding:0;
+}
+.game span{min-width:0}
+.game b,.game small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.game b{font-size:12px;font-weight:750}
+.game small{color:var(--muted-2);font-size:9px;margin-top:4px}
+.game-tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;border:1px solid rgba(1,158,251,.2);background:rgba(1,158,251,.08);color:#8FCCF3;padding:3px 7px;border-radius:99px;font-size:8px;font-weight:700}
+.rank{
+  width:30px;height:30px;margin:auto;
+  display:grid;place-items:center;
+  border-radius:9px;
+  color:#7C94AE;
+  font-weight:850;font-size:11px;
+}
+.row:first-child .rank{color:#fff;background:var(--accent);box-shadow:0 7px 16px rgba(1,158,251,.2)}
+.players{text-align:right;white-space:nowrap}
+.players b{display:block;font-size:12px}
+.players small{color:var(--muted-2);font-size:9px}
+.movement{text-align:right;font-size:10px;font-weight:850}
+.up{color:var(--positive)}
+.down{color:var(--negative)}
+.new{color:#BFA7FF}
+.creator{min-width:0;color:#A5B8CE;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actions{display:flex;gap:5px;justify-content:flex-end}
+.mini{
+  border:1px solid var(--line);
+  background:#0D1B2D;
+  color:#9FB4CC;
+  border-radius:8px;
+  padding:7px 9px;
+  font-size:9px;
+  font-weight:700;
+  transition:.16s ease
+}
+.mini:hover{border-color:var(--accent);color:#fff}
+.empty{text-align:center;padding:62px 20px;color:#7188A3;font-size:12px}
+.banner{
+  padding:11px 13px;margin-bottom:13px;
+  border:1px solid var(--line);border-radius:11px;
+  background:var(--surface);color:#9FB2C8;font-size:11px
+}
+.error{color:#FFB7BF;border-color:rgba(255,117,134,.32);background:rgba(93,23,37,.3)}
+.side-stack{display:grid;gap:12px}
+.side-card{padding:16px}
+.side-card h3{margin:0;font-family:Manrope,Inter,sans-serif;font-size:13px;letter-spacing:-.01em}
+.side-card p{margin:6px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
+.side-top{display:flex;align-items:center;gap:11px}
+.side-icon{
+  width:38px;height:38px;border-radius:11px;
+  display:grid;place-items:center;
+  background:rgba(1,158,251,.12);
+  color:var(--accent);
+  font-size:17px
+}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--positive);display:inline-block;box-shadow:0 0 0 4px rgba(55,214,162,.1)}
+.data-list{margin:13px 0 0;padding:0;list-style:none;display:grid;gap:9px}
+.data-list li{display:flex;justify-content:space-between;gap:10px;color:#ADC0D5;font-size:10px}
+.data-list strong{color:#EEF6FF;font-size:10px}
+.health{margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+.health-row{display:flex;align-items:center;gap:9px;color:#B9CCDF;font-size:10px}
+.health small{display:block;margin-top:6px;color:var(--muted-2);font-size:9px;line-height:1.5}
+.about-link{display:inline-flex;margin-top:10px;color:var(--accent);font-size:10px;font-weight:800}
+.detail-head{
+  display:flex;gap:17px;align-items:flex-start;
+  padding:22px;border:1px solid var(--line);border-radius:16px;background:var(--brand);
+}
+.detail-head h1{font-family:Manrope,Inter,sans-serif;margin:5px 0 4px;font-size:clamp(28px,5vw,44px);letter-spacing:-.05em}
+.detail-head p{margin:0 0 12px;color:#B9CCE3;font-size:11px}
+.actions-wide{display:flex;gap:7px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:15px}
+.stat span,.stat small{color:var(--muted-2);font-size:9px}
+.stat strong{display:block;margin:7px 0 3px;font-family:Manrope,Inter,sans-serif;font-size:20px;letter-spacing:-.03em}
+.panel{border:1px solid var(--line);border-radius:15px;background:var(--surface);padding:17px;margin-bottom:12px}
+.panel h2{margin:0;font-family:Manrope,Inter,sans-serif;font-size:15px}
+.panel p{color:var(--muted);font-size:10px;line-height:1.6}
+.chart{height:210px}
+.chart svg{width:100%;height:190px}
+.line{stroke:var(--accent);stroke-width:3;fill:none}
+.rankline{stroke:#86B8FF;stroke-width:3;fill:none}
+.gridline{stroke:rgba(176,213,255,.11)}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.meta div{padding:11px;border:1px solid var(--line);border-radius:10px;background:#0A192C}
+.meta small{display:block;color:var(--muted-2);font-size:8px}
+.meta b{font-size:10px;word-break:break-word}
+.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.info{max-width:900px}
+.info h1{font-family:Manrope,Inter,sans-serif;font-size:clamp(30px,5vw,44px);margin:10px 0;letter-spacing:-.05em}
+.info p{color:#91A8C3;font-size:12px;line-height:1.8}
+.foot{
+  margin-top:22px;padding-top:18px;
+  border-top:1px solid var(--line);
+  color:#647C98;font-size:9px;
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap
+}
+.foot button{border:0;background:none;color:#7E97B3;font-size:9px;padding:0}
+.foot button:hover{color:var(--accent)}
+@media(max-width:1040px){
+  .dashboard{grid-template-columns:1fr}
+  .side-stack{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hero-status{position:static;margin-top:18px;max-width:260px}
+  .hero{padding-bottom:24px}
+}
+@media(max-width:900px){
+  .table-head{display:none}
+  .row{
+    grid-template-columns:38px minmax(0,1fr) 100px;
+    min-height:84px;
+    padding:10px 14px
+  }
+  .row .creator{display:none}
+  .movement{grid-column:3;grid-row:1}
+  .actions{grid-column:2/4;justify-content:flex-start}
+  .players{grid-column:3;grid-row:1}
+  .game{grid-column:2;grid-row:1}
+  .stats{grid-template-columns:1fr 1fr}
+  .side-stack{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .top{height:64px;padding:0 10px}
+  .brand{font-size:13px}
+  .mark{width:36px;height:36px;border-radius:11px}
+  .nav button{padding:8px 9px;font-size:10px}
+  .nav #savedNav span{display:none}
+  .wrap{width:min(100% - 20px,1320px);padding-top:22px}
+  .hero{border-radius:16px;padding:22px 18px}
+  .hero h1{font-size:42px}
+  .hero-status{min-width:0;width:100%}
+  .controls{align-items:stretch;flex-direction:column}
+  .tabs{width:100%}
+  .tabs button{flex:1;padding:9px 10px}
+  .controls>.btn{width:100%}
+  .search{margin-bottom:14px}
+  .main-card,.side-card,.detail-head,.panel,.stat{border-radius:13px}
+  .listhead{padding:16px 14px 12px}
+  .updated{text-align:left}
+  .row{grid-template-columns:34px minmax(0,1fr) 84px;padding:9px 12px}
+  .row img,.cover{width:48px;height:48px}
+  .game{gap:9px}
+  .game b{font-size:11px}
+  .game small{font-size:8px}
+  .players b{font-size:11px}
+  .actions{gap:4px}
+  .mini{padding:6px 8px}
+  .detail-head{padding:16px}
+  .detail-head h1{font-size:28px}
+  .stats{gap:8px}
+  .stat{padding:12px}
+  .compare,.meta{grid-template-columns:1fr}
+  .foot{display:block}
+  .foot div+div{margin-top:8px}
+}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt="">BOBAKS RANKING</button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button></nav></header>
+<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button></nav></header>
 <main id="app" class="wrap"></main>
 <script>
 'use strict';
@@ -58,8 +485,21 @@ async function openGame(id){state.view='detail';state.selected={gameId:String(id
 function daily(points){const m=new Map();for(const p of points||[]){const d=String(p.timestamp||p.date).slice(0,10);const v=Number(p.playerCount||p.averagePlayers||0);if(!m.has(d))m.set(d,[]);m.get(d).push(v)}return [...m].map(([date,a])=>({date,avg:a.reduce((x,y)=>x+y,0)/a.length})).sort((a,b)=>a.date.localeCompare(b.date))}
 function chart(points,rankMode){const a=rankMode?(points||[]).map(x=>({date:x.date,avg:Number(x.rank)})):daily(points);if(a.length<2)return '<div class="empty">Not enough collected history yet.</div>';const vals=a.map(x=>x.avg),min=Math.min(...vals),max=Math.max(...vals),range=Math.max(1,max-min),w=900,h=190;const pts=a.map((x,i)=>((i/(a.length-1))*w).toFixed(1)+','+(h-8-((x.avg-min)/range)*(h-20)).toFixed(1)).join(' ');return '<div class="chart"><svg viewBox="0 0 '+w+' '+h+'"><line class="gridline" x1="0" y1="10" x2="900" y2="10"/><line class="gridline" x1="0" y1="95" x2="900" y2="95"/><line class="gridline" x1="0" y1="182" x2="900" y2="182"/><polyline class="'+(rankMode?'rankline':'line')+'" points="'+pts+'"/></svg></div>'}
 function detail(){const g=state.selected;if(!g||g.loading)return '<div class="banner">Loading game details...</div>';const live=g.rankings?.live;const current=Number(g.currentPlayers||live?.score||0);const rank=live?.rank;return '<button class="btn" id="back">← Back</button><section class="detail-head"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt=""><div><div class="eyebrow">GAME DETAILS</div><h1>'+esc(g.name||'Unknown game')+'</h1><p>by '+esc(g.creatorName||'Unknown creator')+'</p><div class="actions-wide"><a class="btn" target="_blank" rel="noreferrer" href="https://www.roblox.com/games/'+encodeURIComponent(g.placeId||0)+'">Open on Roblox ↗</a><button class="btn" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save game')+'</button><button class="btn" data-share="'+g.gameId+'">Share rank card</button><button class="btn" data-compare="'+g.gameId+'">Compare</button></div></div></section><section class="stats"><div class="stat"><span>Current Players</span><strong>'+fmt(current)+'</strong><small>latest qualifying snapshot</small></div><div class="stat"><span>Current Rank</span><strong>'+(rank?'#'+rank:'Not ranked')+'</strong><small>Live</small></div><div class="stat"><span>Recorded Peak</span><strong>'+fmt(g.peak)+'</strong><small>'+String(g.peakAt||'').slice(0,10)+'</small></div><div class="stat"><span>History</span><strong>'+fmt((g.history||[]).length)+'</strong><small>collected points</small></div></section><section class="panel"><h2>Player Count</h2><p>Collected history. Missing periods are not invented.</p>'+chart(g.history,false)+'</section><section class="panel"><h2>Rank History</h2><p>Daily rank from Bobaks collected history.</p>'+chart(g.rankHistory,true)+'</section><section class="panel"><h2>Game information</h2><div class="meta"><div><small>Universe ID</small><b>'+esc(g.universeId||'Not available')+'</b></div><div><small>Place ID</small><b>'+esc(g.placeId||'Not available')+'</b></div><div><small>Creator</small><b>'+esc(g.creatorName||'Unknown')+'</b></div><div><small>Recorded Peak</small><b>Highest count Bobaks has recorded</b></div></div></section>'}
-async function savedPage(){const cards=[];for(const id of state.saved){try{const r=await api('/api/games/'+encodeURIComponent(id));if(r.data)cards.push(r.data)}catch{}}return '<section class="hero"><div class="eyebrow">YOUR SAVED GAMES</div><h1>SAVED<br><em>GAMES</em></h1><p>Saved only on this device. No account required.</p></section><section class="rows">'+(cards.length?cards.map(g=>'<div class="row"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="players"><b>Saved</b><small>this device</small></span><span></span><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section>'+footer()}
-async function comparePage(){if(!state.compare.length)return '<section class="hero"><div class="eyebrow">GAME COMPARISON</div><h1>COMPARE<br><em>GAMES</em></h1><p>Choose Compare on ranking rows to add games.</p></section>'+footer();const cards=[];for(const id of state.compare){try{const r=await api('/api/games/'+encodeURIComponent(id));if(r.data)cards.push(r.data)}catch{}}return '<section class="hero"><div class="eyebrow">GAME COMPARISON</div><h1>COMPARE<br><em>GAMES</em></h1></section><section class="compare">'+cards.map(g=>'<article class="panel"><h3>'+esc(g.name)+'</h3><p>'+esc(g.creatorName||'Unknown creator')+'</p><div class="stats"><div class="stat"><span>Players</span><strong>'+fmt(g.currentPlayers)+'</strong></div><div class="stat"><span>Live Rank</span><strong>'+(g.rankings?.live?.rank?'#'+g.rankings.live.rank:'N/A')+'</strong></div></div><button class="btn" data-game="'+g.id+'">Open game</button></article>').join('')+'</section>'+footer()}
+async function savedPage(){
+  const cards=[];
+  for(const id of state.saved){
+    try{const r=await api('/api/games/'+encodeURIComponent(id));if(r.data)cards.push(r.data)}catch{}
+  }
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>Saved only on this device. No account required.</p></div></section><section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
+}
+async function comparePage(){
+  if(!state.compare.length)return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Choose Compare on ranking rows to add games.</p></div></section>'+footer();
+  const cards=[];
+  for(const id of state.compare){
+    try{const r=await api('/api/games/'+encodeURIComponent(id));if(r.data)cards.push(r.data)}catch{}
+  }
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Compare current popularity and live rank for selected games.</p></div></section><section class="compare">'+cards.map(g=>'<article class="panel"><div class="side-top"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt=""><div><h2>'+esc(g.name)+'</h2><p>'+esc(g.creatorName||'Unknown creator')+'</p></div></div><div class="stats"><div class="stat"><span>Players</span><strong>'+fmt(g.currentPlayers)+'</strong></div><div class="stat"><span>Live Rank</span><strong>'+(g.rankings?.live?.rank?'#'+g.rankings.live.rank:'N/A')+'</strong></div></div><button class="btn primary" data-game="'+g.id+'">Open game</button></article>').join('')+'</section>'+footer();
+}
 function info(key){const data={privacy:['Privacy Policy','Bobaks Ranking focuses on game-level analytics. No player-level profiles are required for the public ranking experience.'],terms:['Terms of Use','Bobaks Ranking is an independent third-party analytics site. Player counts and rankings may change, be delayed, or become unavailable.'],sources:['Data Sources','Bobaks Ranking uses permitted public Roblox game-level data and calculates rankings from collected snapshots.']};if(key==='methodology')return '<section class="info"><button class="btn" id="back">← Back</button><h1>How Bobaks Rankings Work</h1><p>Rankings use qualifying Bobaks collection data. Live rankings require a recent qualifying snapshot. Weekly and monthly rankings use qualifying samples and the existing 50% coverage rule. Rank movement compares the current persisted ranking with the previous ranking set.</p><p>Recorded Peak means the highest player count Bobaks has recorded, not Roblox-wide all-time history.</p><p>Historical coverage depends on what Bobaks has successfully collected.</p></section>';const d=data[key]||data.privacy;return '<section class="info"><button class="btn" id="back">← Back</button><h1>'+d[0]+'</h1><p>'+d[1]+'</p><p>Contact: bobaksranking@gmail.com</p></section>'}
 function render(){nav();if(state.view==='detail'){$('app').innerHTML=detail();bind();return}if(state.view==='saved'){$('app').innerHTML='<div class="banner">Loading saved games...</div>';savedPage().then(html=>{if(state.view==='saved'){$('app').innerHTML=html;bind()}});return}if(state.view==='compare'){$('app').innerHTML='<div class="banner">Loading comparison...</div>';comparePage().then(html=>{if(state.view==='compare'){$('app').innerHTML=html;bind()}});return}if(state.view==='info'){$('app').innerHTML=info(state.infoKey);bind();return}$('app').innerHTML=home();bind()}
 function bind(){const q=$('search');if(q){q.oninput=e=>{state.query=e.target.value;clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>search(state.query),250)}}document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.period=b.dataset.period;loadRankings()});const r=$('refresh');if(r)r.onclick=loadRankings;const back=$('back');if(back)back.onclick=()=>{state.view='home';state.selected=null;state.error='';render();loadRankings()};document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});document.querySelectorAll('[data-save]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.save);state.saved=state.saved.includes(id)?state.saved.filter(x=>x!==id):state.saved.length<25?[...state.saved,id]:state.saved;saveSaved();render()});document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.compare);state.compare=state.compare.includes(id)?state.compare.filter(x=>x!==id):state.compare.length<2?[...state.compare,id]:state.compare;render()});document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>share(b.dataset.share));document.querySelectorAll('[data-info]').forEach(b=>b.onclick=()=>{state.view='info';state.infoKey=b.dataset.info;render()})}
