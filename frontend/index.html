@@ -469,6 +469,60 @@ html[data-theme="light"] .rank-toggle:hover{color:#14304D;border-color:var(--acc
 }
 .foot button{border:0;background:none;color:#7E97B3;font-size:9px;padding:0}
 .foot button:hover{color:var(--accent)}
+
+.rank-card-modal{
+  position:fixed;inset:0;z-index:100;
+  display:grid;place-items:center;
+  padding:18px;
+  background:rgba(2,7,14,.88);
+  backdrop-filter:blur(12px);
+}
+.rank-card-dialog{
+  width:min(430px,100%);
+  max-height:94vh;
+  overflow:auto;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  background:#07111F;
+  box-shadow:0 28px 90px rgba(0,0,0,.55);
+  padding:14px;
+}
+.rank-card-dialog-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:10px;
+}
+.rank-card-dialog-title{
+  margin:0;font-family:Manrope,Inter,sans-serif;font-size:14px;
+}
+.rank-card-dialog-sub{
+  margin:3px 0 0;color:#7F97B2;font-size:9px;
+}
+.rank-card-close{
+  border:1px solid var(--line);background:#0B1B31;color:#BFD2E7;
+  width:32px;height:32px;border-radius:9px;font-size:17px;
+}
+.rank-card-canvas-wrap{
+  padding:8px;border-radius:15px;
+  background:linear-gradient(145deg,#0B1A2D,#06101D);
+  border:1px solid var(--line);
+}
+.rank-card-canvas{
+  display:block;width:100%;height:auto;border-radius:10px;
+  background:#06101D;
+}
+.rank-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.rank-card-actions .btn{width:100%;justify-content:center}
+.rank-card-note{margin:9px 2px 1px;color:#738AA4;font-size:8px;line-height:1.5;text-align:center}
+.rank-card-generating{
+  display:grid;place-items:center;min-height:240px;
+  color:#9CB2C9;font-size:11px;gap:7px;
+}
+.rank-card-generating .spinner{
+  width:24px;height:24px;border:2px solid rgba(1,158,251,.2);
+  border-top-color:var(--accent);border-radius:50%;animation:rankSpin .8s linear infinite;
+}
+@keyframes rankSpin{to{transform:rotate(360deg)}}
+
 @media(max-width:1040px){
   .dashboard{grid-template-columns:1fr}
   .side-stack{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -846,7 +900,261 @@ function animateLiveValues(){
     requestAnimationFrame(tick);
   });
 }
-async function share(id){try{const r=await api('/api/games/'+encodeURIComponent(id));const g=r.data||{};const rank=g.rankings?.live?.rank?'#'+g.rankings.live.rank:'Not ranked';const text='Bobaks Ranking · '+g.name+' · '+rank+' · '+fmt(g.currentPlayers)+' players';if(navigator.share)await navigator.share({title:'Bobaks Rank Card',text});else if(navigator.clipboard){await navigator.clipboard.writeText(text);state.error='Rank card text copied to clipboard.';render()}}catch{state.error='Sharing is unavailable right now.';render()}}
+function cardTier(rank){
+  const n=Number(rank);
+  if(n===1)return {name:'LEGENDARY',accent:'#F4C95D',accent2:'#FFF0A8',badge:'👑 #1',glow:1.35};
+  if(n>=2&&n<=3)return {name:'ELITE',accent:'#D7E2F0',accent2:'#FFFFFF',badge:'★ TOP 3',glow:1.12};
+  if(n>=4&&n<=10)return {name:'EPIC',accent:'#A7B8FF',accent2:'#D8DEFF',badge:'✦ TOP 10',glow:1};
+  if(n>=11&&n<=25)return {name:'RARE',accent:'#6FD8FF',accent2:'#BDEEFF',badge:'◆ TOP 25',glow:.88};
+  if(n>=26&&n<=100)return {name:'RANKED',accent:'#7FC1E8',accent2:'#D7EFFB',badge:'TOP 100',glow:.78};
+  return {name:'DISCOVERED',accent:'#8FA5C0',accent2:'#DCE8F5',badge:'BOBAKS',glow:.65};
+}
+
+function cardMessage(g,rank){
+  const n=Number(rank);
+  const change=g.rankings?.live?.rankChange;
+  if(n===1)return 'You are looking at the current #1 game on Bobaks.';
+  if(change!=null&&change>=10)return 'This game is charging up the leaderboard. 🚀';
+  if(change!=null&&change>=3)return 'This game is climbing. Keep an eye on it. 🔥';
+  if(change!=null&&change<=-10)return 'The leaderboard moved. Let’s see where it goes next.';
+  if(g.isNewEntry)return 'A fresh face has entered the Bobaks Top 100.';
+  if(n&&n<=10)return 'This game is right near the top of Bobaks. 👀';
+  if(Number(g.currentPlayers||0)>=10000)return 'Thousands of players are showing up right now. 🔥';
+  if(n&&n<=100)return 'A ranked game worth keeping on your watchlist.';
+  return 'Discover where this game stands on Bobaks Ranking.';
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  const rr=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();
+}
+
+function hexToRgba(hex,alpha){
+  const h=hex.replace('#','');
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return 'rgba('+r+','+g+','+b+','+alpha+')';
+}
+
+function wrapLines(ctx,text,maxWidth,maxLines=3){
+  const words=String(text||'').split(/\s+/);
+  const lines=[];let line='';
+  for(const word of words){
+    const next=line?line+' '+word:word;
+    if(ctx.measureText(next).width<=maxWidth){line=next;continue}
+    if(line)lines.push(line);
+    line=word;
+    if(lines.length===maxLines-1)break;
+  }
+  if(lines.length<maxLines&&line)lines.push(line);
+  if(lines.length===maxLines&&words.join(' ').length>lines.join(' ').length){
+    let last=lines[maxLines-1];
+    while(ctx.measureText(last+'…').width>maxWidth&&last.length>1)last=last.slice(0,-1);
+    lines[maxLines-1]=last+'…';
+  }
+  return lines;
+}
+
+async function loadCardImage(url){
+  if(!url)return null;
+  try{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    const loaded=new Promise((resolve,reject)=>{img.onload=()=>resolve(img);img.onerror=reject});
+    img.src=url;
+    return await Promise.race([loaded,new Promise((_,reject)=>setTimeout(()=>reject(new Error('image timeout')),4500))]);
+  }catch{return null}
+}
+
+async function generateRankCard(g){
+  const rank=Number(g.rankings?.live?.rank||0);
+  const previousRank=g.rankings?.live?.previousRank==null?null:Number(g.rankings.live.previousRank);
+  const rankChange=g.rankings?.live?.rankChange==null?null:Number(g.rankings.live.rankChange);
+  const current=Number(g.currentPlayers||g.rankings?.live?.score||0);
+  const peak=Number(g.peak||g.recordedPeak||0);
+  const tier=cardTier(rank);
+  const W=1200,H=1600,canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  if(!ctx)throw new Error('Canvas is unavailable');
+
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#020711');bg.addColorStop(.45,'#071A31');bg.addColorStop(1,'#020711');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  const glow=ctx.createRadialGradient(W*.5,250,40,W*.5,250,760);
+  glow.addColorStop(0,hexToRgba(tier.accent,.22*tier.glow));
+  glow.addColorStop(.45,hexToRgba(tier.accent,.075*tier.glow));
+  glow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=glow;ctx.fillRect(0,0,W,900);
+
+  if(rank===1){
+    for(let i=0;i<26;i++){
+      const a=(i/26)*Math.PI*2,rr=510+((i%4)*32),x=W/2+Math.cos(a)*rr,y=270+Math.sin(a)*rr;
+      ctx.fillStyle=hexToRgba(tier.accent,.13);
+      ctx.beginPath();ctx.arc(x,y,3+(i%3),0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  roundRect(ctx,38,38,W-76,H-76,42);
+  ctx.strokeStyle=hexToRgba(tier.accent,rank===1?.7:.42);
+  ctx.lineWidth=rank===1?8:5;ctx.stroke();
+
+  if(rank===1){
+    roundRect(ctx,56,56,W-112,H-112,34);
+    ctx.strokeStyle=hexToRgba(tier.accent2,.45);ctx.lineWidth=2;ctx.stroke();
+  }
+
+  const logo=await loadCardImage(location.origin+'/assets/bobaks-logo.png');
+  if(logo){
+    ctx.drawImage(logo,72,72,58,58);
+  }
+  ctx.fillStyle='#F7FAFF';ctx.font='800 30px Inter,system-ui,sans-serif';
+  ctx.fillText('BOBAKS RANKING',146,110);
+  ctx.fillStyle=tier.accent;ctx.font='800 18px Inter,system-ui,sans-serif';
+  ctx.fillText(tier.name,146,140);
+
+  ctx.textAlign='center';
+  ctx.fillStyle=tier.accent;
+  ctx.font=rank===1?'900 155px Inter,system-ui,sans-serif':'900 128px Inter,system-ui,sans-serif';
+  ctx.shadowColor=hexToRgba(tier.accent,.5);ctx.shadowBlur=rank===1?42:24;
+  ctx.fillText(rank?'#'+rank:'UNRANKED',W/2,315);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#AFC3D9';ctx.font='800 24px Inter,system-ui,sans-serif';
+  ctx.fillText(tier.badge,W/2,357);
+
+  const artX=92,artY=405,artW=W-184,artH=530;
+  roundRect(ctx,artX,artY,artW,artH,30);
+  ctx.save();ctx.clip();
+  const gameImage=await loadCardImage(g.iconUrl||g.icon||'');
+  const artBg=ctx.createLinearGradient(artX,artY,artX+artW,artY+artH);
+  artBg.addColorStop(0,hexToRgba(tier.accent,.18));artBg.addColorStop(1,'rgba(2,7,17,.15)');
+  ctx.fillStyle=artBg;ctx.fillRect(artX,artY,artW,artH);
+  if(gameImage){
+    const s=Math.max(artW/gameImage.width,artH/gameImage.height),dw=gameImage.width*s,dh=gameImage.height*s;
+    const dx=artX+(artW-dw)/2,dy=artY+(artH-dh)/2;
+    ctx.globalAlpha=.82;ctx.drawImage(gameImage,dx,dy,dw,dh);ctx.globalAlpha=1;
+    const fade=ctx.createLinearGradient(0,artY,0,artY+artH);
+    fade.addColorStop(0,'rgba(2,7,17,.02)');fade.addColorStop(.7,'rgba(2,7,17,.12)');fade.addColorStop(1,'rgba(2,7,17,.78)');
+    ctx.fillStyle=fade;ctx.fillRect(artX,artY,artW,artH);
+  }else{
+    ctx.fillStyle='#10223A';ctx.fillRect(artX,artY,artW,artH);
+    ctx.fillStyle=tier.accent;ctx.font='900 160px Inter,system-ui,sans-serif';ctx.fillText(String(g.name||'?').charAt(0).toUpperCase(),W/2,artY+330);
+  }
+  ctx.restore();
+  roundRect(ctx,artX,artY,artW,artH,30);ctx.strokeStyle=hexToRgba(tier.accent,.55);ctx.lineWidth=4;ctx.stroke();
+
+  ctx.textAlign='left';
+  ctx.fillStyle='#fff';ctx.font=rank===1?'900 58px Inter,system-ui,sans-serif':'900 52px Inter,system-ui,sans-serif';
+  const titleLines=wrapLines(ctx,g.name||'Unknown game',1000,2);
+  titleLines.forEach((line,i)=>ctx.fillText(line,100,1010+i*64));
+  ctx.fillStyle='#9CB1C9';ctx.font='700 22px Inter,system-ui,sans-serif';
+  ctx.fillText('by '+String(g.creatorName||g.creator||'Unknown creator').slice(0,54),100,1148);
+
+  const statY=1210;
+  const boxes=[
+    {label:'CURRENT PLAYERS',value:fmt(current)},
+    {label:'RECORDED PEAK',value:fmt(peak)}
+  ];
+  boxes.forEach((b,i)=>{
+    const x=100+i*500;
+    roundRect(ctx,x,statY,450,112,18);ctx.fillStyle='rgba(255,255,255,.045)';ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#7188A3';ctx.font='800 16px Inter,system-ui,sans-serif';ctx.fillText(b.label,x+24,statY+32);
+    ctx.fillStyle='#fff';ctx.font='900 38px Inter,system-ui,sans-serif';ctx.fillText(b.value,x+24,statY+78);
+  });
+
+  ctx.fillStyle=rankChange==null?'#A8BDD3':rankChange>0?'#37D6A2':rankChange<0?'#FF7586':'#A8BDD3';
+  ctx.font='900 25px Inter,system-ui,sans-serif';
+  const movement=rankChange==null?(previousRank==null?'NEW ENTRY':'RANK'):(rankChange>0?'▲ '+rankChange+' RANK'+(rankChange===1?'':'S')+' UP':rankChange<0?'▼ '+Math.abs(rankChange)+' RANK'+(Math.abs(rankChange)===1?'':'S')+' DOWN':'NO RANK CHANGE');
+  ctx.fillText(movement,100,1384);
+
+  ctx.fillStyle='#E6F2FF';ctx.font='800 22px Inter,system-ui,sans-serif';
+  const msgLines=wrapLines(ctx,cardMessage({...g,isNewEntry:previousRank==null},rank),980,2);
+  msgLines.forEach((line,i)=>ctx.fillText(line,100,1423+i*30));
+
+  ctx.fillStyle='#6F88A2';ctx.font='700 17px Inter,system-ui,sans-serif';
+  ctx.fillText('Track this game and discover more rankings at',100,1512);
+  ctx.fillStyle=tier.accent;ctx.font='900 19px Inter,system-ui,sans-serif';
+  ctx.fillText(location.host,100,1544);
+  ctx.textAlign='right';ctx.fillStyle='#5E7894';ctx.font='700 15px Inter,system-ui,sans-serif';
+  ctx.fillText('BOBAKS · GAME RANK CARD',1080,1544);
+  ctx.textAlign='left';
+
+  return {canvas,rank,tier,rankChange,text:'Bobaks Ranking · '+g.name+' · '+(rank?'#'+rank:'Unranked')+' · '+fmt(current)+' players'};
+}
+
+function closeRankCardModal(){
+  const modal=document.querySelector('.rank-card-modal');
+  if(modal)modal.remove();
+}
+
+async function share(id){
+  let modal;
+  try{
+    const r=await api('/api/games/'+encodeURIComponent(id));
+    const g={...(r.data||{}),gameId:String(id)};
+    if(!g.name)throw new Error('Game not found');
+
+    modal=document.createElement('div');
+    modal.className='rank-card-modal';
+    modal.innerHTML='<div class="rank-card-dialog" role="dialog" aria-modal="true" aria-label="Bobaks Game Rank Card"><div class="rank-card-dialog-head"><div><h2 class="rank-card-dialog-title">Your Bobaks Game Rank Card</h2><p class="rank-card-dialog-sub">Data-driven from the current Bobaks ranking</p></div><button class="rank-card-close" aria-label="Close">×</button></div><div class="rank-card-canvas-wrap"><div class="rank-card-generating"><span class="spinner"></span><span>Generating your card…</span></div></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelector('.rank-card-close').onclick=closeRankCardModal;
+    modal.addEventListener('click',e=>{if(e.target===modal)closeRankCardModal()});
+
+    const result=await generateRankCard(g);
+    const wrap=modal.querySelector('.rank-card-canvas-wrap');
+    wrap.innerHTML='';
+    result.canvas.className='rank-card-canvas';
+    wrap.appendChild(result.canvas);
+
+    const actions=document.createElement('div');
+    actions.className='rank-card-actions';
+    actions.innerHTML='<button class="btn primary" data-download>Download PNG</button><button class="btn" data-share>Share Card</button>';
+    wrap.parentElement.appendChild(actions);
+    const note=document.createElement('div');
+    note.className='rank-card-note';
+    note.textContent='Your card uses the live Bobaks rank, current player count, recorded peak, and rank movement available for this game.';
+    wrap.parentElement.appendChild(note);
+
+    const blob=()=>new Promise((resolve,reject)=>result.canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG export failed')),'image/png'));
+
+    modal.querySelector('[data-download]').onclick=async()=>{
+      try{
+        const b=await blob();
+        const url=URL.createObjectURL(b);
+        const a=document.createElement('a');a.href=url;a.download='bobaks-'+String(g.name||'game').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()+'-rank-card.png';a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),1500);
+      }catch{state.error='The card could not be downloaded.';render();closeRankCardModal()}
+    };
+
+    modal.querySelector('[data-share]').onclick=async()=>{
+      try{
+        const b=await blob();
+        const file=new File([b],'bobaks-rank-card.png',{type:'image/png'});
+        const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+        if(navigator.share&&canShareFiles){
+          await navigator.share({title:'Bobaks Game Rank Card',text:result.text,url:location.origin,files:[file]});
+        }else if(navigator.share){
+          await navigator.share({title:'Bobaks Game Rank Card',text:result.text,url:location.origin});
+        }else{
+          const url=URL.createObjectURL(b);
+          const a=document.createElement('a');a.href=url;a.download='bobaks-rank-card.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+        }
+      }catch(error){
+        if(error?.name==='AbortError')return;
+        state.error='Sharing is unavailable on this device. Use Download PNG instead.';
+        render();closeRankCardModal();
+      }
+    };
+  }catch{
+    if(modal)modal.remove();
+    state.error='The Bobaks rank card could not be generated right now.';
+    render();
+  }
+}
 $('homeBtn').onclick=()=>{state.view='home';render();loadRankings()};$('rankNav').onclick=()=>{state.view='home';render();loadRankings()};$('savedNav').onclick=()=>{state.view='saved';render()};$('compareNav').onclick=()=>{state.view='compare';render()};$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
 loadTheme();loadSaved();render();loadRankings();
 </script>

@@ -75,3 +75,25 @@ test("frontend references the Bobaks logo as its favicon and brand mark", () => 
   assert.match(html, /<link rel="apple-touch-icon" href="\/assets\/bobaks-logo\.png">/);
   assert.match(html, /<img class="mark" src="\/assets\/bobaks-logo\.png" alt="">/);
 });
+
+test("data-driven rank card generator is wired for dynamic rank tiers and export", () => {
+  const html = fs.readFileSync(frontendPath, "utf8");
+
+  assert.match(html, /function cardTier\(rank\)/);
+  assert.match(html, /LEGENDARY/);
+  assert.match(html, /ELITE/);
+  assert.match(html, /EPIC/);
+  assert.match(html, /RARE/);
+  assert.match(html, /DISCOVERED/);
+  assert.match(html, /function cardMessage\(g,rank\)/);
+  assert.match(html, /function generateRankCard\(g\)/);
+  assert.match(html, /CURRENT PLAYERS/);
+  assert.match(html, /RECORDED PEAK/);
+  assert.match(html, /Track this game and discover more rankings at/);
+  assert.match(html, /location\.origin/);
+  assert.match(html, /canvas\.toBlob/);
+  assert.match(html, /Download PNG/);
+  assert.match(html, /navigator\.canShare/);
+  assert.match(html, /files:\[file\]/);
+  assert.match(html, /Bobaks Game Rank Card/);
+});
