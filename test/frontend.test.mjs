@@ -339,3 +339,10 @@ test("frontend community page keeps the Discord destination configurable and giv
   assert.ok(html.includes("Community polls"));
   assert.ok(html.includes("Game discovery"));
 });
+
+
+test("frontend Community navigation uses a real route link so server configuration is loaded", () => {
+  const html = readHtml();
+  assert.match(html, /<a id="communityNav"[^>]*href="\/community"[^>]*>Community<\/a>/);
+  assert.doesNotMatch(html, /communityNav\.onclick=\(\)=>goCommunity\(\)/);
+});
