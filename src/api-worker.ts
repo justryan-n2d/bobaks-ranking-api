@@ -247,7 +247,7 @@ async function getHistory(
   gameId: string,
   days: number,
   fetchImpl: FetchLike
-): Promise<{ data: JsonRow[]; resolution: "snapshot" | "mixed" }> {
+): Promise<{ data: JsonRow[]; resolution: "snapshot" | "mixed" | "daily" }> {
   const now = new Date();
   const requestedSince = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   const rollingRawSince = new Date(now.getTime() - RAW_HISTORY_DAYS * 24 * 60 * 60 * 1000);
@@ -318,7 +318,11 @@ async function getHistory(
     return at - bt || String(a.id ?? "").localeCompare(String(b.id ?? ""), undefined, { numeric: true });
   });
 
-  return { resolution: "mixed", data };
+  const hasSummary = summaryRows.length > 0;
+  const hasRaw = rawRows.length > 0;
+  const resolution = hasSummary && hasRaw ? "mixed" : hasSummary ? "daily" : "snapshot";
+
+  return { resolution, data };
 }
 
 async function getPeak(env: Env, gameId: string, fetchImpl: FetchLike): Promise<JsonRow | null> {
