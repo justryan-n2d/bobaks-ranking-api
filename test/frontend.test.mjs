@@ -19,6 +19,11 @@ test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
   assert.match(html, /property="og:url"/);
   assert.match(html, /name="twitter:card"/);
   assert.ok(html.includes("const GAME_ROUTE=/^\\/game\\/(\\d+)$/;"));
+  assert.ok(html.includes("const RANKING_PATHS={live:'/',week:'/rankings/weekly',month:'/rankings/monthly',year:'/rankings/yearly'};"));
+  assert.ok(html.includes("function periodFromLocation()"));
+  assert.ok(html.includes("/rankings/weekly"));
+  assert.ok(html.includes("/rankings/monthly"));
+  assert.ok(html.includes("/rankings/yearly"));
   assert.match(html, /history\.pushState/);
   assert.match(html, /function track\(event,data=\{\}\)/);
   assert.match(html, /sendBeacon\('\/analytics'/);
