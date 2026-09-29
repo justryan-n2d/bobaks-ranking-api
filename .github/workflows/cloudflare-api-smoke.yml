@@ -1,14 +1,14 @@
 name: Cloudflare API Smoke Test
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/cloudflare-api-smoke.yml"
+  workflow_run:
+    workflows: ["Deploy Cloudflare API"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
   smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
