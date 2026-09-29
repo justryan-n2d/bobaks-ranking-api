@@ -2,7 +2,8 @@ import {
   computeHistoricalMilestones,
   detectReturnAlerts,
   detectNewPeak,
-  mergePeakObservations
+  mergePeakObservations,
+  isCurrentHomeDecoration
 } from "./return-loops-core.mjs";
 
 const API = String(window.__BOBAKS_API__ || "").replace(/\/$/, "");
@@ -208,7 +209,9 @@ function injectStyle() {
 async function decorateHome() {
   if (document.querySelector("[data-return-hub]")) return;
   const host = document.querySelector(".dashboard");
-  if (!host || !document.querySelector(".moving-section")) return;
+  const pagePath = location.pathname;
+  if (!host || !document.querySelector(".moving-section") || host.dataset.returnHubPending === "1") return;
+  host.dataset.returnHubPending = "1";
 
   const saved = savedIds();
   const [live, week] = await Promise.all([
@@ -217,6 +220,13 @@ async function decorateHome() {
   ]);
 
   await observeSavedGames(saved, CHECK_LIMIT_HOME);
+
+  if (!isCurrentHomeDecoration({
+    capturedHost: host,
+    currentHost: document.querySelector(".dashboard"),
+    capturedPath: pagePath,
+    currentPath: location.pathname
+  }) || document.querySelector("[data-return-hub]")) return;
 
   const liveRanking = live?.ranking?.items || [];
   const weekTrending = week?.trending?.items || [];

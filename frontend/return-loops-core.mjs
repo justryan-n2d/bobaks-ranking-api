@@ -11,6 +11,10 @@ function dayKey(value) {
   return new Date(time).toISOString().slice(0, 10);
 }
 
+export function isCurrentHomeDecoration({ capturedHost, currentHost, capturedPath, currentPath } = {}) {
+  return capturedHost === currentHost && capturedPath === currentPath;
+}
+
 export function detectNewPeak(previous, current) {
   if (!previous || !current) return false;
 

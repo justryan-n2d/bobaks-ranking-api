@@ -378,3 +378,15 @@ test("game detail exposes the selected game to the return-loop module without ch
   assert.ok(html.includes("api('/api/games/'+encodeURIComponent(gameId)+'/history?days=365')"));
   assert.ok(html.includes("api('/api/games/'+encodeURIComponent(gameId)+'/rank-history?days=31')"));
 });
+
+
+test("return-loop decoration is guarded against stale homepage renders", () => {
+  const module = readReturnLoops();
+  assert.match(module, /isCurrentHomeDecoration/);
+  assert.match(module, /capturedHost: host/);
+  assert.match(module, /currentHost: document\.querySelector\("\.dashboard"\)/);
+  assert.match(module, /capturedPath: pagePath/);
+  assert.match(module, /currentPath: location\.pathname/);
+  assert.match(module, /host\.dataset\.returnHubPending === "1"/);
+  assert.match(module, /host\.dataset\.returnHubPending = "1"/);
+});
