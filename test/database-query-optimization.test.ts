@@ -11,15 +11,19 @@ test("ranking refresh uses indexed per-game latest lookups and one current-month
     "utf8"
   );
 
-  assert.match(sql, /JOIN LATERAL\s*\(\s*SELECT[\s\S]*?FROM public\."GameSnapshot"/);
-  assert.match(sql, /current_(?:period|month)_samples AS MATERIALIZED \(/);
-  assert.match(sql, /weekly_score/);
-  assert.match(sql, /monthly_score/);
+  const refreshSql = sql.slice(
+    sql.indexOf("CREATE OR REPLACE FUNCTION public.refresh_rankings()")
+  );
 
-  const weeklySnapshotSources = (sql.match(/FROM public\."GameSnapshot" s/g) ?? []).length;
+  assert.match(refreshSql, /JOIN LATERAL\s*\(\s*SELECT[\s\S]*?FROM public\."GameSnapshot"/);
+  assert.match(refreshSql, /current_period_samples AS MATERIALIZED \(/);
+  assert.match(refreshSql, /weekly_score/);
+  assert.match(refreshSql, /monthly_score/);
+
+  const snapshotSources = (refreshSql.match(/FROM public\."GameSnapshot" s/g) ?? []).length;
   assert.ok(
-    weeklySnapshotSources <= 5,
-    "optimized ranking SQL should not add repeated period-specific GameSnapshot scans"
+    snapshotSources <= 3,
+    "refresh_rankings should use the live lookup, one current-period aggregate, and the yearly current-day scan"
   );
 });
 
@@ -30,7 +34,7 @@ test("ranking audit reuses a combined current-month sample aggregation and index
   );
 
   assert.match(sql, /JOIN LATERAL\s*\(\s*SELECT[\s\S]*?FROM public\."GameSnapshot"/);
-  assert.match(sql, /current_month_samples AS \(/);
+  assert.match(sql, /current_month_samples AS MATERIALIZED \(/);
   assert.match(sql, /weekly_score/);
   assert.match(sql, /monthly_score/);
 });
