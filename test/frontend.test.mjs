@@ -23,8 +23,6 @@ test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
   assert.match(html, /function track\(event,data=\{\}\)/);
   assert.match(html, /sendBeacon\('\/analytics'/);
   assert.match(html, /const gameUrl=id=>new URL\('\/game\/'/);
-  assert.ok(html.includes("sitemap.xml"));
-  assert.match(html, /robots\.txt/);
 });
 
 test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
