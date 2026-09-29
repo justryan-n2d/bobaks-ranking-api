@@ -22,6 +22,8 @@ jobs:
         run: npm test
       - name: Run frontend verification
         run: npm run test:frontend
+      - name: Run social content tests
+        run: node --test test/social-content-generator.test.mjs
       - name: Build backend
         run: npm run build
       - name: Verification marker
