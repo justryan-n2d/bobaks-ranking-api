@@ -117,6 +117,6 @@ test("scheduled workflow wires Discord publishing through a repository secret", 
   const fs = await import("node:fs/promises");
   const workflow = await fs.readFile(".github/workflows/social-content-generation.yml", "utf8");
   assert.ok(workflow.includes("DISCORD_SOCIAL_WEBHOOK_URL: ${{ secrets.DISCORD_SOCIAL_WEBHOOK_URL }}"));
-  assert.match(workflow, /node scripts\\/publish-social-discord\\.mjs/);
+  assert.ok(workflow.includes("node scripts/publish-social-discord.mjs"));
   assert.match(workflow, /Publish selected social content to Discord/);
 });
