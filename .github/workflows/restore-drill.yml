@@ -1,0 +1,74 @@
+name: Bobaks Restore Drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      object_key:
+        description: "Encrypted R2 backup object key to restore"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: restore-test
+
+    env:
+      AWS_DEFAULT_REGION: auto
+      R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
+      R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pg_restore >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Install AWS CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v aws >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y awscli
+          fi
+
+      - name: Validate restore configuration
+        shell: bash
+        env:
+          OBJECT_KEY: ${{ inputs.object_key }}
+        run: |
+          set -euo pipefail
+          test -n "${OBJECT_KEY}"
+          test -n "${R2_ENDPOINT}" || { echo "Missing BOBAKS_R2_ENDPOINT"; exit 1; }
+          test -n "${R2_BUCKET}" || { echo "Missing BOBAKS_R2_BUCKET"; exit 1; }
+          test -n "${R2_ACCESS_KEY_ID}" || { echo "Missing BOBAKS_R2_ACCESS_KEY_ID"; exit 1; }
+          test -n "${R2_SECRET_ACCESS_KEY}" || { echo "Missing BOBAKS_R2_SECRET_ACCESS_KEY"; exit 1; }
+          test -n "${BACKUP_ENCRYPTION_KEY}" || { echo "Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
+          test -n "${RESTORE_DB_URL}" || { echo "Missing restore-test environment secret: RESTORE_DB_URL"; exit 1; }
+
+      - name: Restore backup into isolated target
+        env:
+          OBJECT_KEY: ${{ inputs.object_key }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/restore-backup.sh "${OBJECT_KEY}"
+
+      - name: Report restore drill success
+        run: echo "Bobaks restore drill completed successfully."
