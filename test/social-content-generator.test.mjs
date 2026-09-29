@@ -31,3 +31,15 @@ test("social generator rejects missing required feed sections", () => {
     /missing social post/i
   );
 });
+
+test("scheduled workflow runs daily, supports manual dispatch, and retains artifacts briefly", async () => {
+  const fs = await import("node:fs/promises");
+  const workflow = await fs.readFile(".github/workflows/social-content-generation.yml", "utf8");
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /cron: "30 0 \* \* \*"/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /node scripts\/generate-social-posts\.mjs/);
+  assert.match(workflow, /actions\/upload-artifact@v4/);
+  assert.match(workflow, /retention-days: 14/);
+  assert.match(workflow, /permissions:\n\s+contents: read/);
+});
