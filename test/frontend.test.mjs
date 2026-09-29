@@ -159,7 +159,7 @@ test("rank card sharing includes game name, rank, message, link, and PNG file", 
   assert.match(html, /Visit Bobaks Ranking:/);
   assert.match(html, /const shareText=\[/);
   assert.match(html, /text:caption/);
-  assert.match(html, /url:result\.gameLink/);
+  assert.match(html, /url:link/);
   assert.match(html, /files:\[file\]/);
   assert.match(html, /title:String\(g\.name\|\|'Bobaks Game'\)/);
 });
