@@ -27,6 +27,12 @@ Backend and data collection services for Bobaks Ranking.
 ### Collector
 The collector runs on Cloudflare Workers Cron Triggers and stores Roblox experience data in Supabase.
 
+## Phase 5 gamer experience
+
+Phase 5 adds the core gamer-facing experience: ranking movement, richer game details, daily rank history, trend signals, device-local saved games, side-by-side comparison, shareable rank cards, and visible data/freshness explanations.
+
+The device-local saved list uses browser storage only and does not require an account.
+
 ## Ranking methodology
 
 The canonical public explanation of ranking rules, coverage, data qualification, game activity, integrity checks, and limitations is in:
