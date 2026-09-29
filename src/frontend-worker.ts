@@ -92,7 +92,7 @@ function recordAnalytics(env: Env, event: string, data: {
 
 async function assetShell(env: Env, request: Request): Promise<Response> {
   return env.ASSETS.fetch(
-    new Request(new URL("/index.html", request.url).toString(), request)
+    new Request(new URL("/index.html", request.url).toString())
   );
 }
 
