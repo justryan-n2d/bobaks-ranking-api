@@ -1,0 +1,62 @@
+name: Production Health Monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bobaks-production-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check API liveness
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          health=$(curl -fsS --max-time 20 "$API/api/health")
+          echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
+
+      - name: Check API deep health
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          health=$(curl -fsS --max-time 20 "$API/api/health/deep")
+          echo "$health" | jq .
+          echo "$health" | jq -e '
+            .ok == true and
+            .status == "healthy" and
+            .checks.database.status == "healthy" and
+            .checks.collection.status == "healthy" and
+            .checks.dailySummary.status == "healthy" and
+            .checks.rankings.status == "healthy" and
+            .checks.historicalRecovery.status == "healthy"
+          ' >/dev/null
+
+      - name: Check collector health
+        shell: bash
+        run: |
+          set -euo pipefail
+          COLLECTOR="https://bobaks-ranking-collector.ryan-oledan0.workers.dev"
+          health=$(curl -fsS --max-time 20 "$COLLECTOR/health")
+          echo "$health" | jq .
+          echo "$health" | jq -e '
+            .ok == true and
+            .status == "healthy" and
+            .databaseConfigured == true and
+            .supabaseAuthOk == true and
+            .collection.status == "healthy"
+          ' >/dev/null
+
+      - name: Health summary
+        run: |
+          echo "Bobaks production health checks passed."
