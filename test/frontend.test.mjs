@@ -114,17 +114,19 @@ test("rank card tiers match the Phase 5.5 rarity rules", () => {
   assert.match(html, /accent:'#E9F0F7'/);
 });
 
-test("rank card preview animates foil and exports a still image", () => {
+test("rank card preview animates symbols and exports a still image", () => {
   const html = readHtml();
 
-  assert.match(html, /function drawFoil\(ctx,time,preview=true\)/);
-  assert.match(html, /const shimmer=ctx\.createLinearGradient/);
+  assert.match(html, /function drawRandomSymbols\(ctx,time,preview\)/);
+  assert.match(html, /const step=500/);
+  assert.match(html, /const types=\['block','circle','triangle','square','gamepad'\]/);
   assert.match(html, /requestAnimationFrame\(tick\)/);
   assert.match(html, /startAnimation\(\)/);
   assert.match(html, /result\.drawFrame\(performance\.now\(\),false\)/);
   assert.match(html, /canvas\.toBlob/);
   assert.match(html, /Download PNG/);
   assert.match(html, /Share Card/);
+  assert.doesNotMatch(html, /const shimmer=ctx\.createLinearGradient/);
 });
 
 test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
@@ -134,4 +136,30 @@ test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
   assert.match(html, /flying up the leaderboard/);
   assert.match(html, /Track this game and discover more rankings at/);
   assert.match(html, /location\.host/);
+});
+
+test("rank card preview uses randomized symbols with 0.5 second cross-fades and no white sweep export", () => {
+  const html = readHtml();
+
+  assert.match(html, /function drawRandomSymbols\(ctx,time,preview\)/);
+  assert.match(html, /const step=500/);
+  assert.match(html, /const types=\['block','circle','triangle','square','gamepad'\]/);
+  assert.match(html, /const fadeOut=/);
+  assert.match(html, /const fadeIn=/);
+  assert.match(html, /drawSymbol\(/);
+  assert.doesNotMatch(html, /const shimmer=ctx\.createLinearGradient/);
+  assert.doesNotMatch(html, /ctx\.fillStyle=shimmer/);
+  assert.match(html, /if\(!preview\)return;/);
+});
+
+test("rank card sharing includes game name, rank, message, link, and PNG file", () => {
+  const html = readHtml();
+
+  assert.match(html, /const gameLink=location\.origin/);
+  assert.match(html, /Visit Bobaks Ranking:/);
+  assert.match(html, /const shareText=\[/);
+  assert.match(html, /text:result\.text/);
+  assert.match(html, /url:result\.gameLink/);
+  assert.match(html, /files:\[file\]/);
+  assert.match(html, /title:String\(g\.name\|\|'Bobaks Game'\)/);
 });
