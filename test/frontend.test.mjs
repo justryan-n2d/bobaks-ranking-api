@@ -10,6 +10,23 @@ function readHtml() {
   return fs.readFileSync(frontendPath, "utf8");
 }
 
+test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
+  const html = readHtml();
+  assert.match(html, /id="seo-description"/);
+  assert.match(html, /rel="canonical"/);
+  assert.match(html, /property="og:title"/);
+  assert.match(html, /property="og:description"/);
+  assert.match(html, /property="og:url"/);
+  assert.match(html, /name="twitter:card"/);
+  assert.match(html, /const GAME_ROUTE=\/\\/game\\/\/(\\\\d+)\$\//);
+  assert.match(html, /history\.pushState/);
+  assert.match(html, /function track\(event,data=\{\}\)/);
+  assert.match(html, /sendBeacon\('\/analytics'/);
+  assert.match(html, /const gameUrl=id=>new URL\('\/game\/'/);
+  assert.match(html, /sitemap\.xml/);
+  assert.match(html, /robots\.txt/);
+});
+
 test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   const html = readHtml();
   assert.match(html, /<title>Bobaks Ranking \| Live Rankings & Historical Trends<\/title>/);
@@ -155,7 +172,7 @@ test("rank card preview uses randomized symbols with 0.5 second cross-fades and 
 test("rank card sharing includes game name, rank, message, link, and PNG file", () => {
   const html = readHtml();
 
-  assert.match(html, /const gameLink=location\.origin/);
+  assert.match(html, /const gameLink=gameUrl\(g\.gameId\|\|g\.id\)/);
   assert.match(html, /Visit Bobaks Ranking:/);
   assert.match(html, /const shareText=\[/);
   assert.match(html, /text:caption/);
