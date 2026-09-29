@@ -760,3 +760,94 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
   assert.equal(result.headers.get("cache-control"), "public, max-age=60, s-maxage=60");
   assert.equal(calls.length, 1);
 });
+
+
+test("operational observability summarizes recent collection and ranking-refresh telemetry", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const recent = "2026-09-29T10:00:00.000Z";
+  const logs = [
+    {
+      collectionRunId: "11111111-1111-1111-1111-111111111111",
+      startedAt: recent,
+      finishedAt: "2026-09-29T10:02:00.000Z",
+      status: "success",
+      gamesChecked: 100,
+      gamesUpdated: 80,
+      errors: 0,
+      rankingRefreshStatus: "success",
+      rankingRefreshStartedAt: "2026-09-29T10:02:00.000Z",
+      rankingRefreshFinishedAt: "2026-09-29T10:02:30.000Z"
+    },
+    {
+      collectionRunId: "22222222-2222-2222-2222-222222222222",
+      startedAt: "2026-09-29T09:50:00.000Z",
+      finishedAt: "2026-09-29T09:53:00.000Z",
+      status: "partial",
+      gamesChecked: 100,
+      gamesUpdated: 70,
+      errors: 2,
+      rankingRefreshStatus: "success",
+      rankingRefreshStartedAt: "2026-09-29T09:53:00.000Z",
+      rankingRefreshFinishedAt: "2026-09-29T09:54:00.000Z"
+    },
+    {
+      collectionRunId: "33333333-3333-3333-3333-333333333333",
+      startedAt: "2026-09-29T08:00:00.000Z",
+      finishedAt: "2026-09-29T08:01:00.000Z",
+      status: "failed",
+      gamesChecked: 0,
+      gamesUpdated: 0,
+      errors: 3,
+      errorMessage: "Roblox HTTP 429"
+    }
+  ];
+
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers);
+    calls.push({ url, headers });
+
+    if (url.includes("/rest/v1/DataCollectionLog?")) {
+      return response(logs);
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/observability?hours=24"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
+  assert.equal(body.windowHours, 24);
+  assert.equal(body.runs.total, 3);
+  assert.equal(body.runs.success, 1);
+  assert.equal(body.runs.partial, 1);
+  assert.equal(body.runs.failed, 1);
+  assert.equal(body.runs.completionRate, 2 / 3);
+  assert.equal(body.runs.fullSuccessRate, 1 / 3);
+  assert.equal(body.games.checked, 200);
+  assert.equal(body.games.updated, 150);
+  assert.equal(body.games.errors, 5);
+  assert.equal(body.collectionDurationSeconds.avg, 120);
+  assert.equal(body.collectionDurationSeconds.p50, 120);
+  assert.equal(body.collectionDurationSeconds.p95, 180);
+  assert.equal(body.collectionDurationSeconds.max, 180);
+  assert.equal(body.rankingRefreshDurationSeconds.avg, 45);
+  assert.equal(body.rankingRefreshDurationSeconds.p50, 30);
+  assert.equal(body.rankingRefreshDurationSeconds.p95, 60);
+  assert.equal(body.rankingRefreshDurationSeconds.max, 60);
+  assert.equal(body.schedule.largestObservedGapSeconds, 6600);
+  assert.equal(body.latest.status, "success");
+  assert.equal(body.latest.startedAt, recent);
+  assert.equal(body.latest.rankingRefreshStatus, "success");
+  assert.equal(body.latest.rankingRefreshDurationSeconds, 30);
+  assert.equal(result.headers.get("cache-control"), "no-store");
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /DataCollectionLog/);
+  assert.equal(new URL(calls[0].url).searchParams.get("limit"), "100");
+});
