@@ -23,6 +23,8 @@
   --positive:#37D6A2;
   --negative:#FF7586;
   --warning:#F4C95D;
+  --toggle-bg:rgba(255,255,255,.08);
+  --toggle-text:#DDE8F5;
   font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   color:var(--text);
   background:var(--page);
@@ -490,26 +492,74 @@ a{color:inherit;text-decoration:none}
   .foot{display:block}
   .foot div+div{margin-top:8px}
 }
+html[data-theme="light"]{
+  --page:#F4F7FB;
+  --surface:#FFFFFF;
+  --surface-2:#F4F8FD;
+  --surface-3:#E9F2FB;
+  --line:rgba(2,35,89,.12);
+  --line-strong:rgba(1,158,251,.42);
+  --text:#10233B;
+  --muted:#5E7895;
+  --muted-2:#6E8299;
+  --toggle-bg:rgba(255,255,255,.14);
+  --toggle-text:#FFFFFF;
+}
+html[data-theme="light"] body{background:var(--page);color:var(--text)}
+html[data-theme="light"] .top{box-shadow:0 10px 30px rgba(2,35,89,.12)}
+html[data-theme="light"] .main-card,
+html[data-theme="light"] .side-card,
+html[data-theme="light"] .stat,
+html[data-theme="light"] .panel{box-shadow:0 12px 30px rgba(2,35,89,.07)}
+html[data-theme="light"] .table-head{color:#607A95}
+html[data-theme="light"] .creator{color:#52708E}
+html[data-theme="light"] .game small{color:#64809D}
+html[data-theme="light"] .players small{color:#64809D}
+html[data-theme="light"] .updated{color:#58738F}
+html[data-theme="light"] .mini{background:#F4F8FC;color:#45627E}
+html[data-theme="light"] .meta div{background:#F5F9FD}
+html[data-theme="light"] .search input{background:#FFFFFF;color:#10233B}
+html[data-theme="light"] .search input::placeholder{color:#7890A9}
+html[data-theme="light"] .results{background:#FFFFFF;box-shadow:0 18px 50px rgba(2,35,89,.14)}
+html[data-theme="light"] .results button:hover{background:#EAF3FC}
+html[data-theme="light"] .moving-card{background:linear-gradient(145deg,#FFFFFF,#F2F7FC)}
+html[data-theme="light"] .moving-info b{color:#10233B}
+html[data-theme="light"] .moving-info small{color:#5C7793}
+html[data-theme="light"] .moving-rank{background:rgba(1,158,251,.09);color:#2D587F}
+html[data-theme="light"] .moving-bar{background:#DCEAF6}
+html[data-theme="light"] .side-card p,
+html[data-theme="light"] .panel p,
+html[data-theme="light"] .info p{color:#607A95}
+html[data-theme="light"] .data-list li{color:#4F6B88}
+html[data-theme="light"] .data-list strong{color:#10233B}
+html[data-theme="light"] .health-row{color:#42627E}
+html[data-theme="light"] .health small{color:#66819C}
+html[data-theme="light"] .foot{color:#66819C}
+html[data-theme="light"] .foot button{color:#577490}
+html[data-theme="light"] .row:hover{background:rgba(1,158,251,.055)}
+html[data-theme="light"] .row:first-child{background:linear-gradient(90deg,rgba(1,158,251,.10),transparent 72%)}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button></nav></header>
+<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button><button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ Dark</button></nav></header>
 <main id="app" class="wrap"></main>
 <script>
 'use strict';
 const API='https://bobaks-ranking-api-service.ryan-oledan0.workers.dev';
 const periods=[['live','Live'],['week','This Week'],['month','This Month'],['year','This Year']];
-const state={view:'home',period:'live',games:[],saved:[],compare:[],selected:null,query:'',results:[],loading:false,error:'',next:null,timer:null,searchRequest:0};
+const state={view:'home',period:'live',theme:'dark',games:[],saved:[],compare:[],selected:null,query:'',results:[],loading:false,error:'',next:null,timer:null,searchRequest:0};
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=v=>new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(Number(v)||0);
 const fmtTime=v=>new Date(v).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
 const fmtDateTime=v=>new Date(v).toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
 async function api(path){const r=await fetch(API+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+function loadTheme(){try{const saved=localStorage.getItem('bobaks.theme');state.theme=saved==='light'?'light':'dark'}catch{state.theme='dark'}document.documentElement.setAttribute('data-theme',state.theme)}
+function setTheme(theme){state.theme=theme==='light'?'light':'dark';document.documentElement.setAttribute('data-theme',state.theme);try{localStorage.setItem('bobaks.theme',state.theme)}catch{};nav()}
 function loadSaved(){try{const v=JSON.parse(localStorage.getItem('bobaks.watchlist')||'[]');if(Array.isArray(v))state.saved=[...new Set(v.map(String))].slice(0,25)}catch{state.saved=[]}}
 function saveSaved(){try{localStorage.setItem('bobaks.watchlist',JSON.stringify(state.saved))}catch{}}
-function nav(){ $('rankNav').classList.toggle('active',state.view==='home');$('savedNav').classList.toggle('active',state.view==='saved');$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')'}
+function nav(){ $('rankNav').classList.toggle('active',state.view==='home');$('savedNav').classList.toggle('active',state.view==='saved');$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')';const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'☾ Dark':'☀ Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}}
 function fallbackNext(){const n=Date.now(),step=600000;return new Date((Math.floor(n/step)+1)*step+15000).toISOString()}
 function schedule(){if(state.timer)clearTimeout(state.timer);if(state.next)state.timer=setTimeout(loadRankings,Math.max(1000,new Date(state.next).getTime()-Date.now()))}
 function movement(g){if(g.previousRank==null)return '<span class="new movement-badge">NEW</span>';const d=Number(g.rankChange||0);if(d>0)return '<span class="up movement-badge">▲ '+d+' rank'+(d===1?'':'s')+'</span>';if(d<0)return '<span class="down movement-badge">▼ '+Math.abs(d)+' rank'+(Math.abs(d)===1?'':'s')+'</span>';return '<span class="movement-badge">• No change</span>'}
@@ -618,8 +668,8 @@ function animateLiveValues(){
   });
 }
 async function share(id){try{const r=await api('/api/games/'+encodeURIComponent(id));const g=r.data||{};const rank=g.rankings?.live?.rank?'#'+g.rankings.live.rank:'Not ranked';const text='Bobaks Ranking · '+g.name+' · '+rank+' · '+fmt(g.currentPlayers)+' players';if(navigator.share)await navigator.share({title:'Bobaks Rank Card',text});else if(navigator.clipboard){await navigator.clipboard.writeText(text);state.error='Rank card text copied to clipboard.';render()}}catch{state.error='Sharing is unavailable right now.';render()}}
-$('homeBtn').onclick=()=>{state.view='home';state.selected=null;render();loadRankings()};$('rankNav').onclick=()=>{state.view='home';render();loadRankings()};$('savedNav').onclick=()=>{state.view='saved';render()};$('compareNav').onclick=()=>{state.view='compare';render()};
-loadSaved();render();loadRankings();
+$('homeBtn').onclick=()=>{state.view='home';render();loadRankings()};$('rankNav').onclick=()=>{state.view='home';render();loadRankings()};$('savedNav').onclick=()=>{state.view='saved';render()};$('compareNav').onclick=()=>{state.view='compare';render()};$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
+loadTheme();loadSaved();render();loadRankings();
 </script>
 </body>
 </html>
