@@ -87,4 +87,4 @@ Phase 4 Part 5 exposes read-only operational telemetry through [docs/operational
 
 ## Database performance
 
-Phase 4 Part 6.1 production baseline and index-audit evidence are documented in [docs/database-performance.md](docs/database-performance.md). The repeatable read-only baseline is in [database/database-performance-baseline.sql](database/database-performance-baseline.sql), and the evidence-backed index cleanup is in [database/database-performance-hardening.sql](database/database-performance-hardening.sql).
+Phase 4 Part 6.1 and 6.2 production database reliability, baseline, index-audit evidence, and query optimization results are documented in [docs/database-performance.md](docs/database-performance.md). The repeatable read-only baseline is in [database/database-performance-baseline.sql](database/database-performance-baseline.sql), and the evidence-backed index cleanup is in [database/database-performance-hardening.sql](database/database-performance-hardening.sql). Query optimization migrations are recorded under [supabase/migrations/](supabase/migrations/).
