@@ -66,6 +66,8 @@ The long-term history API combines daily summaries with the retained raw snapsho
 
 Backup and disaster recovery procedures are documented in [docs/backup-disaster-recovery.md](docs/backup-disaster-recovery.md).
 
+Historical recovery behavior and the recovery audit are documented in [docs/historical-recovery.md](docs/historical-recovery.md).
+
 ## Ranking transparency
 
 Bobaks publishes the current ranking methodology and a server-side audit summary through the public API:
