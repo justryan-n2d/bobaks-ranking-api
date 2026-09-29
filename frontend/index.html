@@ -902,23 +902,48 @@ function animateLiveValues(){
 }
 function cardTier(rank){
   const n=Number(rank);
-  if(n===1)return {name:'LEGENDARY',accent:'#F4C95D',accent2:'#FFF0A8',badge:'👑 #1',glow:1.35};
-  if(n>=2&&n<=3)return {name:'ELITE',accent:'#D7E2F0',accent2:'#FFFFFF',badge:'★ TOP 3',glow:1.12};
-  if(n>=4&&n<=10)return {name:'EPIC',accent:'#A7B8FF',accent2:'#D8DEFF',badge:'✦ TOP 10',glow:1};
-  if(n>=11&&n<=25)return {name:'RARE',accent:'#6FD8FF',accent2:'#BDEEFF',badge:'◆ TOP 25',glow:.88};
-  if(n>=26&&n<=100)return {name:'RANKED',accent:'#7FC1E8',accent2:'#D7EFFB',badge:'TOP 100',glow:.78};
-  return {name:'DISCOVERED',accent:'#8FA5C0',accent2:'#DCE8F5',badge:'BOBAKS',glow:.65};
+  if(n===1)return {
+    name:'LEGENDARY',family:'gold',
+    accent:'#FFD34F',accent2:'#FFF4B0',accent3:'#FFFDF0',
+    badge:'👑 #1',glow:1.45,foil:'gold'
+  };
+  if(n>=2&&n<=3)return {
+    name:'EPIC',family:'purple',
+    accent:'#A66CFF',accent2:'#E4C8FF',accent3:'#FBF5FF',
+    badge:'✦ TOP 3',glow:1.18,foil:'purple'
+  };
+  if(n>=4&&n<=10)return {
+    name:'RARE',family:'blue',
+    accent:'#25C7FF',accent2:'#B9F1FF',accent3:'#F0FEFF',
+    badge:'◆ TOP 10',glow:1.02,foil:'blue'
+  };
+  if(n>=11&&n<=25)return {
+    name:'UNCOMMON',family:'green',
+    accent:'#45E28C',accent2:'#C9FFDD',accent3:'#F1FFF5',
+    badge:'● TOP 25',glow:.92,foil:'green'
+  };
+  if(n>=26&&n<=100)return {
+    name:'COMMON',family:'white',
+    accent:'#E9F0F7',accent2:'#FFFFFF',accent3:'#FFFFFF',
+    badge:'TOP 100',glow:.78,foil:'silver'
+  };
+  return {
+    name:'DISCOVERED',family:'discovered',
+    accent:'#9FB3C8',accent2:'#E2EAF2',accent3:'#FFFFFF',
+    badge:'BOBAKS',glow:.64,foil:'discovered'
+  };
 }
 
 function cardMessage(g,rank){
   const n=Number(rank);
   const change=g.rankings?.live?.rankChange;
-  if(n===1)return 'You are looking at the current #1 game on Bobaks.';
-  if(change!=null&&change>=10)return 'This game is charging up the leaderboard. 🚀';
-  if(change!=null&&change>=3)return 'This game is climbing. Keep an eye on it. 🔥';
-  if(change!=null&&change<=-10)return 'The leaderboard moved. Let’s see where it goes next.';
-  if(g.isNewEntry)return 'A fresh face has entered the Bobaks Top 100.';
-  if(n&&n<=10)return 'This game is right near the top of Bobaks. 👀';
+  if(n===1)return 'You are looking at the current #1 game on Bobaks. Keep your crown shining. 👑';
+  if(change!=null&&change>=10)return 'This game is flying up the leaderboard. 🚀 Keep watching the climb.';
+  if(change!=null&&change>=3)return 'This game is climbing the board. 🔥 One to keep your eye on.';
+  if(change!=null&&change<=-10)return 'The leaderboard moved. The next refresh could tell a different story.';
+  if(g.isNewEntry)return 'A fresh face just entered the Bobaks Top 100. Welcome to the board. ✨';
+  if(n&&n<=3)return 'A top-three game on Bobaks. That spot is worth showing off. ✨';
+  if(n&&n<=10)return 'You are looking at a top-ten game on Bobaks right now. 👀';
   if(Number(g.currentPlayers||0)>=10000)return 'Thousands of players are showing up right now. 🔥';
   if(n&&n<=100)return 'A ranked game worth keeping on your watchlist.';
   return 'Discover where this game stands on Bobaks Ranking.';
@@ -979,110 +1004,217 @@ async function generateRankCard(g){
   const ctx=canvas.getContext('2d');
   if(!ctx)throw new Error('Canvas is unavailable');
 
-  const bg=ctx.createLinearGradient(0,0,W,H);
-  bg.addColorStop(0,'#020711');bg.addColorStop(.45,'#071A31');bg.addColorStop(1,'#020711');
-  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  const logoPromise=loadCardImage(location.origin+'/assets/bobaks-logo.png');
+  const gameImagePromise=loadCardImage(g.iconUrl||g.icon||'');
+  const [logo,gameImage]=await Promise.all([logoPromise,gameImagePromise]);
 
-  const glow=ctx.createRadialGradient(W*.5,250,40,W*.5,250,760);
-  glow.addColorStop(0,hexToRgba(tier.accent,.22*tier.glow));
-  glow.addColorStop(.45,hexToRgba(tier.accent,.075*tier.glow));
-  glow.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=glow;ctx.fillRect(0,0,W,900);
+  function drawSpark(ctx,x,y,size,alpha,stroke){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.strokeStyle=hexToRgba(stroke,alpha);
+    ctx.lineWidth=Math.max(2,size*.10);
+    ctx.beginPath();ctx.moveTo(-size,0);ctx.lineTo(size,0);ctx.moveTo(0,-size);ctx.lineTo(0,size);ctx.stroke();
+    ctx.rotate(Math.PI/4);
+    ctx.globalAlpha=.55;
+    ctx.beginPath();ctx.moveTo(-size*.66,0);ctx.lineTo(size*.66,0);ctx.moveTo(0,-size*.66);ctx.lineTo(0,size*.66);ctx.stroke();
+    ctx.restore();
+  }
 
-  if(rank===1){
-    for(let i=0;i<26;i++){
-      const a=(i/26)*Math.PI*2,rr=510+((i%4)*32),x=W/2+Math.cos(a)*rr,y=270+Math.sin(a)*rr;
-      ctx.fillStyle=hexToRgba(tier.accent,.13);
-      ctx.beginPath();ctx.arc(x,y,3+(i%3),0,Math.PI*2);ctx.fill();
+  function drawFoil(ctx,time,preview=true){
+    const phase=((time||0)%5200)/5200;
+    const sweepX=-500+phase*(W+1000);
+    ctx.save();
+    ctx.globalCompositeOperation='screen';
+
+    const shimmer=ctx.createLinearGradient(sweepX,0,sweepX+260,0);
+    shimmer.addColorStop(0,'rgba(255,255,255,0)');
+    shimmer.addColorStop(.43,'rgba(255,255,255,'+(preview?.24:.19)+')');
+    shimmer.addColorStop(.5,'rgba(255,255,255,'+(preview?.52:.38)+')');
+    shimmer.addColorStop(.57,'rgba(255,255,255,'+(preview?.20:.16)+')');
+    shimmer.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=shimmer;
+    ctx.fillRect(45,45,W-90,H-90);
+
+    ctx.translate(W/2,H/2);
+    ctx.rotate(-.24);
+    for(let i=-20;i<22;i++){
+      const y=i*70+((time||0)%140)-140;
+      ctx.fillStyle=hexToRgba(tier.accent,(preview?.045:.028));
+      ctx.fillRect(-1000,y,2000,12);
     }
+    ctx.restore();
+
+    if(preview){
+      const count=rank===1?26:rank&&rank<=3?18:12;
+      for(let i=0;i<count;i++){
+        const seed=i*1337+rank*97;
+        const x=75+(Math.abs(Math.sin(seed))*1050);
+        const y=120+(Math.abs(Math.cos(seed*.71))*1310);
+        const pulse=.7+.3*Math.sin((time||0)/500+i);
+        drawSpark(ctx,x,y,(rank===1?7:5)*pulse,.5*pulse,tier.accent2);
+      }
+    }
+    ctx.restore();
   }
 
-  roundRect(ctx,38,38,W-76,H-76,42);
-  ctx.strokeStyle=hexToRgba(tier.accent,rank===1?.7:.42);
-  ctx.lineWidth=rank===1?8:5;ctx.stroke();
+  function drawFrame(time=0,preview=true){
+    ctx.clearRect(0,0,W,H);
 
-  if(rank===1){
-    roundRect(ctx,56,56,W-112,H-112,34);
-    ctx.strokeStyle=hexToRgba(tier.accent2,.45);ctx.lineWidth=2;ctx.stroke();
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    if(tier.family==='gold'){
+      bg.addColorStop(0,'#120D02');bg.addColorStop(.32,'#3B2608');bg.addColorStop(.52,'#8D6212');bg.addColorStop(.76,'#2B1A05');bg.addColorStop(1,'#090602');
+    }else if(tier.family==='purple'){
+      bg.addColorStop(0,'#0D0718');bg.addColorStop(.32,'#281045');bg.addColorStop(.55,'#5C2E97');bg.addColorStop(.76,'#22103D');bg.addColorStop(1,'#07030E');
+    }else if(tier.family==='blue'){
+      bg.addColorStop(0,'#02131C');bg.addColorStop(.34,'#063D59');bg.addColorStop(.55,'#087EA4');bg.addColorStop(.78,'#063349');bg.addColorStop(1,'#011018');
+    }else if(tier.family==='green'){
+      bg.addColorStop(0,'#04130B');bg.addColorStop(.34,'#0C4B2A');bg.addColorStop(.55,'#1E8E52');bg.addColorStop(.8,'#0A3A22');bg.addColorStop(1,'#020C07');
+    }else if(tier.family==='white'){
+      bg.addColorStop(0,'#0F1318');bg.addColorStop(.32,'#48535E');bg.addColorStop(.52,'#AEB7C0');bg.addColorStop(.76,'#3B454F');bg.addColorStop(1,'#0A0D11');
+    }else{
+      bg.addColorStop(0,'#08101A');bg.addColorStop(.45,'#172636');bg.addColorStop(1,'#05090E');
+    }
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+    const glow=ctx.createRadialGradient(W*.5,260,30,W*.5,260,780);
+    glow.addColorStop(0,hexToRgba(tier.accent,.26*tier.glow));
+    glow.addColorStop(.4,hexToRgba(tier.accent,.095*tier.glow));
+    glow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=glow;ctx.fillRect(0,0,W,900);
+
+    for(let i=0;i<28;i++){
+      const x=(i*157+73)%W,y=(i*89+140)%H;
+      ctx.fillStyle=hexToRgba(tier.accent2,.035+(i%3)*.01);
+      ctx.beginPath();ctx.arc(x,y,1.5+(i%3),0,Math.PI*2);ctx.fill();
+    }
+
+    roundRect(ctx,30,30,W-60,H-60,48);
+    ctx.fillStyle='rgba(3,8,15,.32)';ctx.fill();
+    ctx.strokeStyle=hexToRgba(tier.accent,rank===1?.86:.62);
+    ctx.lineWidth=rank===1?10:7;ctx.stroke();
+
+    roundRect(ctx,50,50,W-100,H-100,40);
+    ctx.strokeStyle=hexToRgba(tier.accent2,rank===1?.62:.38);
+    ctx.lineWidth=3;ctx.stroke();
+
+    const inner=ctx.createLinearGradient(0,0,W,0);
+    inner.addColorStop(0,hexToRgba(tier.accent,.03));
+    inner.addColorStop(.5,hexToRgba(tier.accent2,.13));
+    inner.addColorStop(1,hexToRgba(tier.accent,.03));
+    ctx.fillStyle=inner;ctx.fillRect(62,62,W-124,18);ctx.fillRect(62,H-80,W-124,18);
+
+    if(rank===1){
+      for(let i=0;i<18;i++){
+        const a=(i/18)*Math.PI*2;
+        const rr=470+(i%3)*38;
+        drawSpark(ctx,W/2+Math.cos(a)*rr,280+Math.sin(a)*rr,7+(i%3)*2,.62,tier.accent2);
+      }
+    }
+
+    if(logo)ctx.drawImage(logo,72,72,58,58);
+    ctx.textAlign='left';
+    ctx.fillStyle='#F7FAFF';ctx.font='800 30px Inter,system-ui,sans-serif';
+    ctx.fillText('BOBAKS RANKING',146,110);
+    ctx.fillStyle=tier.accent;ctx.font='900 18px Inter,system-ui,sans-serif';
+    ctx.fillText(tier.name,146,140);
+
+    ctx.textAlign='center';
+    ctx.fillStyle=tier.accent;
+    ctx.font=rank===1?'900 158px Inter,system-ui,sans-serif':rank&&rank<=3?'900 142px Inter,system-ui,sans-serif':'900 128px Inter,system-ui,sans-serif';
+    ctx.shadowColor=hexToRgba(tier.accent,.68);ctx.shadowBlur=rank===1?46:30;
+    ctx.fillText(rank?'#'+rank:'UNRANKED',W/2,315);
+    ctx.shadowBlur=0;
+    ctx.fillStyle=tier.accent2;ctx.font='900 24px Inter,system-ui,sans-serif';
+    ctx.fillText(tier.badge,W/2,360);
+
+    const artX=92,artY=405,artW=W-184,artH=530;
+    roundRect(ctx,artX,artY,artW,artH,30);
+    ctx.save();ctx.clip();
+    if(gameImage){
+      const s=Math.max(artW/gameImage.width,artH/gameImage.height),dw=gameImage.width*s,dh=gameImage.height*s;
+      const dx=artX+(artW-dw)/2,dy=artY+(artH-dh)/2;
+      ctx.globalAlpha=.88;ctx.drawImage(gameImage,dx,dy,dw,dh);ctx.globalAlpha=1;
+      const fade=ctx.createLinearGradient(0,artY,0,artY+artH);
+      fade.addColorStop(0,'rgba(2,7,17,.03)');fade.addColorStop(.62,'rgba(2,7,17,.08)');fade.addColorStop(1,'rgba(2,7,17,.83)');
+      ctx.fillStyle=fade;ctx.fillRect(artX,artY,artW,artH);
+    }else{
+      ctx.fillStyle='#10223A';ctx.fillRect(artX,artY,artW,artH);
+      ctx.fillStyle=tier.accent;ctx.font='900 160px Inter,system-ui,sans-serif';
+      ctx.fillText(String(g.name||'?').charAt(0).toUpperCase(),W/2,artY+330);
+    }
+
+    const artGlow=ctx.createRadialGradient(W*.5,artY+210,30,W*.5,artY+210,520);
+    artGlow.addColorStop(0,hexToRgba(tier.accent,.20*tier.glow));
+    artGlow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=artGlow;ctx.fillRect(artX,artY,artW,artH);
+    ctx.restore();
+
+    roundRect(ctx,artX,artY,artW,artH,30);
+    ctx.strokeStyle=hexToRgba(tier.accent,.78);ctx.lineWidth=5;ctx.stroke();
+    roundRect(ctx,artX+8,artY+8,artW-16,artH-16,24);
+    ctx.strokeStyle=hexToRgba(tier.accent2,.28);ctx.lineWidth=2;ctx.stroke();
+
+    drawFoil(ctx,time,preview);
+
+    ctx.textAlign='left';
+    ctx.fillStyle='#fff';
+    ctx.font=rank===1?'900 58px Inter,system-ui,sans-serif':'900 52px Inter,system-ui,sans-serif';
+    const titleLines=wrapLines(ctx,g.name||'Unknown game',1000,2);
+    titleLines.forEach((line,i)=>ctx.fillText(line,100,1010+i*64));
+
+    ctx.fillStyle='#B8CBE0';ctx.font='700 22px Inter,system-ui,sans-serif';
+    ctx.fillText('by '+String(g.creatorName||g.creator||'Unknown creator').slice(0,54),100,1148);
+
+    const statY=1210;
+    const boxes=[
+      {label:'CURRENT PLAYERS',value:fmt(current)},
+      {label:'RECORDED PEAK',value:fmt(peak)}
+    ];
+    boxes.forEach((b,i)=>{
+      const x=100+i*500;
+      roundRect(ctx,x,statY,450,112,18);
+      ctx.fillStyle=hexToRgba(tier.accent,.07);ctx.fill();
+      ctx.strokeStyle=hexToRgba(tier.accent2,.25);ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle='#7890A8';ctx.font='800 16px Inter,system-ui,sans-serif';ctx.fillText(b.label,x+24,statY+32);
+      ctx.fillStyle='#fff';ctx.font='900 38px Inter,system-ui,sans-serif';ctx.fillText(b.value,x+24,statY+78);
+    });
+
+    ctx.fillStyle=rankChange==null?tier.accent2:rankChange>0?'#37D6A2':rankChange<0?'#FF7586':tier.accent2;
+    ctx.font='900 25px Inter,system-ui,sans-serif';
+    const movement=rankChange==null?(previousRank==null?'NEW ENTRY':'RANK'):(rankChange>0?'▲ '+rankChange+' RANK'+(rankChange===1?'':'S')+' UP':rankChange<0?'▼ '+Math.abs(rankChange)+' RANK'+(Math.abs(rankChange)===1?'':'S')+' DOWN':'NO RANK CHANGE');
+    ctx.fillText(movement,100,1384);
+
+    ctx.fillStyle='#EEF6FF';ctx.font='800 22px Inter,system-ui,sans-serif';
+    const msgLines=wrapLines(ctx,cardMessage({...g,isNewEntry:previousRank==null},rank),980,2);
+    msgLines.forEach((line,i)=>ctx.fillText(line,100,1423+i*30));
+
+    ctx.fillStyle='#7A91A8';ctx.font='700 17px Inter,system-ui,sans-serif';
+    ctx.fillText('Track this game and discover more rankings at',100,1512);
+    ctx.fillStyle=tier.accent2;ctx.font='900 19px Inter,system-ui,sans-serif';
+    ctx.fillText(location.host,100,1544);
+    ctx.textAlign='right';ctx.fillStyle='#6C849D';ctx.font='700 15px Inter,system-ui,sans-serif';
+    ctx.fillText('BOBAKS · GAME RANK CARD',1080,1544);
+    ctx.textAlign='left';
   }
 
-  const logo=await loadCardImage(location.origin+'/assets/bobaks-logo.png');
-  if(logo){
-    ctx.drawImage(logo,72,72,58,58);
-  }
-  ctx.fillStyle='#F7FAFF';ctx.font='800 30px Inter,system-ui,sans-serif';
-  ctx.fillText('BOBAKS RANKING',146,110);
-  ctx.fillStyle=tier.accent;ctx.font='800 18px Inter,system-ui,sans-serif';
-  ctx.fillText(tier.name,146,140);
-
-  ctx.textAlign='center';
-  ctx.fillStyle=tier.accent;
-  ctx.font=rank===1?'900 155px Inter,system-ui,sans-serif':'900 128px Inter,system-ui,sans-serif';
-  ctx.shadowColor=hexToRgba(tier.accent,.5);ctx.shadowBlur=rank===1?42:24;
-  ctx.fillText(rank?'#'+rank:'UNRANKED',W/2,315);
-  ctx.shadowBlur=0;
-  ctx.fillStyle='#AFC3D9';ctx.font='800 24px Inter,system-ui,sans-serif';
-  ctx.fillText(tier.badge,W/2,357);
-
-  const artX=92,artY=405,artW=W-184,artH=530;
-  roundRect(ctx,artX,artY,artW,artH,30);
-  ctx.save();ctx.clip();
-  const gameImage=await loadCardImage(g.iconUrl||g.icon||'');
-  const artBg=ctx.createLinearGradient(artX,artY,artX+artW,artY+artH);
-  artBg.addColorStop(0,hexToRgba(tier.accent,.18));artBg.addColorStop(1,'rgba(2,7,17,.15)');
-  ctx.fillStyle=artBg;ctx.fillRect(artX,artY,artW,artH);
-  if(gameImage){
-    const s=Math.max(artW/gameImage.width,artH/gameImage.height),dw=gameImage.width*s,dh=gameImage.height*s;
-    const dx=artX+(artW-dw)/2,dy=artY+(artH-dh)/2;
-    ctx.globalAlpha=.82;ctx.drawImage(gameImage,dx,dy,dw,dh);ctx.globalAlpha=1;
-    const fade=ctx.createLinearGradient(0,artY,0,artY+artH);
-    fade.addColorStop(0,'rgba(2,7,17,.02)');fade.addColorStop(.7,'rgba(2,7,17,.12)');fade.addColorStop(1,'rgba(2,7,17,.78)');
-    ctx.fillStyle=fade;ctx.fillRect(artX,artY,artW,artH);
-  }else{
-    ctx.fillStyle='#10223A';ctx.fillRect(artX,artY,artW,artH);
-    ctx.fillStyle=tier.accent;ctx.font='900 160px Inter,system-ui,sans-serif';ctx.fillText(String(g.name||'?').charAt(0).toUpperCase(),W/2,artY+330);
-  }
-  ctx.restore();
-  roundRect(ctx,artX,artY,artW,artH,30);ctx.strokeStyle=hexToRgba(tier.accent,.55);ctx.lineWidth=4;ctx.stroke();
-
-  ctx.textAlign='left';
-  ctx.fillStyle='#fff';ctx.font=rank===1?'900 58px Inter,system-ui,sans-serif':'900 52px Inter,system-ui,sans-serif';
-  const titleLines=wrapLines(ctx,g.name||'Unknown game',1000,2);
-  titleLines.forEach((line,i)=>ctx.fillText(line,100,1010+i*64));
-  ctx.fillStyle='#9CB1C9';ctx.font='700 22px Inter,system-ui,sans-serif';
-  ctx.fillText('by '+String(g.creatorName||g.creator||'Unknown creator').slice(0,54),100,1148);
-
-  const statY=1210;
-  const boxes=[
-    {label:'CURRENT PLAYERS',value:fmt(current)},
-    {label:'RECORDED PEAK',value:fmt(peak)}
-  ];
-  boxes.forEach((b,i)=>{
-    const x=100+i*500;
-    roundRect(ctx,x,statY,450,112,18);ctx.fillStyle='rgba(255,255,255,.045)';ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=2;ctx.stroke();
-    ctx.fillStyle='#7188A3';ctx.font='800 16px Inter,system-ui,sans-serif';ctx.fillText(b.label,x+24,statY+32);
-    ctx.fillStyle='#fff';ctx.font='900 38px Inter,system-ui,sans-serif';ctx.fillText(b.value,x+24,statY+78);
-  });
-
-  ctx.fillStyle=rankChange==null?'#A8BDD3':rankChange>0?'#37D6A2':rankChange<0?'#FF7586':'#A8BDD3';
-  ctx.font='900 25px Inter,system-ui,sans-serif';
-  const movement=rankChange==null?(previousRank==null?'NEW ENTRY':'RANK'):(rankChange>0?'▲ '+rankChange+' RANK'+(rankChange===1?'':'S')+' UP':rankChange<0?'▼ '+Math.abs(rankChange)+' RANK'+(Math.abs(rankChange)===1?'':'S')+' DOWN':'NO RANK CHANGE');
-  ctx.fillText(movement,100,1384);
-
-  ctx.fillStyle='#E6F2FF';ctx.font='800 22px Inter,system-ui,sans-serif';
-  const msgLines=wrapLines(ctx,cardMessage({...g,isNewEntry:previousRank==null},rank),980,2);
-  msgLines.forEach((line,i)=>ctx.fillText(line,100,1423+i*30));
-
-  ctx.fillStyle='#6F88A2';ctx.font='700 17px Inter,system-ui,sans-serif';
-  ctx.fillText('Track this game and discover more rankings at',100,1512);
-  ctx.fillStyle=tier.accent;ctx.font='900 19px Inter,system-ui,sans-serif';
-  ctx.fillText(location.host,100,1544);
-  ctx.textAlign='right';ctx.fillStyle='#5E7894';ctx.font='700 15px Inter,system-ui,sans-serif';
-  ctx.fillText('BOBAKS · GAME RANK CARD',1080,1544);
-  ctx.textAlign='left';
-
-  return {canvas,rank,tier,rankChange,text:'Bobaks Ranking · '+g.name+' · '+(rank?'#'+rank:'Unranked')+' · '+fmt(current)+' players'};
+  drawFrame(performance.now(),true);
+  return {
+    canvas,
+    rank,
+    tier,
+    rankChange,
+    text:'Bobaks Ranking · '+g.name+' · '+(rank?'#'+rank:'Unranked')+' · '+fmt(current)+' players',
+    drawFrame,
+    startAnimation(){
+      let raf;
+      const tick=now=>{
+        drawFrame(now,true);
+        raf=requestAnimationFrame(tick);
+      };
+      raf=requestAnimationFrame(tick);
+      return ()=>cancelAnimationFrame(raf);
+    }
+  };
 }
 
 function closeRankCardModal(){
@@ -1110,6 +1242,16 @@ async function share(id){
     result.canvas.className='rank-card-canvas';
     wrap.appendChild(result.canvas);
 
+    const stopAnimation=result.startAnimation();
+
+    modal.querySelector('.rank-card-close').onclick=()=>{
+      stopAnimation();
+      closeRankCardModal();
+    };
+    modal.addEventListener('click',e=>{
+      if(e.target===modal){stopAnimation();closeRankCardModal()}
+    });
+
     const actions=document.createElement('div');
     actions.className='rank-card-actions';
     actions.innerHTML='<button class="btn primary" data-download>Download PNG</button><button class="btn" data-share>Share Card</button>';
@@ -1123,6 +1265,8 @@ async function share(id){
 
     modal.querySelector('[data-download]').onclick=async()=>{
       try{
+        stopAnimation();
+        result.drawFrame(performance.now(),false);
         const b=await blob();
         const url=URL.createObjectURL(b);
         const a=document.createElement('a');a.href=url;a.download='bobaks-'+String(g.name||'game').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()+'-rank-card.png';a.click();
@@ -1132,6 +1276,8 @@ async function share(id){
 
     modal.querySelector('[data-share]').onclick=async()=>{
       try{
+        stopAnimation();
+        result.drawFrame(performance.now(),false);
         const b=await blob();
         const file=new File([b],'bobaks-rank-card.png',{type:'image/png'});
         const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
