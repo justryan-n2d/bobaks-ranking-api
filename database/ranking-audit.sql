@@ -79,16 +79,16 @@ BEGIN
   ),
   stats AS (
     SELECT
-      MIN(c.weekly_sample_count) AS weekly_min_samples,
+      MIN(c.weekly_sample_count) FILTER (WHERE r."period"='weekly') AS weekly_min_samples,
       MIN(LEAST(
         c.weekly_sample_count::numeric / NULLIF(weekly_opportunities, 0)::numeric,
         1.0
-      )) AS weekly_min_coverage,
-      MIN(c.monthly_sample_count) AS monthly_min_samples,
+      )) FILTER (WHERE r."period"='weekly') AS weekly_min_coverage,
+      MIN(c.monthly_sample_count) FILTER (WHERE r."period"='monthly') AS monthly_min_samples,
       MIN(LEAST(
         c.monthly_sample_count::numeric / NULLIF(monthly_opportunities, 0)::numeric,
         1.0
-      )) AS monthly_min_coverage
+      )) FILTER (WHERE r."period"='monthly') AS monthly_min_coverage
     FROM public."Ranking" r
     JOIN current_month_samples c ON c."gameId"=r."gameId"
     WHERE r."period" IN ('weekly','monthly')
