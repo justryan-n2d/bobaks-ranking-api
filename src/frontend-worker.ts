@@ -342,7 +342,7 @@ async function renderRankingPage(
 
   const list = items.length
     ? "<ol>" + items.map(item =>
-        "<li><a href="" + escapeHtml(canonicalGameUrl(origin, item.id)) + "">" +
+        '<li><a href="' + escapeHtml(canonicalGameUrl(origin, item.id)) + '">' +
         escapeHtml(item.name) + "</a><span> by " + escapeHtml(item.creator) +
         " · " + String(Math.max(0, Math.round(item.score))) + " players</span></li>"
       ).join("") + "</ol>"
