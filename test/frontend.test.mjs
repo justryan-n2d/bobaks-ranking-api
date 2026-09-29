@@ -97,3 +97,42 @@ test("data-driven rank card generator is wired for dynamic rank tiers and export
   assert.match(html, /files:\[file\]/);
   assert.match(html, /Bobaks Game Rank Card/);
 });
+
+test("rank card tiers match the Phase 5.5 rarity rules", () => {
+  const html = readHtml();
+
+  const legendary = html.match(/if\(n===1\)return \{[\s\S]*?name:'LEGENDARY',[\s\S]*?family:'gold'/);
+  const epic = html.match(/if\(n>=2&&n<=3\)return \{[\s\S]*?name:'EPIC',[\s\S]*?family:'purple'/);
+  const rare = html.match(/if\(n>=4&&n<=10\)return \{[\s\S]*?name:'RARE',[\s\S]*?family:'blue'/);
+  const uncommon = html.match(/if\(n>=11&&n<=25\)return \{[\s\S]*?name:'UNCOMMON',[\s\S]*?family:'green'/);
+  const common = html.match(/if\(n>=26&&n<=100\)return \{[\s\S]*?name:'COMMON',[\s\S]*?family:'white'/);
+  assert.ok(legendary && epic && rare && uncommon && common);
+  assert.match(html, /name:'DISCOVERED',[\s\S]*?family:'discovered'/);
+  assert.match(html, /accent:'#FFD34F'/);
+  assert.match(html, /accent:'#A66CFF'/);
+  assert.match(html, /accent:'#25C7FF'/);
+  assert.match(html, /accent:'#45E28C'/);
+  assert.match(html, /accent:'#E9F0F7'/);
+});
+
+test("rank card preview animates foil and exports a still image", () => {
+  const html = readHtml();
+
+  assert.match(html, /function drawFoil\(ctx,time,preview=true\)/);
+  assert.match(html, /const shimmer=ctx\.createLinearGradient/);
+  assert.match(html, /requestAnimationFrame\(tick\)/);
+  assert.match(html, /startAnimation\(\)/);
+  assert.match(html, /result\.drawFrame\(performance\.now\(\),false\)/);
+  assert.match(html, /canvas\.toBlob/);
+  assert.match(html, /Download PNG/);
+  assert.match(html, /Share Card/);
+});
+
+test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
+  const html = readHtml();
+
+  assert.match(html, /Keep your crown shining/);
+  assert.match(html, /charging up the leaderboard/);
+  assert.match(html, /Track this game and discover more rankings at/);
+  assert.match(html, /location\.host/);
+});
