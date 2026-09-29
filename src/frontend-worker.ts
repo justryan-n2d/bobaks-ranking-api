@@ -13,6 +13,7 @@ interface AnalyticsBinding {
 interface Env {
   ASSETS: AssetBinding;
   API_ORIGIN: string;
+  DISCORD_INVITE_URL?: string;
   ANALYTICS?: AnalyticsBinding;
 }
 
@@ -33,6 +34,11 @@ const EVENTS = new Set([
 ]);
 
 const PERIODS = new Set(["live", "week", "month", "year"]);
+
+const COMMUNITY_META = {
+  title: "Bobaks Ranking Community | Discord, Feedback & Game Discovery",
+  description: "Join the Bobaks Ranking community, share feedback, request features, report bugs, and discuss Roblox game discovery."
+};
 
 const RANKING_ROUTES: Record<string, string> = {
   "/rankings/weekly": "week",
@@ -102,7 +108,7 @@ function canonicalGameUrl(origin: string, id: string): string {
 }
 
 function normalizeRoute(pathname: string): string {
-  if (pathname === "/" || pathname === "/saved" || pathname === "/compare") return pathname;
+  if (pathname === "/" || pathname === "/saved" || pathname === "/compare" || pathname === "/community") return pathname;
   if (/^\/game\/\d+$/.test(pathname)) return "/game/:id";
   return pathname.startsWith("/info") ? "/info" : "/other";
 }
@@ -280,6 +286,73 @@ async function renderGamePage(
   return new Response(output, { status: 200, headers });
 }
 
+async function renderCommunityPage(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const shell = await assetShell(env, request);
+  if (!shell.ok) return shell;
+
+  const origin = new URL(request.url).origin;
+  const canonical = origin + "/community";
+  const discordUrl = String(env.DISCORD_INVITE_URL ?? "").trim();
+  const discordReady = Boolean(discordUrl);
+  const discordAction = discordReady
+    ? '<a class="btn primary" href="' + escapeHtml(discordUrl) + '" target="_blank" rel="noreferrer noopener">Join Discord</a>'
+    : '<span class="btn community-disabled" aria-disabled="true">Discord link is not configured yet.</span>';
+  const pollAction = discordReady
+    ? '<a class="btn primary" href="' + escapeHtml(discordUrl) + '" target="_blank" rel="noreferrer noopener">Open Discord</a>'
+    : '<a class="btn" href="mailto:bobaksranking@gmail.com?subject=Community%20poll">Suggest a poll</a>';
+  const discoveryAction = discordReady
+    ? '<a class="btn primary" href="' + escapeHtml(discordUrl) + '" target="_blank" rel="noreferrer noopener">Open Discord</a>'
+    : '<a class="btn" href="mailto:bobaksranking@gmail.com?subject=Game%20discovery">Send a game</a>';
+
+  const fallbackHtml =
+    '<section class="hero"><div class="hero-main"><div class="eyebrow">BOBAKS COMMUNITY</div><h1>Build Bobaks <em>with us</em></h1><p>Talk about Roblox games, share ideas, report problems, and help shape what Bobaks builds next.</p></div></section>' +
+    '<section class="community-grid">' +
+      '<article class="community-card community-primary"><div class="community-icon" aria-hidden="true">D</div><div><div class="community-label">COMMUNITY HOME</div><h2>Discord community</h2><p>Chat with other gamers, discuss rankings, share discoveries, and take part in Bobaks community activity.</p></div>' + discordAction + '</article>' +
+      '<article class="community-card"><div class="community-icon" aria-hidden="true">F</div><div><h2>Feedback</h2><p>Tell us what is useful, confusing, missing, or worth improving.</p></div><a class="btn" href="mailto:bobaksranking@gmail.com?subject=Bobaks%20Feedback">Send feedback</a></article>' +
+      '<article class="community-card"><div class="community-icon" aria-hidden="true">F</div><div><h2>Feature requests</h2><p>Suggest a feature and explain what problem it would solve for you.</p></div><a class="btn" href="mailto:bobaksranking@gmail.com?subject=Bobaks%20Feature%20Request">Request a feature</a></article>' +
+      '<article class="community-card"><div class="community-icon" aria-hidden="true">B</div><div><h2>Bug reports</h2><p>Report a broken page, wrong display, or other issue with the page URL included.</p></div><a class="btn" href="mailto:bobaksranking@gmail.com?subject=Bobaks%20Bug%20Report">Report a bug</a></article>' +
+      '<article class="community-card"><div class="community-icon" aria-hidden="true">P</div><div><h2>Community polls</h2><p>Help guide future improvements and vote on community questions through Discord when the server link is configured.</p></div>' + pollAction + '</article>' +
+      '<article class="community-card"><div class="community-icon" aria-hidden="true">G</div><div><h2>Game discovery</h2><p>Share Roblox experiences you think Bobaks should track or discuss with the community.</p></div>' + discoveryAction + '</article>' +
+    '</section>' +
+    '<section class="panel community-note"><h2>Keep reports useful</h2><p>For bug reports, include the Bobaks page URL, what you expected, and what happened. For feature requests, describe the problem first so the community can discuss the need behind the idea.</p></section>' +
+    '<footer class="foot"><div>Bobaks Ranking · Independent fan-made analytics site · Not affiliated with Roblox Corporation.</div><div><a href="/">Rankings</a></div></footer>';
+
+  let output = await shell.text();
+  output = output
+    .replace(/<title>[\s\S]*?<\/title>/i, "<title>" + escapeHtml(COMMUNITY_META.title) + "</title>")
+    .replace(/<meta id="seo-description"[^>]*>/i,
+      '<meta id="seo-description" name="description" content="' + escapeHtml(COMMUNITY_META.description) + '">')
+    .replace(/<link id="seo-canonical"[^>]*>/i,
+      '<link id="seo-canonical" rel="canonical" href="' + escapeHtml(canonical) + '">');
+
+  output = replaceTagById(output, "seo-og-title",
+    '<meta id="seo-og-title" property="og:title" content="' + escapeHtml(COMMUNITY_META.title) + '">');
+  output = replaceTagById(output, "seo-og-description",
+    '<meta id="seo-og-description" property="og:description" content="' + escapeHtml(COMMUNITY_META.description) + '">');
+  output = replaceTagById(output, "seo-og-url",
+    '<meta id="seo-og-url" property="og:url" content="' + escapeHtml(canonical) + '">');
+  output = replaceTagById(output, "seo-twitter-title",
+    '<meta id="seo-twitter-title" name="twitter:title" content="' + escapeHtml(COMMUNITY_META.title) + '">');
+  output = replaceTagById(output, "seo-twitter-description",
+    '<meta id="seo-twitter-description" name="twitter:description" content="' + escapeHtml(COMMUNITY_META.description) + '">');
+
+  output = output
+    .replace(/<main id="app" class="wrap"><\/main>/i,
+      '<main id="app" class="wrap">' + fallbackHtml + '</main>')
+    .replace(/<\/head>/i,
+      '<script>window.__BOBAKS_COMMUNITY__=' + safeJsonLd({ discordInviteUrl: discordUrl }) + ';</script></head>');
+
+  const headers = new Headers(shell.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "public, max-age=300, s-maxage=600");
+  headers.set("x-robots-tag", "index, follow");
+
+  return new Response(output, { status: 200, headers });
+}
+
 async function renderRankingPage(
   request: Request,
   env: Env,
@@ -415,7 +488,8 @@ async function renderSitemap(
     "<url><loc>" + escapeXml(origin + "/") + "</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>",
     "<url><loc>" + escapeXml(origin + "/rankings/weekly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>",
     "<url><loc>" + escapeXml(origin + "/rankings/monthly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>",
-    "<url><loc>" + escapeXml(origin + "/rankings/yearly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>"
+    "<url><loc>" + escapeXml(origin + "/rankings/yearly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>",
+    "<url><loc>" + escapeXml(origin + "/community") + "</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>"
   ];
 
   for (const game of body.data ?? []) {
@@ -513,6 +587,10 @@ export async function handleFrontendRequest(
 
   if (url.pathname === "/sitemap.xml") {
     return renderSitemap(request, env, fetchImpl);
+  }
+
+  if (url.pathname === "/community") {
+    return renderCommunityPage(request, env);
   }
 
   const rankingPeriod = rankingPeriodForPath(url.pathname);
