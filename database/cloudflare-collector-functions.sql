@@ -376,6 +376,9 @@ DECLARE
   summary_start_date date;
   weekly_collection_opportunities bigint;
   monthly_collection_opportunities bigint;
+  active_game_count bigint;
+  live_candidate_rows bigint;
+  live_minimum_rows bigint;
 BEGIN
   -- Serialize refreshes so concurrent cron/manual calls cannot interleave
   -- DELETE/INSERT operations against the persisted ranking set.
@@ -389,6 +392,16 @@ BEGIN
   current_month_start := date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   next_month_start := current_month_start + interval '1 month';
   summary_start_date := ((calculated_at AT TIME ZONE 'UTC')::date - 364);
+
+  SELECT count(*)
+  INTO active_game_count
+  FROM public."Game"
+  WHERE "isActive" = true;
+
+  live_minimum_rows := GREATEST(
+    1,
+    CEIL(LEAST(active_game_count, 100)::numeric * 0.50)::bigint
+  );
 
   -- Coverage opportunities are finalized collector runs during each period.
   -- Successful and partial runs count; failed and daily-summary runs do not.
@@ -442,6 +455,22 @@ BEGIN
   SELECT "gameId", 'live', rank::integer, score, calculated_at
   FROM ranked
   WHERE rank <= 100;
+
+  SELECT count(*)
+  INTO live_candidate_rows
+  FROM public."Ranking"
+  WHERE "period" = 'live';
+
+  -- Fail closed when the live candidate set collapses unexpectedly.
+  -- A source/discovery outage must not replace a healthy live ranking with
+  -- an empty or severely depleted result.
+  IF live_candidate_rows < live_minimum_rows THEN
+    RAISE EXCEPTION
+      'Ranking refresh aborted: live candidate has % rows, minimum safe rows is % for % active games',
+      live_candidate_rows,
+      live_minimum_rows,
+      active_game_count;
+  END IF;
 
   -- Weekly ranking = current UTC calendar week, Monday through Sunday.
   -- Eligibility requires at least 12 observations and 50% coverage.
