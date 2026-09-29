@@ -220,7 +220,7 @@ async function decorateHome() {
 
   const liveRanking = live?.ranking?.items || [];
   const weekTrending = week?.trending?.items || [];
-  const peakItems = live?.peaks?.items || [];
+  const peakItems = live?.peaks?.recentItems || [];
   const previousPeaks = readJson(PEAKS_KEY, {});
   const freshPeaks = peakItems.filter(item => {
     const id = String(item?.gameId ?? "");
@@ -255,8 +255,8 @@ async function decorateHome() {
     '<article class="return-card return-wide"><div class="return-label">NEW PEAKS</div>' +
       '<h3>' + (freshPeaks.length ? fmt(freshPeaks.length) + ' new recorded peak' + (freshPeaks.length === 1 ? '' : 's') : 'Peak check') + '</h3>' +
       '<p>' + (freshPeaks.length
-        ? 'New peak records detected since your last Bobaks visit.'
-        : 'No new recorded peaks detected since your last Bobaks visit.') + '</p>' +
+        ? 'New peak highlights detected since your last Bobaks visit.'
+        : 'No new peak highlights detected since your last Bobaks visit.') + '</p>' +
       (freshPeaks.length
         ? '<ul class="return-list">' + freshPeaks.slice(0, 3).map(item => '<li><span>' + esc(item.name) + '</span><b>' + fmt(item.peakPlayers) + '</b></li>').join("") + '</ul>'
         : '') +
