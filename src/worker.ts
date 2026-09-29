@@ -798,40 +798,146 @@ export async function scheduled(
   await scheduledForTest(controller, env, fetch);
 }
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+const COLLECTION_HEALTH_THRESHOLD_SECONDS = 15 * 60;
 
-    if (url.pathname === '/health') {
-      const databaseConfigured = Boolean(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY);
-      let supabaseAuthOk = false;
-      let supabaseStatus: number | null = null;
+async function collectorHealth(env: Env): Promise<Record<string, unknown>> {
+  const databaseConfigured = Boolean(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY);
+  let supabaseAuthOk = false;
+  let supabaseStatus: number | null = null;
 
-      if (databaseConfigured) {
-        try {
-          const response = await supabaseRequest(
-            env,
-            'Game?select=id&limit=1',
-            fetch,
-            { method: 'GET' }
-          );
-          supabaseStatus = response.status;
-          supabaseAuthOk = response.ok;
-        } catch {
-          supabaseStatus = null;
-        }
-      }
+  if (!databaseConfigured) {
+    return {
+      ok: false,
+      status: 'unhealthy',
+      service: 'bobaks-ranking-collector',
+      platform: 'cloudflare-workers',
+      crons: ['*/10 * * * *', '5 0 * * *'],
+      databaseConfigured: false,
+      supabaseAuthOk: false,
+      supabaseStatus: null,
+      collection: {
+        status: 'unhealthy',
+        latestStatus: null,
+        latestStartedAt: null,
+        lastGoodStartedAt: null,
+        ageSeconds: null,
+        freshnessThresholdSeconds: COLLECTION_HEALTH_THRESHOLD_SECONDS
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
 
-      return Response.json({
-        ok: true,
+  try {
+    const [dbCheck, latestRows, goodRows] = await Promise.all([
+      supabaseRequest(env, 'Game?select=id&limit=1', fetch, { method: 'GET' }),
+      supabaseRequest(
+        env,
+        'DataCollectionLog?select=startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors&status=in.(success,partial,failed)&order=startedAt.desc&limit=1',
+        fetch,
+        { method: 'GET' }
+      ),
+      supabaseRequest(
+        env,
+        'DataCollectionLog?select=startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors&status=in.(success,partial)&order=startedAt.desc&limit=1',
+        fetch,
+        { method: 'GET' }
+      )
+    ]);
+
+    supabaseStatus = dbCheck.status;
+    supabaseAuthOk = dbCheck.ok;
+    if (!dbCheck.ok) {
+      return {
+        ok: false,
+        status: 'unhealthy',
         service: 'bobaks-ranking-collector',
         platform: 'cloudflare-workers',
         crons: ['*/10 * * * *', '5 0 * * *'],
         databaseConfigured,
         supabaseAuthOk,
         supabaseStatus,
+        collection: {
+          status: 'unhealthy',
+          latestStatus: null,
+          latestStartedAt: null,
+          lastGoodStartedAt: null,
+          ageSeconds: null,
+          freshnessThresholdSeconds: COLLECTION_HEALTH_THRESHOLD_SECONDS
+        },
         timestamp: new Date().toISOString()
-      });
+      };
+    }
+
+    const latest = JSON.parse(await latestRows.text()) as Array<Record<string, unknown>>;
+    const good = JSON.parse(await goodRows.text()) as Array<Record<string, unknown>>;
+    const latestRow = latest[0] ?? {};
+    const goodRow = good[0] ?? {};
+    const latestStartedAt = String(latestRow.startedAt ?? '');
+    const lastGoodStartedAt = String(goodRow.startedAt ?? '');
+    const goodMs = Date.parse(lastGoodStartedAt);
+    const ageSeconds = Number.isFinite(goodMs)
+      ? Math.max(0, Math.floor((Date.now() - goodMs) / 1000))
+      : null;
+    const latestStatus = String(latestRow.status ?? 'unknown');
+
+    const fresh = ageSeconds != null && ageSeconds <= COLLECTION_HEALTH_THRESHOLD_SECONDS;
+    const collectionStatus =
+      latestStatus === 'success' && fresh
+        ? 'healthy'
+        : fresh
+          ? 'degraded'
+          : 'unhealthy';
+
+    return {
+      ok: collectionStatus !== 'unhealthy',
+      status: collectionStatus,
+      service: 'bobaks-ranking-collector',
+      platform: 'cloudflare-workers',
+      crons: ['*/10 * * * *', '5 0 * * *'],
+      databaseConfigured,
+      supabaseAuthOk,
+      supabaseStatus,
+      collection: {
+        status: collectionStatus,
+        latestStatus: latestStatus === 'unknown' ? null : latestStatus,
+        latestStartedAt: latestStartedAt || null,
+        lastGoodStartedAt: lastGoodStartedAt || null,
+        ageSeconds,
+        freshnessThresholdSeconds: COLLECTION_HEALTH_THRESHOLD_SECONDS
+      },
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 'unhealthy',
+      service: 'bobaks-ranking-collector',
+      platform: 'cloudflare-workers',
+      crons: ['*/10 * * * *', '5 0 * * *'],
+      databaseConfigured,
+      supabaseAuthOk,
+      supabaseStatus,
+      collection: {
+        status: 'unhealthy',
+        latestStatus: null,
+        latestStartedAt: null,
+        lastGoodStartedAt: null,
+        ageSeconds: null,
+        freshnessThresholdSeconds: COLLECTION_HEALTH_THRESHOLD_SECONDS
+      },
+      error: formatError(error),
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    if (url.pathname === '/health') {
+      const body = await collectorHealth(env);
+      return Response.json(body, { status: body.status === 'unhealthy' ? 503 : 200 });
     }
 
     return new Response('Not found', { status: 404 });
