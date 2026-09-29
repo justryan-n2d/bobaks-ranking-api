@@ -86,6 +86,8 @@ export RESTORE_DB_URL='postgresql://...'
 
 The script refuses to restore into the current Bobaks production Supabase project.
 
+For a repeatable GitHub-based drill, the repository also includes `.github/workflows/restore-drill.yml`. Configure the GitHub Environment named `restore-test` with a `RESTORE_DB_URL` secret pointing to a disposable recovery database, then manually run the workflow and provide a weekly R2 object key.
+
 The restore is data-only. The intended recovery sequence is:
 
 `fresh Supabase project -> apply Bobaks migrations -> restore the public-schema data -> run production integrity audits`
