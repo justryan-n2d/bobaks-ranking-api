@@ -19,6 +19,20 @@ const DEFAULT_HEADERS = {
   "cache-control": "public, max-age=15"
 };
 
+const SOCIAL_PERIOD_LABELS: Record<string, string> = {
+  live: "right now",
+  week: "this week",
+  month: "this month",
+  year: "this year"
+};
+
+function rankingPagePath(period: string): string {
+  if (period === "week") return "/rankings/weekly";
+  if (period === "month") return "/rankings/monthly";
+  if (period === "year") return "/rankings/yearly";
+  return "/";
+}
+
 const RANKING_PERIODS: Record<string, string> = {
   live: "live",
   week: "weekly",
@@ -570,6 +584,159 @@ async function getRankings(
     rankChange: row.previousRank == null ? null : Number(row.previousRank) - Number(row.rank),
     game: gameMap.get(String(row.gameId ?? "")) ?? null
   }));
+}
+
+function socialRankingTitle(period: string): string {
+  return "🔥 Top 10 Roblox games " + (SOCIAL_PERIOD_LABELS[period] ?? "right now");
+}
+
+function socialTrendingTitle(period: string): string {
+  return "📈 Trending Roblox games " + (SOCIAL_PERIOD_LABELS[period] ?? "right now");
+}
+
+function buildSocialRankingPost(
+  period: string,
+  items: Array<{ rank: number; name: string; score: number }>,
+  url: string
+): string {
+  const unit = period === "live" ? "players" : "avg players";
+  const lines = items.slice(0, 10).map(item =>
+    item.rank + ". " + item.name + " · " + Math.max(0, Math.round(item.score)) + " " + unit
+  );
+  return [socialRankingTitle(period), "", ...lines, "", "Visit Bobaks Ranking:", url].join("\n");
+}
+
+function buildSocialTrendingPost(
+  period: string,
+  items: Array<{ rank: number; name: string; score: number; rankChange: number }>,
+  url: string
+): string {
+  const lines = items.slice(0, 10).map(item =>
+    "▲ " + item.name + " · +" + item.rankChange + " ranks · #" + item.rank + " · " +
+    Math.max(0, Math.round(item.score)) + (period === "live" ? " players" : " avg players")
+  );
+  return [socialTrendingTitle(period), "", ...lines, "", "Visit Bobaks Ranking:", url].join("\n");
+}
+
+function buildSocialPeakPost(
+  items: Array<{ name: string; peakPlayers: number; peakAt: string | null; url: string }>
+): string {
+  const lines = items.slice(0, 10).map(item => {
+    const date = item.peakAt ? String(item.peakAt).slice(0, 10) : "date unavailable";
+    return "🏆 " + item.name + " · " + Math.max(0, Math.round(item.peakPlayers)) + " peak players · " +
+      date + " · " + item.url;
+  });
+  return ["🏆 Highest recorded Roblox peaks on Bobaks", "", ...lines].join("\n");
+}
+
+async function getSocialFeed(
+  env: Env,
+  period: string,
+  origin: string,
+  fetchImpl: FetchLike
+): Promise<Record<string, unknown>> {
+  const rankings = await getRankings(env, period, fetchImpl);
+  const rankingItems = rankings.slice(0, 10).map(row => ({
+    rank: Number(row.rank),
+    gameId: String(row.gameId ?? ""),
+    name: String((row.game as JsonRow | null)?.name ?? "Unknown game"),
+    creator: String((row.game as JsonRow | null)?.creatorName ?? "Unknown creator"),
+    score: Number(row.score) || 0,
+    rankChange: row.rankChange == null ? null : Number(row.rankChange)
+  }));
+
+  const trendingItems = rankings
+    .filter(row => Number(row.rankChange ?? 0) > 0)
+    .sort((a, b) => {
+      const changeDiff = Number(b.rankChange ?? 0) - Number(a.rankChange ?? 0);
+      if (changeDiff !== 0) return changeDiff;
+      const scoreDiff = Number(b.score ?? 0) - Number(a.score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      const rankDiff = Number(a.rank ?? 0) - Number(b.rank ?? 0);
+      if (rankDiff !== 0) return rankDiff;
+      return String(a.gameId ?? "").localeCompare(String(b.gameId ?? ""));
+    })
+    .slice(0, 10)
+    .map(row => ({
+      rank: Number(row.rank),
+      gameId: String(row.gameId ?? ""),
+      name: String((row.game as JsonRow | null)?.name ?? "Unknown game"),
+      creator: String((row.game as JsonRow | null)?.creatorName ?? "Unknown creator"),
+      score: Number(row.score) || 0,
+      rankChange: Number(row.rankChange) || 0
+    }));
+
+  const peakRows = await supabaseGet(
+    env,
+    "GamePeak",
+    {
+      select: "id,gameId,peakPlayers,peakAt",
+      order: "peakPlayers.desc",
+      limit: "10"
+    },
+    fetchImpl
+  );
+  const peakMap = await getGamesByIds(
+    env,
+    peakRows.map(row => String(row.gameId ?? "")),
+    fetchImpl
+  );
+  const peaks = peakRows
+    .map(row => {
+      const gameId = String(row.gameId ?? "");
+      const game = peakMap.get(gameId);
+      if (!game) return null;
+      return {
+        gameId,
+        name: String(game.name ?? "Unknown game"),
+        creator: String(game.creatorName ?? "Unknown creator"),
+        peakPlayers: Number(row.peakPlayers) || 0,
+        peakAt: row.peakAt == null ? null : String(row.peakAt),
+        url: new URL("/game/" + encodeURIComponent(gameId), origin).toString()
+      };
+    })
+    .filter((row): row is {
+      gameId: string; name: string; creator: string; peakPlayers: number; peakAt: string | null; url: string;
+    } => row !== null)
+    .slice(0, 10);
+
+  const rankingUrl = new URL(rankingPagePath(period), origin).toString();
+
+  return {
+    generatedAt: new Date().toISOString(),
+    source: "Bobaks collected game-level data",
+    period,
+    ranking: {
+      title: socialRankingTitle(period),
+      path: rankingPagePath(period),
+      items: rankingItems
+    },
+    trending: {
+      title: socialTrendingTitle(period),
+      path: rankingPagePath(period),
+      items: trendingItems
+    },
+    peaks: {
+      title: "Highest recorded Roblox peaks on Bobaks",
+      items: peaks
+    },
+    posts: {
+      ranking: {
+        title: socialRankingTitle(period),
+        url: rankingUrl,
+        text: buildSocialRankingPost(period, rankingItems, rankingUrl)
+      },
+      trending: {
+        title: socialTrendingTitle(period),
+        url: rankingUrl,
+        text: buildSocialTrendingPost(period, trendingItems, rankingUrl)
+      },
+      peaks: {
+        title: "Highest recorded Roblox peaks on Bobaks",
+        text: buildSocialPeakPost(peaks)
+      }
+    }
+  };
 }
 
 const COLLECTION_INTERVAL_MS = 10 * 60 * 1000;
@@ -1159,6 +1326,24 @@ async function handleApi(
       );
     } catch (error) {
       console.error("GET /api/rankings failed:", error);
+      return json({ error: "Database unavailable" }, 503);
+    }
+  }
+
+  if (path === "/api/social/feed") {
+    const period = url.searchParams.get("period") || "live";
+    if (!RANKING_PERIODS[period]) {
+      return json({ error: "Invalid period. Use live, week, month, or year." }, 400);
+    }
+
+    try {
+      return json(
+        await getSocialFeed(env, period, url.origin, fetchImpl),
+        200,
+        { "cache-control": "public, max-age=60, s-maxage=300" }
+      );
+    } catch (error) {
+      console.error("GET /api/social/feed failed:", error);
       return json({ error: "Database unavailable" }, 503);
     }
   }
