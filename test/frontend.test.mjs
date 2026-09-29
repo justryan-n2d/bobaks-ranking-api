@@ -114,17 +114,19 @@ test("rank card tiers match the Phase 5.5 rarity rules", () => {
   assert.match(html, /accent:'#E9F0F7'/);
 });
 
-test("rank card preview animates foil and exports a still image", () => {
+test("rank card preview animates symbols and exports a still image", () => {
   const html = readHtml();
 
-  assert.match(html, /function drawFoil\(ctx,time,preview=true\)/);
-  assert.match(html, /const shimmer=ctx\.createLinearGradient/);
+  assert.match(html, /function drawRandomSymbols\(ctx,time,preview\)/);
+  assert.match(html, /const step=500/);
+  assert.match(html, /const types=\['block','circle','triangle','square','gamepad'\]/);
   assert.match(html, /requestAnimationFrame\(tick\)/);
   assert.match(html, /startAnimation\(\)/);
   assert.match(html, /result\.drawFrame\(performance\.now\(\),false\)/);
   assert.match(html, /canvas\.toBlob/);
   assert.match(html, /Download PNG/);
   assert.match(html, /Share Card/);
+  assert.doesNotMatch(html, /const shimmer=ctx\.createLinearGradient/);
 });
 
 test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
