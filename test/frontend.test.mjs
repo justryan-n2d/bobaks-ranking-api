@@ -13,7 +13,7 @@ test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   assert.match(html, /const API='https:\/\/bobaks-ranking-api-service\.ryan-oledan0\.workers\.dev';/);
 
   for (const period of ["live", "week", "month", "year"]) {
-    assert.match(html, new RegExp("['\\"]" + period + "['\\"]"));
+    assert.ok(html.includes("'" + period + "'") || html.includes('"' + period + '"'));
   }
 
   assert.match(html, /Rankings/);
