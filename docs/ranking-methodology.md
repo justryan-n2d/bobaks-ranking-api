@@ -88,6 +88,8 @@ Before a refresh commits, Bobaks checks row counts, rank continuity, duplicate g
 
 If the integrity check fails, the transaction raises an error and the invalid ranking set is not committed.
 
+The Live refresh also fails closed when the newly calculated set falls below 50% of the expected top-100 active-game capacity, so a source outage or severe partial result does not wipe the persisted Live ranking.
+
 Public endpoints:
 
 - `GET /api/rankings/methodology` returns the canonical rules used by the API.
