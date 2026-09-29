@@ -135,3 +135,29 @@ test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
   assert.match(html, /Track this game and discover more rankings at/);
   assert.match(html, /location\.host/);
 });
+
+test("rank card preview uses randomized symbols with 0.5 second cross-fades and no white sweep export", () => {
+  const html = readHtml();
+
+  assert.match(html, /function drawRandomSymbols\(ctx,time,preview\)/);
+  assert.match(html, /const step=500/);
+  assert.match(html, /const types=\['block','circle','triangle','square','gamepad'\]/);
+  assert.match(html, /const fadeOut=/);
+  assert.match(html, /const fadeIn=/);
+  assert.match(html, /drawSymbol\(/);
+  assert.doesNotMatch(html, /const shimmer=ctx\.createLinearGradient/);
+  assert.doesNotMatch(html, /ctx\.fillStyle=shimmer/);
+  assert.match(html, /if\(!preview\)return;/);
+});
+
+test("rank card sharing includes game name, rank, message, link, and PNG file", () => {
+  const html = readHtml();
+
+  assert.match(html, /const gameLink=location\.origin/);
+  assert.match(html, /Visit Bobaks Ranking:/);
+  assert.match(html, /const shareText=\[/);
+  assert.match(html, /text:result\.text/);
+  assert.match(html, /url:result\.gameLink/);
+  assert.match(html, /files:\[file\]/);
+  assert.match(html, /title:String\(g\.name\|\|'Bobaks Game'\)/);
+});
