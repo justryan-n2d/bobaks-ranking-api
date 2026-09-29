@@ -144,7 +144,7 @@ async function getOperationalObservability(
   env: Env,
   hours: number,
   fetchImpl: FetchLike
-): Promise<Record<string, unknown>> {
+): Promise<import("./observability").ObservabilitySummary> {
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const rows = await supabaseGetPaged(
     env,
