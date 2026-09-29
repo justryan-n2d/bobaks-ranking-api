@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
+      - "src/frontend-worker.ts"
       - "test/frontend.test.mjs"
+      - "test/frontend-worker.test.ts"
       - "wrangler.jsonc"
       - ".github/workflows/cloudflare-frontend.yml"
   workflow_dispatch:

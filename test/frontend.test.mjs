@@ -10,6 +10,21 @@ function readHtml() {
   return fs.readFileSync(frontendPath, "utf8");
 }
 
+test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
+  const html = readHtml();
+  assert.match(html, /id="seo-description"/);
+  assert.match(html, /rel="canonical"/);
+  assert.match(html, /property="og:title"/);
+  assert.match(html, /property="og:description"/);
+  assert.match(html, /property="og:url"/);
+  assert.match(html, /name="twitter:card"/);
+  assert.ok(html.includes("const GAME_ROUTE=/^\\/game\\/(\\d+)$/;"));
+  assert.match(html, /history\.pushState/);
+  assert.match(html, /function track\(event,data=\{\}\)/);
+  assert.match(html, /sendBeacon\('\/analytics'/);
+  assert.match(html, /const gameUrl=id=>new URL\('\/game\/'/);
+});
+
 test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   const html = readHtml();
   assert.match(html, /<title>Bobaks Ranking \| Live Rankings & Historical Trends<\/title>/);
@@ -88,7 +103,7 @@ test("data-driven rank card generator is wired for dynamic rank tiers and export
   assert.match(html, /function generateRankCard\(g\)/);
   assert.match(html, /CURRENT PLAYERS/);
   assert.match(html, /RECORDED PEAK/);
-  assert.match(html, /Track this game and discover more rankings at/);
+  assert.ok(html.includes("Track this game on Bobaks Ranking"));
   assert.match(html, /location\.host/);
   assert.match(html, /canvas\.toBlob/);
   assert.match(html, /Download PNG/);
@@ -134,7 +149,7 @@ test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
 
   assert.match(html, /Keep your crown shining/);
   assert.match(html, /flying up the leaderboard/);
-  assert.match(html, /Track this game and discover more rankings at/);
+  assert.ok(html.includes("Track this game on Bobaks Ranking"));
   assert.match(html, /location\.host/);
 });
 
@@ -155,7 +170,7 @@ test("rank card preview uses randomized symbols with 0.5 second cross-fades and 
 test("rank card sharing includes game name, rank, message, link, and PNG file", () => {
   const html = readHtml();
 
-  assert.match(html, /const gameLink=location\.origin/);
+  assert.match(html, /const gameLink=gameUrl\(g\.gameId\|\|g\.id\)/);
   assert.match(html, /Visit Bobaks Ranking:/);
   assert.match(html, /const shareText=\[/);
   assert.match(html, /text:caption/);
@@ -210,8 +225,8 @@ test("Messenger helper prepares the image plus copied caption for apps that spli
 test("share helper communicates platform limitations instead of claiming guaranteed combined sharing", () => {
   const html = readHtml();
 
-  assert.match(html, /Some apps accept an image and text together/);
-  assert.match(html, /prepares the caption and image separately/);
+  assert.ok(html.includes('If the selected app drops the caption, use Copy caption and paste it after sending the image.'));
+  assert.ok(html.includes('PNG downloaded. Your caption is ready to copy for platforms that need it separately.'));
 });
 
 test("game rank cards use ordinal rank labels and rank-specific TOP badges", () => {
@@ -237,8 +252,8 @@ test("game rank cards embed a self-contained QR code linked to the Bobaks websit
   assert.match(html, /function drawCardQr\(ctx,text,x,y,size,tier\)/);
   assert.match(html, /const qr=qrcode\(0,'M'\)/);
   assert.match(html, /qr\.addData\(text,'Byte'\)/);
-  assert.match(html, /drawCardQr\(ctx,cardLink,930,1430,150,tier\)/);
-  assert.match(html, /Scan the QR code to visit Bobaks Ranking/);
+  assert.ok(html.includes("drawCardQr(ctx,cardLink,945,1396,112,tier)"));
+  assert.ok(html.includes("SCAN TO VISIT BOBAKS"));
 });
 
 test("social helper buttons use custom neutral share icons and a consistent stacked layout", () => {

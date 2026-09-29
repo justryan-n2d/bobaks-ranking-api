@@ -1,9 +1,14 @@
 import { summarizeObservability } from "./observability";
 
+interface AnalyticsBinding {
+  writeDataPoint(data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void;
+}
+
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SECRET_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  ANALYTICS?: AnalyticsBinding;
 }
 
 type FetchLike = typeof fetch;
@@ -100,6 +105,28 @@ function corsHeaders(): HeadersInit {
     "access-control-allow-methods": "GET, OPTIONS",
     "access-control-allow-headers": "content-type"
   };
+}
+
+function recordApiAnalytics(env: Env, request: Request, response: Response): void {
+  if (!env.ANALYTICS || request.method !== "GET") return;
+
+  try {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const route = path.replace(/^\/api\/games\/\d+$/, "/api/games/:id")
+      .replace(/^\/api\/games\/\d+\/history$/, "/api/games/:id/history")
+      .replace(/^\/api\/games\/\d+\/rank-history$/, "/api/games/:id/rank-history")
+      .replace(/^\/api\/games\/\d+\/peak$/, "/api/games/:id/peak");
+    const period = url.searchParams.get("period") ?? "";
+    const allowedPeriod = new Set(["live","week","month","year"]).has(period) ? period : "";
+    env.ANALYTICS.writeDataPoint({
+      blobs: ["api_request", route, allowedPeriod],
+      doubles: [1, response.status],
+      indexes: ["api_request"]
+    });
+  } catch (error) {
+    console.warn("API analytics write failed:", error);
+  }
 }
 
 function withCors(response: Response): Response {
@@ -1016,7 +1043,9 @@ async function handleApi(
 
   if (path === "/api/games") {
     try {
-      return json({ data: await getGames(env, fetchImpl) });
+      return json({ data: await getGames(env, fetchImpl) }, 200, {
+        "cache-control": "public, max-age=60, s-maxage=60"
+      });
     } catch (error) {
       console.error("GET /api/games failed:", error);
       return json({ error: "Database unavailable" }, 503);
@@ -1028,7 +1057,9 @@ async function handleApi(
     try {
       const game = await getGameById(env, gameMatch[1], fetchImpl);
       if (!game) return json({ error: "Game not found" }, 404);
-      return json({ data: game });
+      return json({ data: game }, 200, {
+        "cache-control": "public, max-age=60, s-maxage=60"
+      });
     } catch (error) {
       console.error("GET /api/games/:id failed:", error);
       return json({ error: "Database unavailable" }, 503);
@@ -1051,6 +1082,8 @@ async function handleApi(
         days,
         resolution: history.resolution,
         data: history.data
+      }, 200, {
+        "cache-control": "public, max-age=60, s-maxage=300"
       });
     } catch (error) {
       console.error("GET /api/games/:id/history failed:", error);
@@ -1086,7 +1119,9 @@ async function handleApi(
     try {
       const peak = await getPeak(env, peakMatch[1], fetchImpl);
       if (!peak) return json({ error: "Peak not found" }, 404);
-      return json({ data: peak });
+      return json({ data: peak }, 200, {
+        "cache-control": "public, max-age=300, s-maxage=300"
+      });
     } catch (error) {
       console.error("GET /api/games/:id/peak failed:", error);
       return json({ error: "Database unavailable" }, 503);
@@ -1141,7 +1176,9 @@ async function handleApi(
     }
 
     try {
-      return json({ query: q, data: await searchGames(env, q, fetchImpl) });
+      return json({ query: q, data: await searchGames(env, q, fetchImpl) }, 200, {
+        "cache-control": "public, max-age=30, s-maxage=60"
+      });
     } catch (error) {
       console.error("GET /api/search failed:", error);
       return json({ error: "Database unavailable" }, 503);
@@ -1159,6 +1196,7 @@ export default {
         ? json({ error: "Method not allowed" }, 405, { allow: "GET, OPTIONS" })
         : await handleApi(request, env);
 
+    recordApiAnalytics(env, request, response);
     return withCors(response);
   }
 };

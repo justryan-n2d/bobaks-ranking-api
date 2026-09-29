@@ -27,6 +27,12 @@ Backend and data collection services for Bobaks Ranking.
 ### Collector
 The collector runs on Cloudflare Workers Cron Triggers and stores Roblox experience data in Supabase.
 
+## Phase 6 growth foundation
+
+Phase 6 begins the growth and discovery work from the master roadmap. The current foundation includes indexable `/game/:id` URLs, dynamic SEO metadata, sitemap/robots endpoints, share links that resolve to individual game pages, privacy-aware product analytics, and edge-cache headers for cacheable API responses.
+
+See [docs/phase6-growth-foundation.md](docs/phase6-growth-foundation.md) for the implemented scope and remaining Phase 6 work.
+
 ## Phase 5 gamer experience
 
 Phase 5 adds the core gamer-facing experience: ranking movement, richer game details, daily rank history, trend signals, device-local saved games, side-by-side comparison, shareable rank cards, and visible data/freshness explanations.
