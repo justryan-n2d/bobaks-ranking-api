@@ -851,3 +851,50 @@ test("operational observability summarizes recent collection and ranking-refresh
   assert.match(calls[0].url, /DataCollectionLog/);
   assert.equal(new URL(calls[0].url).searchParams.get("limit"), "100");
 });
+
+
+test("operational observability rejects invalid window lengths", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const result = await handleApi(
+    new Request("https://api.example/api/observability?hours=0"),
+    env,
+    makeFetch(calls)
+  );
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.length, 0);
+});
+
+test("operational observability omits invalid durations instead of inventing latency", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    calls.push({ url, headers: new Headers(init?.headers) });
+
+    if (url.includes("/rest/v1/DataCollectionLog?")) {
+      return response([{
+        startedAt: "2026-09-29T10:00:00.000Z",
+        finishedAt: "2026-09-29T09:59:00.000Z",
+        status: "success",
+        gamesChecked: 10,
+        gamesUpdated: 10,
+        errors: 0
+      }]);
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/observability?hours=24"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
+  assert.equal(body.collectionDurationSeconds.count, 0);
+  assert.equal(body.collectionDurationSeconds.avg, null);
+  assert.equal(body.collectionDurationSeconds.p95, null);
+  assert.equal(body.latest.durationSeconds, null);
+});
