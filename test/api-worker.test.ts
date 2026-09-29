@@ -406,6 +406,29 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
       return response({
         methodologyVersion: "2026-09-28",
         auditStatus: "passed",
+        historicalRecovery: {
+          status: "passed",
+          lookbackDays: 31,
+          recoverableDailyRows: 0,
+          rawDaysObserved: 6,
+          dailySummaryDaysObserved: 6,
+          rawDaysWithoutSummary: [],
+          history: {
+            oldestSnapshotAt: "2026-09-23T06:27:55.435Z",
+            newestSnapshotAt: "2026-09-28T01:20:55.101Z"
+          },
+          collection: {
+            expectedCadenceSeconds: 600,
+            gapThresholdSeconds: 1200,
+            successRuns: 90,
+            partialRuns: 3,
+            failedRuns: 7,
+            gapsOverThreshold: 0,
+            largestGapSeconds: 0,
+            gaps: []
+          },
+          recoveryRule: "Only days with retained qualifying snapshots are repairable. Days with no qualifying snapshots are left without synthesized statistics."
+        },
         collection: {
           cadenceSeconds: 600,
           latestStatus: "success",
@@ -452,6 +475,9 @@ test("ranking audit endpoint returns server-side integrity metadata", async () =
   assert.equal(result.status, 200);
   assert.equal(body.auditStatus, "passed");
   assert.equal(body.methodologyVersion, "2026-09-28");
+  assert.equal(body.historicalRecovery.status, "passed");
+  assert.equal(body.historicalRecovery.recoverableDailyRows, 0);
+  assert.deepEqual(body.historicalRecovery.rawDaysWithoutSummary, []);
   assert.equal(body.rankings.live.rows, 100);
   assert.equal(body.rankings.live.maxLatestSnapshotAgeSeconds, 3);
   assert.equal(body.rankings.weekly.collectionOpportunities, 324);
