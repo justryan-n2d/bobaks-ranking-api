@@ -158,7 +158,7 @@ test("rank card sharing includes game name, rank, message, link, and PNG file", 
   assert.match(html, /const gameLink=location\.origin/);
   assert.match(html, /Visit Bobaks Ranking:/);
   assert.match(html, /const shareText=\[/);
-  assert.match(html, /text:result\.text/);
+  assert.match(html, /text:caption/);
   assert.match(html, /url:result\.gameLink/);
   assert.match(html, /files:\[file\]/);
   assert.match(html, /title:String\(g\.name\|\|'Bobaks Game'\)/);
@@ -183,14 +183,14 @@ test("rank card share toolkit supports caption/link copy and major social platfo
 
   assert.match(html, /navigator\.clipboard\.writeText/);
   assert.match(html, /Visit Bobaks Ranking:/);
-  assert.match(html, /platform==='messenger'/);
-  assert.match(html, /platform==='instagram'/);
-  assert.match(html, /platform==='tiktok'/);
-  assert.match(html, /platform==='whatsapp'/);
-  assert.match(html, /platform==='facebook'/);
-  assert.match(html, /platform==='x'/);
-  assert.match(html, /platform==='discord'/);
-  assert.match(html, /platform==='native'/);
+  assert.match(html, /key==='messenger'/);
+  assert.match(html, /key==='instagram'/);
+  assert.match(html, /key==='tiktok'/);
+  assert.match(html, /key==='whatsapp'/);
+  assert.match(html, /key==='facebook'/);
+  assert.match(html, /key==='x'/);
+  assert.match(html, /key==='discord'/);
+  assert.match(html, /key==='native'/);
   assert.match(html, /twitter\.com\/intent\/tweet/);
   assert.match(html, /facebook\.com\/sharer\/sharer\.php/);
   assert.match(html, /instagram\.com/);
@@ -211,5 +211,5 @@ test("share helper communicates platform limitations instead of claiming guarant
   const html = readHtml();
 
   assert.match(html, /Some apps accept an image and text together/);
-  assert.match(html, /prepare the caption and image separately/);
+  assert.match(html, /prepares the caption and image separately/);
 });
