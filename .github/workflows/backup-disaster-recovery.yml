@@ -16,6 +16,8 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      AWS_DEFAULT_REGION: auto
 
     steps:
       - name: Checkout
