@@ -1,9 +1,27 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bobaks-ranking-api",
+  "main": "src/frontend-worker.ts",
   "compatibility_date": "2026-09-23",
   "assets": {
-    "directory": "./frontend"
+    "directory": "./frontend",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/game/*",
+      "/sitemap.xml",
+      "/robots.txt",
+      "/analytics"
+    ]
   },
+  "vars": {
+    "API_ORIGIN": "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+  },
+  "analytics_engine_datasets": [
+    {
+      "binding": "ANALYTICS",
+      "dataset": "bobaks_product_web"
+    }
+  ],
   "previews": {}
 }
