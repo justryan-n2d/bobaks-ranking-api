@@ -666,22 +666,36 @@ async function getSocialFeed(
       rankChange: Number(row.rankChange) || 0
     }));
 
-  const peakRows = await supabaseGet(
-    env,
-    "GamePeak",
-    {
-      select: "id,gameId,peakPlayers,peakAt",
-      order: "peakPlayers.desc",
-      limit: "10"
-    },
-    fetchImpl
-  );
+  const [peakRows, recentPeakRows] = await Promise.all([
+    supabaseGet(
+      env,
+      "GamePeak",
+      {
+        select: "id,gameId,peakPlayers,peakAt",
+        order: "peakPlayers.desc",
+        limit: "10"
+      },
+      fetchImpl
+    ),
+    supabaseGet(
+      env,
+      "GamePeak",
+      {
+        select: "id,gameId,peakPlayers,peakAt",
+        order: "peakAt.desc",
+        limit: "50"
+      },
+      fetchImpl
+    )
+  ]);
+
   const peakMap = await getGamesByIds(
     env,
-    peakRows.map(row => String(row.gameId ?? "")),
+    [...peakRows, ...recentPeakRows].map(row => String(row.gameId ?? "")),
     fetchImpl
   );
-  const peaks = peakRows
+
+  const mapPeakRows = (rows: JsonRow[]) => rows
     .map(row => {
       const gameId = String(row.gameId ?? "");
       const game = peakMap.get(gameId);
@@ -697,8 +711,10 @@ async function getSocialFeed(
     })
     .filter((row): row is {
       gameId: string; name: string; creator: string; peakPlayers: number; peakAt: string | null; url: string;
-    } => row !== null)
-    .slice(0, 10);
+    } => row !== null);
+
+  const peaks = mapPeakRows(peakRows).slice(0, 10);
+  const recentPeaks = mapPeakRows(recentPeakRows).slice(0, 50);
 
   const rankingUrl = new URL(rankingPagePath(period), origin).toString();
 
@@ -718,7 +734,8 @@ async function getSocialFeed(
     },
     peaks: {
       title: "Highest recorded Roblox peaks on Bobaks",
-      items: peaks
+      items: peaks,
+      recentItems: recentPeaks
     },
     posts: {
       ranking: {
