@@ -10,6 +10,69 @@ function response(body: unknown, init: ResponseInit = {}): Response {
   });
 }
 
+test("collector retries Roblox HTTP 429 and continues without recording a failure", async () => {
+  let discovery429s = 0;
+  let logStatus = "";
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) {
+      discovery429s++;
+      if (discovery429s <= 2) {
+        return new Response("rate limited", {
+          status: 429,
+          headers: { "Retry-After": "0" }
+        });
+      }
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+
+    if (url.includes("/get-sort-content?")) {
+      return response({ data: [{ universeId: "1001" }] });
+    }
+
+    if (url.includes("thumbnails.roblox.com")) {
+      return response({ data: [{ targetId: 1001, imageUrl: "https://cdn.example/1.png" }] });
+    }
+
+    if (url.includes("games.roblox.com/v1/games")) {
+      return response({
+        data: [
+          { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }
+        ]
+      });
+    }
+
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
+
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      return response([{ id: "11", universeId: "1001" }]);
+    }
+
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      logStatus = String(body.status);
+      return new Response("", { status: 201 });
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.equal(discovery429s, 3);
+  assert.equal(logStatus, "success");
+});
+
 test("scheduled collector performs the complete collection cycle", async () => {
   const calls: { url: string; method: string; body?: string; headers: Headers }[] = [];
 
