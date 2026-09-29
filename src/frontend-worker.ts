@@ -34,6 +34,46 @@ const EVENTS = new Set([
 
 const PERIODS = new Set(["live", "week", "month", "year"]);
 
+const RANKING_ROUTES: Record<string, string> = {
+  "/rankings/weekly": "week",
+  "/rankings/monthly": "month",
+  "/rankings/yearly": "year"
+};
+
+const RANKING_META: Record<string, { title: string; description: string; label: string }> = {
+  live: {
+    title: "Live Roblox Game Rankings | Bobaks Ranking",
+    description: "See the latest live Roblox experience rankings, player counts, and rank movement collected by Bobaks Ranking.",
+    label: "Live Roblox Game Rankings"
+  },
+  week: {
+    title: "This Week's Roblox Game Rankings | Bobaks Ranking",
+    description: "See this week's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking.",
+    label: "This Week's Roblox Game Rankings"
+  },
+  month: {
+    title: "This Month's Roblox Game Rankings | Bobaks Ranking",
+    description: "See this month's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking.",
+    label: "This Month's Roblox Game Rankings"
+  },
+  year: {
+    title: "This Year's Roblox Game Rankings | Bobaks Ranking",
+    description: "See this year's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking.",
+    label: "This Year's Roblox Game Rankings"
+  }
+};
+
+function rankingPeriodForPath(pathname: string): string | null {
+  return RANKING_ROUTES[pathname] ?? null;
+}
+
+function rankingCanonicalPath(period: string): string {
+  if (period === "week") return "/rankings/weekly";
+  if (period === "month") return "/rankings/monthly";
+  if (period === "year") return "/rankings/yearly";
+  return "/";
+}
+
 function escapeHtml(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
     "&": "&amp;",
@@ -240,6 +280,115 @@ async function renderGamePage(
   return new Response(output, { status: 200, headers });
 }
 
+async function renderRankingPage(
+  request: Request,
+  env: Env,
+  period: string,
+  fetchImpl: FetchLike
+): Promise<Response> {
+  const base = env.API_ORIGIN.replace(/\/$/, "");
+  const response = await fetchImpl(base + "/api/rankings?period=" + encodeURIComponent(period), {
+    headers: { accept: "application/json" }
+  });
+
+  if (!response.ok) {
+    return new Response("Ranking page unavailable", {
+      status: 503,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store"
+      }
+    });
+  }
+
+  const body = await response.json() as { data?: Json[] };
+  const rows = (body.data ?? []).filter(row => /^\d+$/.test(String(row.gameId ?? ""))).slice(0, 10);
+  const origin = new URL(request.url).origin;
+  const meta = RANKING_META[period] ?? RANKING_META.live;
+  const canonical = new URL(rankingCanonicalPath(period), origin).toString();
+  const items = rows.map((row, index) => {
+    const id = String(row.gameId);
+    const rank = Number(row.rank) || index + 1;
+    const game = row.game && typeof row.game === "object" ? row.game as Json : {};
+    return {
+      rank,
+      id,
+      name: String(game.name ?? "Unknown game"),
+      creator: String(game.creatorName ?? "Unknown creator"),
+      score: Number(row.score ?? 0) || 0
+    };
+  });
+
+  const shell = await assetShell(env, request);
+  if (!shell.ok) return shell;
+
+  const jsonLd = safeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: meta.title,
+    url: canonical,
+    description: meta.description,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: items.length,
+      itemListElement: items.map(item => ({
+        "@type": "ListItem",
+        position: item.rank,
+        name: item.name,
+        url: canonicalGameUrl(origin, item.id)
+      }))
+    }
+  });
+
+  const list = items.length
+    ? "<ol>" + items.map(item =>
+        "<li><a href="" + escapeHtml(canonicalGameUrl(origin, item.id)) + "">" +
+        escapeHtml(item.name) + "</a><span> by " + escapeHtml(item.creator) +
+        " · " + String(Math.max(0, Math.round(item.score))) + " players</span></li>"
+      ).join("") + "</ol>"
+    : "<p>No ranking rows are available right now.</p>";
+
+  let output = await shell.text();
+  output = output
+    .replace(/<title>[\s\S]*?<\/title>/i, "<title>" + escapeHtml(meta.title) + "</title>")
+    .replace(/<meta id="seo-description"[^>]*>/i,
+      '<meta id="seo-description" name="description" content="' + escapeHtml(meta.description) + '">')
+    .replace(/<link id="seo-canonical"[^>]*>/i,
+      '<link id="seo-canonical" rel="canonical" href="' + escapeHtml(canonical) + '">');
+
+  output = replaceTagById(output, "seo-og-title",
+    '<meta id="seo-og-title" property="og:title" content="' + escapeHtml(meta.title) + '">');
+  output = replaceTagById(output, "seo-og-description",
+    '<meta id="seo-og-description" property="og:description" content="' + escapeHtml(meta.description) + '">');
+  output = replaceTagById(output, "seo-og-url",
+    '<meta id="seo-og-url" property="og:url" content="' + escapeHtml(canonical) + '">');
+  output = replaceTagById(output, "seo-twitter-title",
+    '<meta id="seo-twitter-title" name="twitter:title" content="' + escapeHtml(meta.title) + '">');
+  output = replaceTagById(output, "seo-twitter-description",
+    '<meta id="seo-twitter-description" name="twitter:description" content="' + escapeHtml(meta.description) + '">');
+  output = replaceTagById(output, "seo-twitter-image",
+    '<meta id="seo-twitter-image" name="twitter:image" content="' +
+      escapeHtml(new URL("/assets/bobaks-logo.png", request.url).toString()) + '">');
+
+  const fallbackHtml =
+    '<section class="seo-fallback"><div class="eyebrow">BOBAKS RANKINGS</div><h1>' +
+    escapeHtml(meta.label) + '</h1><p>' + escapeHtml(meta.description) +
+    '</p><p>Explore the latest ranking snapshot and open any game for its full Bobaks history.</p>' +
+    list + '</section>';
+
+  output = output
+    .replace(/<main id="app" class="wrap"><\/main>/i,
+      '<main id="app" class="wrap">' + fallbackHtml + '</main>')
+    .replace(/<\/head>/i, '<script type="application/ld+json">' + jsonLd + '</script></head>');
+
+  const headers = new Headers(shell.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "public, max-age=60, s-maxage=300");
+  headers.set("x-robots-tag", "index, follow");
+
+  return new Response(output, { status: 200, headers });
+}
+
 async function renderSitemap(
   request: Request,
   env: Env,
@@ -263,7 +412,10 @@ async function renderSitemap(
   const body = await response.json() as { data?: Json[] };
   const origin = new URL(request.url).origin;
   const urls = [
-    "<url><loc>" + escapeXml(origin + "/") + "</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>"
+    "<url><loc>" + escapeXml(origin + "/") + "</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>",
+    "<url><loc>" + escapeXml(origin + "/rankings/weekly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>",
+    "<url><loc>" + escapeXml(origin + "/rankings/monthly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>",
+    "<url><loc>" + escapeXml(origin + "/rankings/yearly") + "</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>"
   ];
 
   for (const game of body.data ?? []) {
@@ -361,6 +513,11 @@ export async function handleFrontendRequest(
 
   if (url.pathname === "/sitemap.xml") {
     return renderSitemap(request, env, fetchImpl);
+  }
+
+  const rankingPeriod = rankingPeriodForPath(url.pathname);
+  if (rankingPeriod) {
+    return renderRankingPage(request, env, rankingPeriod, fetchImpl);
   }
 
   const gameMatch = url.pathname.match(/^\/game\/(\d+)$/);
