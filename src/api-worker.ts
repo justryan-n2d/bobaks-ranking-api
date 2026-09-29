@@ -1,3 +1,5 @@
+import { summarizeObservability } from "./observability";
+
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SECRET_KEY?: string;
@@ -127,6 +129,39 @@ function parseSearch(value: string | null): string {
   if (q.length > 100) throw new Error("Search query too long");
   return q;
 }
+
+
+function parseObservabilityHours(value: string | null): number {
+  if (value == null || value === "") return 24;
+  const hours = Number(value);
+  if (!Number.isInteger(hours) || hours < 1 || hours > 168) {
+    throw new Error("Invalid hours");
+  }
+  return hours;
+}
+
+async function getOperationalObservability(
+  env: Env,
+  hours: number,
+  fetchImpl: FetchLike
+): Promise<import("./observability").ObservabilitySummary> {
+  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const rows = await supabaseGetPaged(
+    env,
+    "DataCollectionLog",
+    {
+      select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors,rankingRefreshStatus,rankingRefreshStartedAt,rankingRefreshFinishedAt",
+      status: "in.(success,partial,failed)",
+      startedAt: "gte." + cutoff,
+      order: "startedAt.desc"
+    },
+    fetchImpl,
+    500
+  );
+
+  return summarizeObservability(rows, hours);
+}
+
 
 function supabaseUrl(env: Env, path: string, params: Record<string, string> = {}): string {
   const base = env.SUPABASE_URL.replace(/\/$/, "");
@@ -849,6 +884,29 @@ async function handleApi(
     } catch (error) {
       console.error("GET /api/rankings/audit failed:", error);
       return json({ error: "Ranking audit unavailable" }, 503);
+    }
+  }
+
+  if (path === "/api/observability") {
+    let hours: number;
+    try {
+      hours = parseObservabilityHours(url.searchParams.get("hours"));
+    } catch {
+      return json(
+        { error: "Invalid hours parameter. Use an integer from 1 to 168." },
+        400
+      );
+    }
+
+    try {
+      return json(await getOperationalObservability(env, hours, fetchImpl), 200, {
+        "cache-control": "no-store"
+      });
+    } catch (error) {
+      console.error("GET /api/observability failed:", error);
+      return json({ error: "Observability unavailable" }, 503, {
+        "cache-control": "no-store"
+      });
     }
   }
 
