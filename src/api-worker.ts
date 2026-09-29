@@ -548,11 +548,6 @@ const HEALTH_THRESHOLDS = {
   dailySummaryFreshnessSeconds: 26 * 60 * 60
 };
 
-function healthCheckStatus(ok: boolean, degraded = false): "healthy" | "degraded" | "unhealthy" {
-  if (ok) return "healthy";
-  return degraded ? "degraded" : "unhealthy";
-}
-
 async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<string, unknown>> {
   const nowMs = Date.now();
 
