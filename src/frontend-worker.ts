@@ -175,8 +175,11 @@ async function renderGamePage(
   const image = String(
     game.iconUrl ?? new URL("/assets/bobaks-logo.png", request.url).toString()
   );
-  const liveRanking = game.rankings?.live && typeof game.rankings.live === "object"
-    ? game.rankings.live as Json
+  const rankings = game.rankings && typeof game.rankings === "object"
+    ? game.rankings as Json
+    : null;
+  const liveRanking = rankings?.live && typeof rankings.live === "object"
+    ? rankings.live as Json
     : null;
   const currentPlayers = Number(game.currentPlayers ?? liveRanking?.score ?? 0) || 0;
   const rank = Number(liveRanking?.rank ?? 0) || null;
