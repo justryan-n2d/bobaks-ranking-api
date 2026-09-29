@@ -45,7 +45,9 @@ BEGIN
       MAX(s."playerCount") AS peak_players,
       MIN(s."playerCount") AS lowest_players,
       COUNT(*)::integer AS total_samples,
-      SUM(s."playerCount")::bigint AS player_sum
+      SUM(s."playerCount")::bigint AS player_sum,
+      MIN(s."timestamp") AS oldest_snapshot_at,
+      MAX(s."timestamp") AS newest_snapshot_at
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
@@ -74,6 +76,8 @@ BEGIN
     SELECT
       source.day,
       source."gameId",
+      source.oldest_snapshot_at,
+      source.newest_snapshot_at,
       summary."gameId" AS summary_game_id,
       summary.average_players,
       source.average_players AS source_average_players,
@@ -103,23 +107,21 @@ BEGIN
     COALESCE(
       jsonb_agg(day ORDER BY day) FILTER (WHERE summary_game_id IS NULL),
       '[]'::jsonb
-    )
-  INTO recoverable_mismatches, raw_days, raw_days_without_summary
+    ),
+    MIN(oldest_snapshot_at),
+    MAX(newest_snapshot_at)
+  INTO recoverable_mismatches, raw_days, raw_days_without_summary,
+       oldest_snapshot, newest_snapshot
   FROM comparison;
 
-  SELECT
-    COUNT(DISTINCT (d."date" AT TIME ZONE 'UTC')::date),
-    MIN(s."timestamp"),
-    MAX(s."timestamp")
-  INTO summary_days, oldest_snapshot, newest_snapshot
-  FROM public."DailyGameStat" d
-  LEFT JOIN public."GameSnapshot" s
-    ON s."gameId" = d."gameId"
-   AND (s."timestamp" AT TIME ZONE 'UTC')::date = (d."date" AT TIME ZONE 'UTC')::date
-   AND s."timestamp" >= oldest_date::timestamp AT TIME ZONE 'UTC'
-   AND s."timestamp" < current_utc_date::timestamp AT TIME ZONE 'UTC'
-  WHERE d."date" >= oldest_date::timestamp AT TIME ZONE 'UTC'
-    AND d."date" < current_utc_date::timestamp AT TIME ZONE 'UTC';
+  SELECT COUNT(DISTINCT day)
+  INTO summary_days
+  FROM (
+    SELECT (d."date" AT TIME ZONE 'UTC')::date AS day
+    FROM public."DailyGameStat" d
+    WHERE d."date" >= oldest_date::timestamp AT TIME ZONE 'UTC'
+      AND d."date" < current_utc_date::timestamp AT TIME ZONE 'UTC'
+  ) summary_days_source;
 
   SELECT
     COUNT(*) FILTER (WHERE "status" = 'success'),

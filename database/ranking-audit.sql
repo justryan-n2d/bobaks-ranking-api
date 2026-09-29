@@ -50,82 +50,81 @@ BEGIN
     AND "startedAt" < (date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '1 month')
     AND "startedAt" <= calculated_at;
 
-  WITH bounds AS (
-    SELECT
-      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS period_start,
-      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '7 days' AS period_end
-  ),
-  samples AS (
+  -- Weekly and monthly coverage metrics share one current-period snapshot scan.
+  -- The lower bound includes a week that crosses a UTC month boundary.
+  WITH current_month_samples AS MATERIALIZED (
     SELECT
       s."gameId",
-      count(*)::bigint AS sample_count
+      COUNT(*) FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+          AND COALESCE(l."startedAt", s."timestamp") < date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '7 days'
+      )::bigint AS weekly_sample_count,
+      COUNT(*) FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+          AND COALESCE(l."startedAt", s."timestamp") < date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '1 month'
+      )::bigint AS monthly_sample_count
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
-    CROSS JOIN bounds b
-    WHERE COALESCE(l."startedAt", s."timestamp") >= b.period_start
-      AND COALESCE(l."startedAt", s."timestamp") < b.period_end
+    WHERE COALESCE(l."startedAt", s."timestamp") >= LEAST(
+      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC',
+      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+    )
       AND COALESCE(l."startedAt", s."timestamp") <= calculated_at
       AND (
         s."collectionRunId" IS NULL
         OR l."status" IN ('success','partial')
       )
     GROUP BY s."gameId"
-  )
-  SELECT
-    min(samples.sample_count),
-    min(least(samples.sample_count::numeric / nullif(weekly_opportunities,0)::numeric, 1.0))
-  INTO weekly_min_samples, weekly_min_coverage
-  FROM public."Ranking" r
-  JOIN samples ON samples."gameId" = r."gameId"
-  WHERE r."period"='weekly';
-
-  WITH bounds AS (
-    SELECT
-      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS period_start,
-      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '1 month' AS period_end
   ),
-  samples AS (
+  stats AS (
     SELECT
-      s."gameId",
-      count(*)::bigint AS sample_count
-    FROM public."GameSnapshot" s
-    LEFT JOIN public."DataCollectionLog" l
-      ON l."collectionRunId" = s."collectionRunId"
-    CROSS JOIN bounds b
-    WHERE COALESCE(l."startedAt", s."timestamp") >= b.period_start
-      AND COALESCE(l."startedAt", s."timestamp") < b.period_end
-      AND COALESCE(l."startedAt", s."timestamp") <= calculated_at
-      AND (
-        s."collectionRunId" IS NULL
-        OR l."status" IN ('success','partial')
-      )
-    GROUP BY s."gameId"
+      MIN(c.weekly_sample_count) FILTER (WHERE r."period"='weekly') AS weekly_min_samples,
+      MIN(LEAST(
+        c.weekly_sample_count::numeric / NULLIF(weekly_opportunities, 0)::numeric,
+        1.0
+      )) FILTER (WHERE r."period"='weekly') AS weekly_min_coverage,
+      MIN(c.monthly_sample_count) FILTER (WHERE r."period"='monthly') AS monthly_min_samples,
+      MIN(LEAST(
+        c.monthly_sample_count::numeric / NULLIF(monthly_opportunities, 0)::numeric,
+        1.0
+      )) FILTER (WHERE r."period"='monthly') AS monthly_min_coverage
+    FROM public."Ranking" r
+    JOIN current_month_samples c ON c."gameId"=r."gameId"
+    WHERE r."period" IN ('weekly','monthly')
   )
   SELECT
-    min(samples.sample_count),
-    min(least(samples.sample_count::numeric / nullif(monthly_opportunities,0)::numeric, 1.0))
-  INTO monthly_min_samples, monthly_min_coverage
-  FROM public."Ranking" r
-  JOIN samples ON samples."gameId" = r."gameId"
-  WHERE r."period"='monthly';
+    stats.weekly_min_samples,
+    stats.weekly_min_coverage,
+    stats.monthly_min_samples,
+    stats.monthly_min_coverage
+  INTO weekly_min_samples, weekly_min_coverage,
+       monthly_min_samples, monthly_min_coverage
+  FROM stats;
 
-  WITH latest AS (
-    SELECT DISTINCT ON (s."gameId")
-      s."gameId",
-      s."timestamp"
+  -- Live audit uses one indexed lookup per ranked game.
+  WITH calc AS (
+    SELECT min("calculatedAt") AS calculated_at
+    FROM public."Ranking"
+    WHERE "period"='live'
+  )
+  SELECT max(extract(epoch from (calc.calculated_at - latest."timestamp")))
+  INTO live_max_age_seconds
+  FROM public."Ranking" r
+  CROSS JOIN calc
+  LEFT JOIN LATERAL (
+    SELECT s."timestamp"
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId"=s."collectionRunId"
-    WHERE s."timestamp"<=calculated_at
+    WHERE s."gameId"=r."gameId"
+      AND s."timestamp"<=calc.calculated_at
       AND (s."collectionRunId" IS NULL OR l."status" IN ('success','partial'))
-    ORDER BY s."gameId",s."timestamp" DESC,s."id" DESC
-  )
-  SELECT max(extract(epoch from (calculated_at - latest."timestamp")))
-  INTO live_max_age_seconds
-  FROM public."Ranking" r
-  JOIN latest ON latest."gameId"=r."gameId"
-  WHERE r."period"='live';
+    ORDER BY s."timestamp" DESC, s."id" DESC
+    LIMIT 1
+  ) latest ON true
+  WHERE r."period"='live'
+    AND latest."timestamp" IS NOT NULL;
 
   result := jsonb_build_object(
     'methodologyVersion', '2026-09-28',
