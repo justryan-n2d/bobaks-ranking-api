@@ -51,3 +51,20 @@ test("frontend refreshes from the server-supplied next collection time", () => {
   assert.match(html, /state\.next=p\.nextCollectionAt\|\|fallbackNext\(\)/);
   assert.match(html, /state\.timer=setTimeout\(loadRankings,/);
 });
+
+test("search does not replace the input element while typing", () => {
+  const html = fs.readFileSync(frontendPath, "utf8");
+
+  assert.match(html, /function renderSearchResults\(\)/);
+  assert.match(html, /query!==state\.query\.trim\(\)/);
+  assert.match(html, /state\.results=\[\];renderSearchResults\(\)/);
+  assert.match(html, /state\.results=\(p\.data\|\|\[\]\)\.map/);
+  assert.doesNotMatch(
+    html,
+    /async function search\(q\)\{[^}]*render\(\);[^}]*state\.results=/
+  );
+  assert.doesNotMatch(
+    html,
+    /setInterval\(\(\)=>\{if\(state\.view==='home'\|\|state\.view==='detail'\)render\(\)\},1000\)/
+  );
+});
