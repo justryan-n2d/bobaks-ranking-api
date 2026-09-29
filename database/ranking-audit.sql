@@ -94,10 +94,10 @@ BEGIN
     WHERE r."period" IN ('weekly','monthly')
   )
   SELECT
-    weekly_min_samples,
-    weekly_min_coverage,
-    monthly_min_samples,
-    monthly_min_coverage
+    stats.weekly_min_samples,
+    stats.weekly_min_coverage,
+    stats.monthly_min_samples,
+    stats.monthly_min_coverage
   INTO weekly_min_samples, weekly_min_coverage,
        monthly_min_samples, monthly_min_coverage
   FROM stats;
