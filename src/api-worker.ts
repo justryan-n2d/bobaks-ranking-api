@@ -310,15 +310,12 @@ async function getHistory(
   const summaryFrom = utcDayStart(requestedSince).toISOString();
   const summaryUntil = utcDayStart(rawSince).toISOString();
 
-  const summaryRowsPromise = supabaseGet(
+  const summaryRowsPromise = supabaseGetPaged(
     env,
     "DailyGameStat",
     {
       select: "id,gameId,date,averagePlayers,peakPlayers,lowestPlayers,totalSamples",
-      gameId: `eq.${gameId}`,
-      date: `gte.${summaryFrom}`,
-      "date.lt": summaryUntil,
-      order: "date.asc,id.asc"
+      gameId: `eq.${gameId}`
     },
     fetchImpl
   );
@@ -328,8 +325,15 @@ async function getHistory(
     summaryRowsPromise
   ]);
 
+  const summaryRowsInRange = summaryRows.filter(row => {
+    const timestamp = Date.parse(String(row.date ?? ""));
+    return Number.isFinite(timestamp) &&
+      timestamp >= Date.parse(summaryFrom) &&
+      timestamp < Date.parse(summaryUntil);
+  });
+
   const data: JsonRow[] = [
-    ...summaryRows.map(row => ({
+    ...summaryRowsInRange.map(row => ({
       id: row.id,
       gameId: row.gameId,
       playerCount: Number(row.averagePlayers),
@@ -349,7 +353,7 @@ async function getHistory(
     return at - bt || String(a.id ?? "").localeCompare(String(b.id ?? ""), undefined, { numeric: true });
   });
 
-  const hasSummary = summaryRows.length > 0;
+  const hasSummary = summaryRowsInRange.length > 0;
   const hasRaw = rawRows.length > 0;
   const resolution = hasSummary && hasRaw ? "mixed" : hasSummary ? "daily" : "snapshot";
 
