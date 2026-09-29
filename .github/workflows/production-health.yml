@@ -1,6 +1,9 @@
 name: Production Health Monitor
 
 on:
+  push:
+    paths:
+      - "e2e-alerting-test.txt"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
@@ -17,6 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: E2E alerting failure trigger
+        if: ${{ hashFiles('e2e-alerting-test.txt') != '' }}
+        shell: bash
+        run: |
+          echo "Intentional Phase 4 Part 4 E2E failure trigger."
+          exit 1
+
       - name: Check API liveness
         shell: bash
         run: |
