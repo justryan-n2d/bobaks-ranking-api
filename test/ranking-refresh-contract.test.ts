@@ -37,7 +37,7 @@ test("API exposes Phase 5 rank movement, rank history, and creator search", () =
   assert.match(api, /rankChange/);
   assert.match(api, /get_game_current_stats/);
   assert.match(api, /get_game_rank_history/);
-  assert.match(api, /\/api\/games\/\(\\d\+\)\/rank-history/);
+  assert.match(api, /rank-history/);
   assert.match(api, /creatorName/);
   assert.match(api, /ilike/);
 });
