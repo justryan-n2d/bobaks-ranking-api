@@ -232,8 +232,7 @@ test("analytics endpoint only accepts bounded allowlisted events", async () => {
 
 
 test("community route returns an indexable hub with configurable Discord and public contact paths", async () => {
-  const env = makeEnv([]);
-  env.DISCORD_INVITE_URL = "https://discord.gg/example";
+  const env = { ...makeEnv([]), DISCORD_INVITE_URL: "https://discord.gg/example" };
   const result = await handleFrontendRequest(
     new Request("https://bobaks.example/community"),
     env
@@ -254,8 +253,7 @@ test("community route returns an indexable hub with configurable Discord and pub
 });
 
 test("community route shows a safe unconfigured Discord state instead of inventing an invite", async () => {
-  const env = makeEnv([]);
-  env.DISCORD_INVITE_URL = "";
+  const env = { ...makeEnv([]), DISCORD_INVITE_URL: "" };
   const result = await handleFrontendRequest(
     new Request("https://bobaks.example/community"),
     env
