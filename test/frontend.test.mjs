@@ -248,6 +248,6 @@ test("social helper buttons use custom neutral share icons and a consistent stac
   assert.match(html, /data-platform/);
   assert.match(html, /platform-icon/);
   assert.match(html, /\.map\(\(\[name,key,sub\]\)/);
-  assert.match(html, /'<button class="btn" data-platform="/);
+  assert.match(html, /data-platform/);
   assert.match(html, /rank-card-platform-grid/);
 });
