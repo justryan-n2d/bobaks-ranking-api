@@ -1077,7 +1077,7 @@ async function generateRankCard(g){
   ctx.fillStyle='#6F88A2';ctx.font='700 17px Inter,system-ui,sans-serif';
   ctx.fillText('Track this game and discover more rankings at',100,1512);
   ctx.fillStyle=tier.accent;ctx.font='900 19px Inter,system-ui,sans-serif';
-  ctx.fillText(location.origin.replace(/^https?:\\/\\//,''),100,1544);
+  ctx.fillText(location.host,100,1544);
   ctx.textAlign='right';ctx.fillStyle='#5E7894';ctx.font='700 15px Inter,system-ui,sans-serif';
   ctx.fillText('BOBAKS · GAME RANK CARD',1080,1544);
   ctx.textAlign='left';
