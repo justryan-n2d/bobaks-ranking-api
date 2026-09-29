@@ -527,6 +527,8 @@ test("social feed returns ranking, trending, and peak posts from existing Bobaks
   assert.equal(body.trending.items[1].gameId, "2");
   assert.equal(body.peaks.items[0].gameId, "3");
   assert.equal(body.peaks.items[0].peakPlayers, 50000);
+  assert.equal(body.peaks.recentItems[0].gameId, "3");
+  assert.equal(body.peaks.recentItems[0].peakAt, "2026-09-28T12:00:00.000Z");
   assert.match(body.posts.ranking.text, /Top 10 Roblox games this week/);
   assert.match(body.posts.trending.text, /Trending Roblox games this week/);
   assert.match(body.posts.peaks.text, /Highest recorded Roblox peaks/);
