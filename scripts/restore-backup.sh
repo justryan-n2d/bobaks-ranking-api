@@ -14,6 +14,10 @@ if [[ -z "${OBJECT_KEY}" ]]; then
   exit 2
 fi
 
+export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+export AWS_DEFAULT_REGION="auto"
+
 case "${RESTORE_DB_URL}" in
   *zhrfozouzvxhpkylmpwh*)
     echo "Refusing to restore into the Bobaks production Supabase project." >&2
