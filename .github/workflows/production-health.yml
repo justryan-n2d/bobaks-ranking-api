@@ -20,13 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: E2E alerting failure trigger
-        if: ${{ github.ref == 'refs/heads/phase4-part4-e2e-alerting-test' && github.event_name == 'push' }}
-        shell: bash
-        run: |
-          echo "Intentional Phase 4 Part 4 E2E failure trigger."
-          exit 1
-
       - name: Check API liveness
         shell: bash
         run: |
