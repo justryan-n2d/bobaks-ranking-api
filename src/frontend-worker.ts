@@ -133,7 +133,7 @@ function recordAnalytics(env: Env, event: string, data: {
     env.ANALYTICS.writeDataPoint({
       blobs: [event, normalizeRoute(String(data.route ?? "/")), period, gameId, channel, visitorId, sessionId],
       doubles: [1],
-      indexes: [visitorId || event]
+      indexes: [event]
     });
   } catch (error) {
     console.warn("Product analytics write failed:", error);
