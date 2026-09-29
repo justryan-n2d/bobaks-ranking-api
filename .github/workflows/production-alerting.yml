@@ -1,9 +1,9 @@
 name: Production Failure Alerting
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Production Health Monitor"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -14,77 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  alert:
+  incident:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Detect production incidents
-        id: detect
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
-          COLLECTOR="https://bobaks-ranking-collector.ryan-oledan0.workers.dev"
-
-          active=false
-          reasons_text=""
-
-          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
-          COLLECTOR="https://bobaks-ranking-collector.ryan-oledan0.workers.dev"
-
-          api_tmp=$(mktemp)
-          if api_http=$(curl -sS --max-time 20 -o "$api_tmp" -w "%{http_code}" "$API/api/health/deep"); then
-            echo "API deep health HTTP $api_http"
-            cat "$api_tmp" | jq .
-            if jq -e '.alerts.active == true' "$api_tmp" >/dev/null 2>&1; then
-              active=true
-              while IFS= read -r reason; do
-                [ -n "$reason" ] && reasons_text="$reasons_text- $reason; "
-              done < <(jq -r '.alerts.reasons[]?' "$api_tmp")
-            fi
-          else
-            active=true
-            reasons_text="$reasons_text- API deep health endpoint could not be reached; "
-          fi
-
-          collector_tmp=$(mktemp)
-          if collector_http=$(curl -sS --max-time 20 -o "$collector_tmp" -w "%{http_code}" "$COLLECTOR/health"); then
-            echo "Collector health HTTP $collector_http"
-            cat "$collector_tmp" | jq .
-            if jq -e '.ok == false or .status == "unhealthy"' "$collector_tmp" >/dev/null 2>&1; then
-              active=true
-              reasons_text="$reasons_text- Collector health is unhealthy; "
-            fi
-          else
-            active=true
-            reasons_text="$reasons_text- Collector health endpoint could not be reached; "
-          fi
-
-          {
-            echo "active=$active"
-            echo "details<<EOF"
-            printf '%s\n' "Detected at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            if [ -n "$reasons_text" ]; then
-              printf '%s\n' "Reasons: $reasons_text"
-            else
-              printf '%s\n' "No active production incident detected."
-            fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Create or maintain incident issue
-        if: steps.detect.outputs.active == 'true'
+        if: github.event.workflow_run.conclusion == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
-          DETAILS: ${{ steps.detect.outputs.details }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
         shell: bash
         run: |
           set -euo pipefail
           TITLE="🚨 Bobaks production incident"
-
-          existing=$(gh issue list             --repo "$GITHUB_REPOSITORY"             --state open             --search 'in:title "Bobaks production incident"'             --limit 20             --json number,title)
-
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bobaks production incident"' --limit 20 --json number,title)
           issue_number=$(echo "$existing" | jq -r --arg title "$TITLE" '.[] | select(.title == $title) | .number' | head -n 1)
 
           if [ -n "$issue_number" ]; then
@@ -92,23 +36,22 @@ jobs:
             exit 0
           fi
 
-          gh issue create             --repo "$GITHUB_REPOSITORY"             --title "$TITLE"             --body "Automated production incident detected by GitHub Actions.
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "Production Health Monitor detected a failure.
 
-$DETAILS
+Run #$RUN_NUMBER
+Run URL: $RUN_URL
 
-The issue should remain open while the incident is active. The alerting workflow will close it after the checks return to normal."
+The issue stays open until a later Production Health Monitor run succeeds."
 
       - name: Close recovered incident
-        if: steps.detect.outputs.active != 'true'
+        if: github.event.workflow_run.conclusion == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           TITLE="🚨 Bobaks production incident"
-
-          existing=$(gh issue list             --repo "$GITHUB_REPOSITORY"             --state open             --search 'in:title "Bobaks production incident"'             --limit 20             --json number,title)
-
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bobaks production incident"' --limit 20 --json number,title)
           issue_number=$(echo "$existing" | jq -r --arg title "$TITLE" '.[] | select(.title == $title) | .number' | head -n 1)
 
           if [ -z "$issue_number" ]; then
@@ -116,14 +59,8 @@ The issue should remain open while the incident is active. The alerting workflow
             exit 0
           fi
 
-          gh issue comment "$issue_number"             --repo "$GITHUB_REPOSITORY"             --body "Automated checks returned to normal at $(date -u +%Y-%m-%dT%H:%M:%SZ). Closing this incident."
-
+          gh issue comment "$issue_number" --repo "$GITHUB_REPOSITORY" --body "Production Health Monitor recovered at $(date -u +%Y-%m-%dT%H:%M:%SZ). Closing this incident."
           gh issue close "$issue_number" --repo "$GITHUB_REPOSITORY"
 
       - name: Alerting summary
-        run: |
-          if [ "${{ steps.detect.outputs.active }}" = "true" ]; then
-            echo "Production incident is active. Incident issue handling completed."
-          else
-            echo "No active production incident."
-          fi
+        run: echo "Production failure alerting completed."
