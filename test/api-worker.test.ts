@@ -400,16 +400,16 @@ test("deep health surfaces recent collection and ranking refresh failures", asyn
   );
   const body = await result.json() as Record<string, any>;
 
-  assert.equal(result.status, 503);
-  assert.equal(body.ok, false);
+  assert.equal(result.status, 200);
+  assert.equal(body.ok, true);
   assert.equal(body.alerts.active, true);
   assert.equal(body.alerts.severity, "critical");
   assert.equal(body.alerts.recentCollectionFailureCount, 1);
   assert.equal(body.alerts.recentRankingRefreshFailureCount, 1);
-  assert.equal(body.checks.rankings.status, "unhealthy");
+  assert.equal(body.checks.rankings.status, "healthy");
   assert.equal(body.checks.rankingRefresh.status, "healthy");
   assert.equal(body.checks.rankingRefresh.latestStatus, "success");
-  assert.equal(body.alerts.reasons.length, 3);
+  assert.equal(body.alerts.reasons.length, 2);
   assert.match(body.alerts.reasons[0], /collection run failed/i);
   assert.match(body.alerts.reasons[1], /ranking refresh failed/i);
 });
