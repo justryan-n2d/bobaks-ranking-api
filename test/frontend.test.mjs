@@ -227,8 +227,8 @@ test("Messenger helper prepares the image plus copied caption for apps that spli
 test("share helper communicates platform limitations instead of claiming guaranteed combined sharing", () => {
   const html = readHtml();
 
-  assert.match(html, /Some apps accept an image and text together/);
-  assert.match(html, /prepares the caption and image separately/);
+  assert.ok(html.includes('If the selected app drops the caption, use Copy caption and paste it after sending the image.'));
+  assert.ok(html.includes('PNG downloaded. Your caption is ready to copy for platforms that need it separately.'));
 });
 
 test("game rank cards use ordinal rank labels and rank-specific TOP badges", () => {
