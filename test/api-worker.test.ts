@@ -183,6 +183,17 @@ test("deep health reports healthy production dependencies", async () => {
         }]);
       }
 
+      if (status === "in.(success,partial)") {
+        return response([{
+          startedAt: recent,
+          finishedAt: new Date(now - 4 * 60 * 1000).toISOString(),
+          status: "success",
+          gamesChecked: 123,
+          gamesUpdated: 123,
+          errors: 0
+        }]);
+      }
+
       if (status === "in.(daily_summary_success,daily_summary_failed)") {
         return response([{
           startedAt: dailySummary,
@@ -252,6 +263,10 @@ test("deep health becomes unhealthy when the last good collection is stale", asy
       if (status === "in.(success,partial,failed)") {
         return response([{ startedAt: stale, status: "failed", gamesChecked: 0, gamesUpdated: 0, errors: 1 }]);
       }
+      if (status === "in.(success,partial)") {
+        return response([]);
+      }
+
       if (status === "in.(daily_summary_success,daily_summary_failed)") {
         return response([{ startedAt: dailySummary, status: "daily_summary_success", gamesUpdated: 158, errors: 0 }]);
       }
