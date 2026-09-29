@@ -544,9 +544,17 @@ html[data-theme="light"] .nav button,
 html[data-theme="light"] .btn{color:#14304D;background:#FFFFFF;border-color:rgba(2,35,89,.14)}
 html[data-theme="light"] .nav button.active,
 html[data-theme="light"] .btn.primary{color:#fff;background:var(--accent);border-color:var(--accent)}
+html[data-theme="light"] #themeNav{color:#14304D;background:#FFFFFF}
 html[data-theme="light"] .tabs{background:#FFFFFF}
 html[data-theme="light"] .tabs button{color:#4F6B88}
 html[data-theme="light"] .tabs button:hover{color:#14304D;background:#EEF6FD}
+html[data-theme="light"] .tabs button.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+html[data-theme="light"] .hero h1{color:#F7FAFF}
+html[data-theme="light"] .hero h1 em{color:var(--accent)}
+html[data-theme="light"] .hero p{color:#D7E5F4}
+html[data-theme="light"] .hero-status{color:#F7FAFF}
+html[data-theme="light"] .hero-status .status-label{color:#B6D0E9}
+html[data-theme="light"] .hero-status strong{color:#F7FAFF}
 html[data-theme="light"] .search-icon{color:#4E759D}
 html[data-theme="light"] .results button{color:#14304D}
 html[data-theme="light"] .results b{color:#14304D}
@@ -585,8 +593,11 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
   .moving-head h2{font-size:20px}
   .moving-head p{font-size:12px;line-height:1.45}
   .moving-head .updated{font-size:10px}
-  .moving-grid{gap:11px}
-  .moving-card{padding:16px;border-radius:15px}
+  .moving-grid{gap:15px}
+  .moving-card{padding:17px;border-radius:15px}
+  .moving-section{margin-bottom:25px}
+  .dashboard{gap:15px}
+  .main-card{margin-top:2px}
   .moving-card-head{gap:12px}
   .moving-card img{width:58px;height:58px;border-radius:12px}
   .moving-info b{font-size:14px}
@@ -601,9 +612,21 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
   .listhead h2{font-size:20px}
   .listhead p{font-size:11px}
   .updated{font-size:10px}
-  .row{grid-template-columns:38px minmax(0,1fr) 92px;min-height:96px;padding:11px 13px}
-  .row img,.cover{width:56px;height:56px;border-radius:12px}
-  .game{gap:11px}
+  .row{
+    grid-template-columns:38px minmax(0,1fr) 118px;
+    grid-template-rows:auto auto;
+    min-height:118px;
+    padding:15px 13px;
+    row-gap:8px;
+    align-items:center
+  }
+  .row img,.cover{width:58px;height:58px;border-radius:13px}
+  .game{gap:12px;grid-column:2;grid-row:1}
+  .players{grid-column:3;grid-row:1;text-align:right;align-self:center}
+  .movement{grid-column:3;grid-row:2;justify-self:end;align-self:start}
+  .actions{grid-column:2;grid-row:2;justify-content:flex-start;align-self:start;gap:7px}
+  .row .rank{grid-column:1;grid-row:1 / span 2;align-self:center}
+  .game span{min-width:0}
   .game b{font-size:13px}
   .game small{font-size:10px;margin-top:4px}
   .game-tags{margin-top:7px}
@@ -623,8 +646,9 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
   .health small{font-size:10px}
   .foot{font-size:10px;line-height:1.6}
   .foot button{font-size:10px}
-  .detail-head{padding:17px}
-  .detail-head h1{font-size:30px}
+  .detail-head{padding:18px;margin-top:14px}
+  .detail-head h1{font-size:30px;line-height:1.08}
+  .detail-head p{line-height:1.55}
   .detail-head p{font-size:12px}
   .actions-wide .btn{font-size:12px;min-height:40px}
   .stat{padding:14px}
@@ -643,7 +667,7 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
   .hero h1{font-size:42px}
   .moving-card img{width:54px;height:54px}
   .moving-info b{font-size:13px}
-  .row{grid-template-columns:34px minmax(0,1fr) 86px}
+  .row{grid-template-columns:34px minmax(0,1fr) 105px;min-height:116px;padding:14px 11px}
 }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
