@@ -146,17 +146,17 @@ async function getOperationalObservability(
   fetchImpl: FetchLike
 ): Promise<Record<string, unknown>> {
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-  const rows = await supabaseGet(
+  const rows = await supabaseGetPaged(
     env,
     "DataCollectionLog",
     {
       select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors,rankingRefreshStatus,rankingRefreshStartedAt,rankingRefreshFinishedAt",
       status: "in.(success,partial,failed)",
       startedAt: "gte." + cutoff,
-      order: "startedAt.desc",
-      limit: "100"
+      order: "startedAt.desc"
     },
-    fetchImpl
+    fetchImpl,
+    500
   );
 
   return summarizeObservability(rows, hours);
