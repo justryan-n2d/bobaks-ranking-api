@@ -35,8 +35,8 @@ test("ranking audit reuses a combined current-month sample aggregation and index
 
   assert.match(sql, /JOIN LATERAL\s*\(\s*SELECT[\s\S]*?FROM public\."GameSnapshot"/);
   assert.match(sql, /current_month_samples AS MATERIALIZED \(/);
-  assert.match(sql, /weekly_score/);
-  assert.match(sql, /monthly_score/);
+  assert.match(sql, /weekly_sample_count/);
+  assert.match(sql, /monthly_sample_count/);
 });
 
 test("historical recovery audit derives summary-day coverage without joining summaries back to snapshots", () => {
