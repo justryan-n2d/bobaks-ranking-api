@@ -387,4 +387,6 @@ test("return-loop decoration is guarded against stale homepage renders", () => {
   assert.match(module, /currentHost: document\.querySelector\("\.dashboard"\)/);
   assert.match(module, /capturedPath: pagePath/);
   assert.match(module, /currentPath: location\.pathname/);
+  assert.match(module, /host\.dataset\.returnHubPending === "1"/);
+  assert.match(module, /host\.dataset\.returnHubPending = "1"/);
 });
