@@ -468,21 +468,21 @@ async function renderSitemap(
   fetchImpl: FetchLike
 ): Promise<Response> {
   const base = env.API_ORIGIN.replace(/\/$/, "");
-  const response = await fetchImpl(base + "/api/games", {
-    headers: { accept: "application/json" }
-  });
+  let body: { data?: Json[] } = {};
 
-  if (!response.ok) {
-    return new Response("Sitemap unavailable", {
-      status: 503,
-      headers: {
-        "content-type": "text/plain; charset=utf-8",
-        "cache-control": "no-store"
-      }
+  try {
+    const response = await fetchImpl(base + "/api/games", {
+      headers: { accept: "application/json" }
     });
-  }
 
-  const body = await response.json() as { data?: Json[] };
+    if (response.ok) {
+      body = await response.json() as { data?: Json[] };
+    } else {
+      console.warn("Sitemap game list unavailable:", response.status);
+    }
+  } catch (error) {
+    console.warn("Sitemap game list request failed:", error);
+  }
   const origin = new URL(request.url).origin;
   const urls = [
     "<url><loc>" + escapeXml(origin + "/") + "</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>",
