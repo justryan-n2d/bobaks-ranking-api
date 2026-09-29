@@ -1119,7 +1119,8 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-<script src="/analytics-client.js"></script>\n</head>
+<script src="/analytics-client.js"></script>
+</head>
 <body>
 <header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button><a id="communityNav" class="nav-link" href="/community">Community</a><button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ Dark</button></nav></header>
 <main id="app" class="wrap"></main>
@@ -2199,8 +2200,8 @@ loadTheme();loadSaved();
 state.period=periodFromLocation();
 if(location.pathname==='/community'){state.view='community';setCommunityMeta();render();track('page_view',{route:'/community'});}
 const initialGame=location.pathname.match(GAME_ROUTE);
-if(initialGame){openGame(initialGame[1],{push:false});}
-else {setPageMeta(null);render();loadRankings();}
+if(initialGame){openGame(initialGame[1],{push:false});track('page_view',{gameId:initialGame[1],period:state.period});}
+else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
 </script>
 <script type="module" src="/return-loops.js"></script>
 </body>
