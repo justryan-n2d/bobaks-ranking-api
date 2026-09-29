@@ -42,7 +42,7 @@ jobs:
 
           curl -fsS "$API/api/games/$game_id" | jq -e '.data.id != null' >/dev/null
           history365=$(curl -fsS "$API/api/games/$game_id/history?days=365")
-          echo "$history365" | jq -e '.gameId == ("'+"$game_id"+'") and .days == 365 and (.resolution == "snapshot" or .resolution == "mixed" or .resolution == "daily")' >/dev/null
+          echo "$history365" | jq -e --arg gameId "$game_id" '.gameId == $gameId and .days == 365 and (.resolution == "snapshot" or .resolution == "mixed" or .resolution == "daily")' >/dev/null
           echo "$history365" | jq -e '.data | length > 0' >/dev/null
           curl -fsS "$API/api/games/$game_id/peak" | jq -e '.data.gameId != null' >/dev/null
 
