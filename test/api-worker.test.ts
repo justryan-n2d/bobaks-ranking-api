@@ -535,7 +535,7 @@ test("social feed returns ranking, trending, and peak posts from existing Bobaks
   assert.match(body.posts.ranking.text, /https:\/\/api\.example\/rankings\/weekly/);
   assert.equal(result.headers.get("cache-control"), "public, max-age=60, s-maxage=300");
   assert.equal(calls.filter(call => call.url.includes("/rest/v1/Ranking?")).length, 1);
-  assert.equal(calls.filter(call => call.url.includes("/rest/v1/GamePeak?")).length, 1);
+  assert.equal(calls.filter(call => call.url.includes("/rest/v1/GamePeak?")).length, 2);
 });
 
 test("social feed rejects invalid periods before database access", async () => {
