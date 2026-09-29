@@ -18,8 +18,10 @@ DECLARE
   monthly_min_samples bigint;
   monthly_min_coverage numeric;
   live_max_age_seconds double precision;
+  historical_recovery jsonb;
 BEGIN
   PERFORM public.assert_rankings_integrity();
+  historical_recovery := public.get_historical_recovery_audit(31);
 
   SELECT max("calculatedAt")
   INTO calculated_at
@@ -127,7 +129,11 @@ BEGIN
 
   result := jsonb_build_object(
     'methodologyVersion', '2026-09-28',
-    'auditStatus', 'passed',
+    'auditStatus', CASE
+      WHEN historical_recovery->>'status' = 'passed' THEN 'passed'
+      ELSE 'needs_repair'
+    END,
+    'historicalRecovery', historical_recovery,
     'auditedAt', now(),
     'collection', jsonb_build_object(
       'cadenceSeconds', 600,
