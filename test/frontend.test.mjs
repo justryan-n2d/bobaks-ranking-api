@@ -62,10 +62,29 @@ test("frontend exposes a social ranking share flow for every ranking period", ()
   assert.match(html, /function rankingShareText\(period,games\)/);
   assert.match(html, /id="shareRanking"/);
   assert.match(html, /rankingPath\(state\.period\)/);
-  assert.match(html, /channel:'ranking_list'/);
+  assert.match(html, /channel:'social_'\+kind/);
   assert.match(html, /Top 10/);
   assert.match(html, /navigator\.share/);
   assert.match(html, /navigator\.clipboard\.writeText/);
+});
+
+test("frontend uses the automation-ready social feed for ranking, trending, and peak sharing", () => {
+  const html = readHtml();
+  assert.match(html, /function shareSocialPost\(kind\)/);
+  assert.match(html, /\/api\/social\/feed\?period=/);
+  assert.match(html, /id="shareTrending"/);
+  assert.match(html, /id="sharePeaks"/);
+  assert.match(html, /shareRanking\(\)/);
+  assert.match(html, /shareSocialPost\('trending'\)/);
+  assert.match(html, /shareSocialPost\('peaks'\)/);
+});
+
+test("frontend labels rank movement as trending and exposes peak-record sharing", () => {
+  const html = readHtml();
+  assert.match(html, /Trending Games/);
+  assert.match(html, /Share trending/);
+  assert.match(html, /Peak Records/);
+  assert.match(html, /Share peak records/);
 });
 
 test("frontend ranking share content includes game name, rank, players, and canonical ranking link", () => {

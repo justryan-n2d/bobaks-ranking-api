@@ -451,6 +451,108 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.equal(new URL(calls[1].url).searchParams.get("id"), "in.(1)");
 });
 
+test("social feed returns ranking, trending, and peak posts from existing Bobaks data", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers);
+    calls.push({ url, headers });
+
+    if (url.includes("/rest/v1/Ranking?")) {
+      return response([
+        {
+          id: "10",
+          gameId: "1",
+          period: "weekly",
+          rank: 1,
+          score: 12345,
+          previousRank: 4,
+          calculatedAt: "2026-09-29T01:20:00.000Z"
+        },
+        {
+          id: "11",
+          gameId: "2",
+          period: "weekly",
+          rank: 2,
+          score: 10000,
+          previousRank: 3,
+          calculatedAt: "2026-09-29T01:20:00.000Z"
+        },
+        {
+          id: "12",
+          gameId: "3",
+          period: "weekly",
+          rank: 3,
+          score: 9000,
+          previousRank: 3,
+          calculatedAt: "2026-09-29T01:20:00.000Z"
+        }
+      ]);
+    }
+
+    if (url.includes("/rest/v1/Game?")) {
+      const parsed = new URL(url);
+      const ids = (parsed.searchParams.get("id") ?? "").match(/\d+/g) ?? [];
+      return response(ids.map(id => ({
+        id,
+        name: "Game " + id,
+        creatorName: "Creator " + id,
+        iconUrl: "https://cdn.example/" + id + ".png"
+      })));
+    }
+
+    if (url.includes("/rest/v1/GamePeak?")) {
+      return response([
+        { id: "91", gameId: "3", peakPlayers: 50000, peakAt: "2026-09-28T12:00:00.000Z" },
+        { id: "92", gameId: "1", peakPlayers: 40000, peakAt: "2026-09-27T12:00:00.000Z" }
+      ]);
+    }
+
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/social/feed?period=week"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as Record<string, any>;
+
+  assert.equal(result.status, 200);
+  assert.equal(body.period, "week");
+  assert.equal(body.ranking.items.length, 3);
+  assert.equal(body.ranking.items[0].name, "Game 1");
+  assert.equal(body.trending.items[0].gameId, "1");
+  assert.equal(body.trending.items[0].rankChange, 3);
+  assert.equal(body.trending.items[1].gameId, "2");
+  assert.equal(body.peaks.items[0].gameId, "3");
+  assert.equal(body.peaks.items[0].peakPlayers, 50000);
+  assert.match(body.posts.ranking.text, /Top 10 Roblox games this week/);
+  assert.match(body.posts.trending.text, /Trending Roblox games this week/);
+  assert.match(body.posts.peaks.text, /Highest recorded Roblox peaks/);
+  assert.match(body.posts.ranking.text, /https:\/\/api\.example\/rankings\/weekly/);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=60, s-maxage=300");
+  assert.equal(calls.filter(call => call.url.includes("/rest/v1/Ranking?")).length, 1);
+  assert.equal(calls.filter(call => call.url.includes("/rest/v1/GamePeak?")).length, 1);
+});
+
+test("social feed rejects invalid periods before database access", async () => {
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async input => {
+    calls.push(String(input));
+    throw new Error("database should not be called");
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/social/feed?period=invalid"),
+    env,
+    fetchImpl
+  );
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.length, 0);
+});
+
 test("legacy ranking paths remain compatible", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const result = await handleApi(new Request("https://api.example/api/rankings/monthly"), env, makeFetch(calls));
