@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildSocialFiles } from "../scripts/generate-social-posts.mjs";
+import { buildDiscordPayload, publishDiscordPost, splitDiscordContent, selectDiscordFiles } from "../scripts/publish-social-discord.mjs";
 
 test("social generator creates top-10 and trending files for each period plus one peak file", () => {
   const feeds = [
