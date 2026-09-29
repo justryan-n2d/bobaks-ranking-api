@@ -44,7 +44,7 @@ test("scheduled workflow runs daily, supports manual dispatch, and retains artif
   assert.match(workflow, /permissions:\n\s+contents: read/);
 });
 
-import { buildDiscordPayload, publishDiscordPost } from "../scripts/publish-social-discord.mjs";
+import { buildDiscordPayload, publishDiscordPost, splitDiscordContent, selectDiscordFiles } from "../scripts/publish-social-discord.mjs";
 
 test("Discord publisher builds a plain webhook payload and accepts 204", async () => {
   assert.deepEqual(
@@ -91,5 +91,23 @@ test("Discord publisher rejects empty content", async () => {
   await assert.rejects(
     () => publishDiscordPost("https://discord.com/api/webhooks/123/token", "   ", async () => new Response(null, {status:204})),
     /content is empty/i
+  );
+});
+
+test("Discord publisher splits oversized posts without exceeding Discord's message limit", () => {
+  const chunks = splitDiscordContent("line\n" + "x".repeat(4500));
+  assert.ok(chunks.length >= 3);
+  assert.ok(chunks.every(chunk => chunk.length <= 2000));
+  assert.equal(chunks.join("").length, 4504);
+});
+
+test("Discord schedule publishes live content daily and weekly content on Monday", () => {
+  assert.deepEqual(
+    selectDiscordFiles([], 2),
+    ["top10-live.txt", "trending-live.txt"]
+  );
+  assert.deepEqual(
+    selectDiscordFiles([], 1),
+    ["top10-live.txt", "trending-live.txt", "top10-week.txt"]
   );
 });
