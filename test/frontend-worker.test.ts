@@ -282,3 +282,30 @@ test("sitemap includes the public community hub", async () => {
   assert.equal(result.status, 200);
   assert.ok(xml.includes("https://bobaks.example/community"));
 });
+
+
+test("sitemap stays crawlable when the game-list API has a temporary server error", async () => {
+  const env = makeEnv([]);
+  const fakeFetch: typeof fetch = async input => {
+    const url = String(input);
+    if (url.endsWith("/api/games")) {
+      return response({ error: "Database unavailable" }, 503);
+    }
+    throw new Error("Unexpected API request: " + url);
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/sitemap.xml"),
+    env,
+    fakeFetch
+  );
+  const xml = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("content-type"), "application/xml; charset=utf-8");
+  assert.ok(xml.includes("https://bobaks.example/"));
+  assert.ok(xml.includes("https://bobaks.example/rankings/weekly"));
+  assert.ok(xml.includes("https://bobaks.example/rankings/monthly"));
+  assert.ok(xml.includes("https://bobaks.example/rankings/yearly"));
+  assert.ok(xml.includes("https://bobaks.example/community"));
+});
