@@ -35,7 +35,7 @@ Phase 4 Part 4 adds explicit failure telemetry to the API deep-health response. 
 
 The collector records each ranking refresh as `pending`, `success`, or `failed` on the collection run. A refresh failure does not invalidate the collected snapshots.
 
-GitHub Actions runs `.github/workflows/production-health.yml` every 15 minutes. The separate `.github/workflows/production-alerting.yml` workflow listens for that monitor's completion, creates one open `🚨 Bobaks production incident` issue when a health run fails, and closes that issue after a later health run succeeds. This turns transient failures into a visible incident record instead of relying only on the live health page.
+GitHub Actions runs `.github/workflows/production-health.yml` every 15 minutes. The separate `.github/workflows/production-alerting.yml` workflow listens for that monitor's completion, creates one open `Bobaks production incident` issue when a health run fails, and closes that issue after a later health run succeeds. This turns transient failures into a visible incident record instead of relying only on the live health page.
 
 ## Current R2 status
 
