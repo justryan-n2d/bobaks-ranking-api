@@ -543,6 +543,171 @@ async function health(env: Env, fetchImpl: FetchLike): Promise<Response> {
   }
 }
 
+const HEALTH_THRESHOLDS = {
+  collectionFreshnessSeconds: 15 * 60,
+  dailySummaryFreshnessSeconds: 26 * 60 * 60
+};
+
+async function getDeepHealth(env: Env, fetchImpl: FetchLike): Promise<Record<string, unknown>> {
+  const nowMs = Date.now();
+
+  const [audit, latestCollectionRows, latestGoodCollectionRows, latestDailySummaryRows] =
+    await Promise.all([
+      getRankingAudit(env, fetchImpl),
+      supabaseGet(env, "DataCollectionLog", {
+        select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors,errorMessage",
+        status: "in.(success,partial,failed)",
+        order: "startedAt.desc",
+        limit: "1"
+      }, fetchImpl),
+      supabaseGet(env, "DataCollectionLog", {
+        select: "startedAt,finishedAt,status,gamesChecked,gamesUpdated,errors",
+        status: "in.(success,partial)",
+        order: "startedAt.desc",
+        limit: "1"
+      }, fetchImpl),
+      supabaseGet(env, "DataCollectionLog", {
+        select: "startedAt,finishedAt,status,gamesUpdated,errors,errorMessage",
+        status: "in.(daily_summary_success,daily_summary_failed)",
+        order: "startedAt.desc",
+        limit: "1"
+      }, fetchImpl)
+    ]);
+
+  const latestCollection = latestCollectionRows[0] ?? {};
+  const latestGoodCollection = latestGoodCollectionRows[0] ?? {};
+  const latestDailySummary = latestDailySummaryRows[0] ?? {};
+
+  const latestGoodCollectionMs = Date.parse(String(latestGoodCollection.startedAt ?? ""));
+  const latestCollectionMs = Date.parse(String(latestCollection.startedAt ?? ""));
+  const latestSummaryMs = Date.parse(String(latestDailySummary.startedAt ?? ""));
+
+  const collectionAgeSeconds = Number.isFinite(latestGoodCollectionMs)
+    ? Math.max(0, Math.floor((nowMs - latestGoodCollectionMs) / 1000))
+    : null;
+  const dailySummaryAgeSeconds = Number.isFinite(latestSummaryMs)
+    ? Math.max(0, Math.floor((nowMs - latestSummaryMs) / 1000))
+    : null;
+
+  const latestCollectionStatus = String(latestCollection.status ?? "unknown");
+  const collectionFresh = collectionAgeSeconds != null &&
+    collectionAgeSeconds <= HEALTH_THRESHOLDS.collectionFreshnessSeconds;
+  const collectionStatus =
+    latestCollectionStatus === "success" && collectionFresh
+      ? "healthy"
+      : collectionFresh || latestCollectionStatus === "partial"
+        ? "degraded"
+        : "unhealthy";
+
+  const summaryFresh = dailySummaryAgeSeconds != null &&
+    dailySummaryAgeSeconds <= HEALTH_THRESHOLDS.dailySummaryFreshnessSeconds;
+  const dailySummaryStatus =
+    latestDailySummary.status === "daily_summary_success" && summaryFresh
+      ? "healthy"
+      : summaryFresh
+        ? "degraded"
+        : "unhealthy";
+
+  const auditStatus = String(audit.auditStatus ?? "unknown");
+  const rankings = audit.rankings && typeof audit.rankings === "object"
+    ? audit.rankings as Record<string, unknown>
+    : {};
+  const live = rankings.live && typeof rankings.live === "object"
+    ? rankings.live as Record<string, unknown>
+    : {};
+  const liveAge = Number(live.maxLatestSnapshotAgeSeconds);
+  const rankingRowsHealthy =
+    Number(live.rows) === 100 &&
+    Number((rankings.weekly as Record<string, unknown> | undefined)?.rows) === 100 &&
+    Number((rankings.monthly as Record<string, unknown> | undefined)?.rows) === 100 &&
+    Number((rankings.yearly as Record<string, unknown> | undefined)?.rows) === 100;
+
+  const rankingsStatus =
+    auditStatus === "passed" &&
+    rankingRowsHealthy &&
+    Number.isFinite(liveAge) &&
+    liveAge <= HEALTH_THRESHOLDS.collectionFreshnessSeconds
+      ? "healthy"
+      : "unhealthy";
+
+  const historicalRecovery = audit.historicalRecovery &&
+    typeof audit.historicalRecovery === "object"
+    ? audit.historicalRecovery as Record<string, unknown>
+    : {};
+  const historyStatus = String(historicalRecovery.status ?? "unknown") === "passed"
+    ? "healthy"
+    : "unhealthy";
+
+  const databaseStatus = "healthy";
+  const degraded =
+    collectionStatus === "degraded" ||
+    dailySummaryStatus === "degraded";
+  const unhealthy =
+    collectionStatus === "unhealthy" ||
+    dailySummaryStatus === "unhealthy" ||
+    rankingsStatus === "unhealthy" ||
+    historyStatus === "unhealthy";
+
+  return {
+    ok: !unhealthy,
+    status: unhealthy ? "unhealthy" : degraded ? "degraded" : "healthy",
+    service: "bobaks-ranking-api",
+    timestamp: new Date(nowMs).toISOString(),
+    checks: {
+      database: { status: databaseStatus },
+      collection: {
+        status: collectionStatus,
+        latestStatus: latestCollectionStatus,
+        latestStartedAt: latestCollection.startedAt ?? null,
+        lastGoodStartedAt: latestGoodCollection.startedAt ?? null,
+        ageSeconds: collectionAgeSeconds,
+        freshnessThresholdSeconds: HEALTH_THRESHOLDS.collectionFreshnessSeconds
+      },
+      dailySummary: {
+        status: dailySummaryStatus,
+        latestStatus: latestDailySummary.status ?? null,
+        latestStartedAt: latestDailySummary.startedAt ?? null,
+        ageSeconds: dailySummaryAgeSeconds,
+        freshnessThresholdSeconds: HEALTH_THRESHOLDS.dailySummaryFreshnessSeconds
+      },
+      rankings: {
+        status: rankingsStatus,
+        auditStatus,
+        liveRows: Number(live.rows ?? 0),
+        weeklyRows: Number((rankings.weekly as Record<string, unknown> | undefined)?.rows ?? 0),
+        monthlyRows: Number((rankings.monthly as Record<string, unknown> | undefined)?.rows ?? 0),
+        yearlyRows: Number((rankings.yearly as Record<string, unknown> | undefined)?.rows ?? 0),
+        maxLatestSnapshotAgeSeconds: Number.isFinite(liveAge) ? liveAge : null
+      },
+      historicalRecovery: {
+        status: historyStatus,
+        recoverableDailyRows: Number(historicalRecovery.recoverableDailyRows ?? 0),
+        rawDaysWithoutSummary: Array.isArray(historicalRecovery.rawDaysWithoutSummary)
+          ? historicalRecovery.rawDaysWithoutSummary.length
+          : null
+      }
+    }
+  };
+}
+
+async function healthDeep(env: Env, fetchImpl: FetchLike): Promise<Response> {
+  try {
+    const body = await getDeepHealth(env, fetchImpl);
+    return json(body, body.status === "unhealthy" ? 503 : 200, {
+      "cache-control": "no-store"
+    });
+  } catch (error) {
+    console.error("API deep health check failed:", error);
+    return json({
+      ok: false,
+      status: "unavailable",
+      service: "bobaks-ranking-api",
+      timestamp: new Date().toISOString()
+    }, 503, { "cache-control": "no-store" });
+  }
+}
+
+
 async function handleApi(
   request: Request,
   env: Env,
@@ -553,6 +718,10 @@ async function handleApi(
 
   if (path === "/api/health") {
     return health(env, fetchImpl);
+  }
+
+  if (path === "/api/health/deep") {
+    return healthDeep(env, fetchImpl);
   }
 
   if (path === "/api/rankings/methodology") {
