@@ -110,9 +110,9 @@ test("sitemap lists the homepage and active game URLs", async () => {
 
   assert.equal(result.status, 200);
   assert.equal(result.headers.get("content-type"), "application/xml; charset=utf-8");
-  assert.match(xml, /https:\/\/bobaks.example\//);
-  assert.match(xml, /https:\/\/bobaks.example\/game\/42\//);
-  assert.match(xml, /https:\/\/bobaks.example\/game\/99\//);
+  assert.ok(xml.includes("https://bobaks.example/"));
+  assert.ok(xml.includes("https://bobaks.example/game/42"));
+  assert.ok(xml.includes("https://bobaks.example/game/99"));
   assert.match(xml, /<lastmod>2026-09-29T00:00:00.000Z<\/lastmod>/);
 });
 
@@ -125,7 +125,7 @@ test("robots.txt exposes the sitemap and excludes API paths", async () => {
   const body = await result.text();
 
   assert.equal(result.status, 200);
-  assert.match(body, /Allow: \/\//);
+  assert.ok(body.includes("Allow: /"));
   assert.match(body, /Disallow: \/api\//);
   assert.ok(body.includes("Sitemap: https://bobaks.example/sitemap.xml"));
 });
