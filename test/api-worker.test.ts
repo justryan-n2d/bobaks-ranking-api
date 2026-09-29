@@ -79,6 +79,22 @@ function makeFetch(calls: { url: string; headers: Headers }[]): typeof fetch {
       }]);
     }
 
+    if (url.includes("/rest/v1/rpc/get_game_current_stats")) {
+      return response([{
+        playerCount: 123,
+        snapshotAt: "2026-09-27T01:15:00.000Z"
+      }]);
+    }
+
+    if (url.includes("/rest/v1/rpc/get_game_rank_history")) {
+      return response([{
+        date: "2026-09-26",
+        rank: 2,
+        averagePlayers: 120,
+        gamesRanked: 100
+      }]);
+    }
+
     if (url.includes("/rest/v1/Ranking?")) {
       return response([{
         id: "10",
@@ -489,6 +505,18 @@ test("game, history, peak, and search endpoints return data", async () => {
   assert.ok(calls.some(call => call.url.includes("/rest/v1/DailyGameStat?")));
   assert.ok(calls.some(call => call.url.includes("/rest/v1/DailyGameStat?")));
   assert.equal(calls.filter(call => call.url.includes("/rest/v1/DailyGameStat?")).every(call => !call.url.includes("date.lt=")), true);
+
+  const rankHistory = await handleApi(new Request("https://api.example/api/games/1/rank-history?days=31"), env, fetchImpl);
+  const rankHistoryBody = await rankHistory.json() as {
+    gameId: string;
+    days: number;
+    data: Array<{ rank: number; averagePlayers: number }>;
+  };
+  assert.equal(rankHistory.status, 200);
+  assert.equal(rankHistoryBody.gameId, "1");
+  assert.equal(rankHistoryBody.days, 31);
+  assert.equal(rankHistoryBody.data[0].rank, 2);
+  assert.equal(rankHistoryBody.data[0].averagePlayers, 120);
 
   const peak = await handleApi(new Request("https://api.example/api/games/1/peak"), env, fetchImpl);
   assert.equal(peak.status, 200);
