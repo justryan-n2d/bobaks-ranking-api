@@ -58,6 +58,12 @@ npm run build
 ```
 
 
+## Data retention and storage
+
+Bobaks keeps detailed raw \`GameSnapshot\` data for 31 days so the database does not grow with every 10-minute collection forever. Long-term history is stored in \`DailyGameStat\` and \`GamePeak\`, while operational \`DataCollectionLog\` rows are retained for 365 days. Retention jobs run daily and protect raw snapshots and referenced collection logs from premature deletion.
+
+The long-term history API combines daily summaries with the retained raw snapshot window, so historical data can continue beyond the raw 31-day window.
+
 ## Ranking transparency
 
 Bobaks publishes the current ranking methodology and a server-side audit summary through the public API:
