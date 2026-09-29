@@ -22,7 +22,14 @@ Phase 6 starts from the existing Phase 5 gamer experience and adds the infrastru
 - The existing social sharing toolkit remains compatible with native sharing, image download, and caption copy.
 
 ### Return loops
-- The existing device-local watchlist and comparison flows are retained.
+- The existing device-local watchlist remains bounded at 25 saved games.
+- Daily rankings remain directly accessible from the live ranking surface.
+- Weekly changes and biggest movers are surfaced through a return hub that links into the weekly ranking route.
+- New peak detection uses the existing read-only peak feed and a local observation baseline; first-seen peaks are treated as a baseline rather than a new alert.
+- Saved-game alerts are device-local and currently cover Top 10 entry, new recorded peaks, and jumps of 5 or more ranking places.
+- Alert preferences are stored per saved game without accounts or server-side player-level data.
+- Historical milestone cards on game pages derive first recorded date, recorded peak, best rank, first Top 10 date, and historical days from existing history endpoints.
+- Alerts are checked when the user revisits Bobaks rather than using background push notifications.
 - Shareable period URLs use `/?period=week`, `/?period=month`, and `/?period=year`.
 - Game navigation uses browser history so refresh/back/forward preserve shareable game routes.
 
