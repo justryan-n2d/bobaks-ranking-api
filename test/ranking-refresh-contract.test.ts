@@ -30,3 +30,14 @@ test("Phase 5 migration contains game analytics helpers", () => {
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.get_game_current_stats\(bigint\) TO service_role/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.get_game_rank_history\(bigint,integer\) TO service_role/);
 });
+
+test("API exposes Phase 5 rank movement, rank history, and creator search", () => {
+  const api = readFileSync(join(process.cwd(), "src", "api-worker.ts"), "utf8");
+  assert.match(api, /previousRank/);
+  assert.match(api, /rankChange/);
+  assert.match(api, /get_game_current_stats/);
+  assert.match(api, /get_game_rank_history/);
+  assert.match(api, /\/api\/games\/\(\\d\+\)\/rank-history/);
+  assert.match(api, /creatorName/);
+  assert.match(api, /ilike/);
+});
