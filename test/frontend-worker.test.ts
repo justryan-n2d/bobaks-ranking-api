@@ -149,7 +149,7 @@ test("ranking period routes return indexable landing pages", async () => {
   const html = await result.text();
 
   assert.equal(result.status, 200);
-  assert.match(html, /<title>This Week's Roblox Game Rankings \| Bobaks Ranking<\/title>/);
+  assert.ok(html.includes("<title>This Week&#39;s Roblox Game Rankings | Bobaks Ranking</title>"));
   assert.ok(html.includes('rel="canonical" href="https://bobaks.example/rankings/weekly"'));
   assert.ok(html.includes("Example Experience"));
   assert.ok(html.includes("/game/42"));
