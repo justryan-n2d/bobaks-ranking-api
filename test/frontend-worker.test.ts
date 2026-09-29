@@ -227,7 +227,7 @@ test("analytics endpoint only accepts bounded allowlisted events", async () => {
     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   ]);
   assert.deepEqual(point.doubles, [1]);
-  assert.deepEqual(point.indexes, ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
+  assert.deepEqual(point.indexes, ["watchlist_add"]);
 
   const invalid = await handleFrontendRequest(
     new Request("https://bobaks.example/analytics", {
