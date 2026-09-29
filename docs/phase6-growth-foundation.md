@@ -60,10 +60,28 @@ These items should be implemented as separate, evidence-backed follow-up work:
 - community/Discord integration
 - game alerts and milestone notifications
 - richer return-loop surfaces for daily/weekly movers and new peaks
-- deeper analytics reporting for retention/session depth
+- human-facing analytics dashboard for retention/session depth (report artifacts are currently generated separately)
 - infrastructure/storage/cost reporting dashboards
 - performance measurement with real production traces and budgets
 - abuse controls if public analytics traffic becomes noisy
+
+
+
+## Phase 6.5 product analytics
+
+The product analytics foundation now supports privacy-aware retention and session-depth measurement without accounts or Roblox identity data.
+
+- The browser creates a random first-party visitor identifier in localStorage with a 30-day expiry.
+- The browser creates a random session identifier in sessionStorage and refreshes that session while activity continues within a 30-minute idle window.
+- Analytics events carry only the allowlisted event name, normalized route, ranking period, optional game ID, optional share channel, and the anonymous visitor/session identifiers.
+- Search analytics record that a search was used but do not send or store the search text.
+- Server-rendered GET requests no longer create product page_view events, so crawler traffic does not automatically inflate user page-view counts.
+- A scheduled GitHub Actions report queries the Cloudflare Analytics Engine dataset for weighted event totals, observed visitors/sessions, event and page breakdowns, average session event depth, and returning-visitor rate.
+- Analytics Engine sampling is accounted for with _sample_interval in weighted event totals.
+- Returning-visitor reporting uses a 30-day pre-window lookback and only works for events collected after anonymous visitor IDs were deployed; Bobaks does not reconstruct historical identity.
+- The report workflow skips safely until a dedicated Cloudflare Analytics read token is configured as CLOUDFLARE_ANALYTICS_API_TOKEN.
+
+The analytics layer is intentionally separate from Roblox player identity and does not require user accounts.
 
 ## Deployment model
 
