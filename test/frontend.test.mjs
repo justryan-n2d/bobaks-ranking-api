@@ -371,4 +371,3 @@ test("game detail exposes the selected game to the return-loop module without ch
   assert.match(html, /\/api\/games\/\+'\+encodeURIComponent\(gameId\)\+'\+\/history\?days=365/);
   assert.match(html, /\/api\/games\/\+'\+encodeURIComponent\(gameId\)\+'\+\/rank-history\?days=31/);
 });
-\n
