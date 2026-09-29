@@ -118,6 +118,8 @@ function recordAnalytics(env: Env, event: string, data: {
   period?: string;
   gameId?: string;
   channel?: string;
+  visitorId?: string;
+  sessionId?: string;
 }): void {
   if (!env.ANALYTICS || !EVENTS.has(event)) return;
 
@@ -125,11 +127,13 @@ function recordAnalytics(env: Env, event: string, data: {
     const period = PERIODS.has(data.period ?? "") ? String(data.period) : "";
     const gameId = data.gameId && /^\d{1,20}$/.test(data.gameId) ? data.gameId : "";
     const channel = data.channel ? String(data.channel).slice(0, 32) : "";
+    const visitorId = data.visitorId && /^[a-f0-9]{32}$/i.test(data.visitorId) ? data.visitorId.toLowerCase() : "";
+    const sessionId = data.sessionId && /^[a-f0-9]{32}$/i.test(data.sessionId) ? data.sessionId.toLowerCase() : "";
 
     env.ANALYTICS.writeDataPoint({
-      blobs: [event, normalizeRoute(String(data.route ?? "/")), period, gameId, channel],
+      blobs: [event, normalizeRoute(String(data.route ?? "/")), period, gameId, channel, visitorId, sessionId],
       doubles: [1],
-      indexes: [event]
+      indexes: [visitorId || event]
     });
   } catch (error) {
     console.warn("Product analytics write failed:", error);
@@ -545,7 +549,9 @@ async function handleAnalytics(request: Request, env: Env): Promise<Response> {
       route: typeof body.route === "string" ? body.route.slice(0, 120) : "/",
       period: typeof body.period === "string" ? body.period : undefined,
       gameId: typeof body.gameId === "string" ? body.gameId : undefined,
-      channel: typeof body.channel === "string" ? body.channel : undefined
+      channel: typeof body.channel === "string" ? body.channel : undefined,
+      visitorId: typeof body.visitorId === "string" ? body.visitorId : undefined,
+      sessionId: typeof body.sessionId === "string" ? body.sessionId : undefined
     });
 
     return new Response(null, {
@@ -608,19 +614,6 @@ export async function handleFrontendRequest(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const response = await handleFrontendRequest(request, env);
-
-    if (request.method === "GET" && response.ok) {
-      const url = new URL(request.url);
-      if (url.pathname !== "/sitemap.xml" && url.pathname !== "/robots.txt") {
-        const gameMatch = url.pathname.match(/^\/game\/(\d+)$/);
-        recordAnalytics(env, "page_view", {
-          route: url.pathname,
-          gameId: gameMatch?.[1]
-        });
-      }
-    }
-
-    return response;
+    return handleFrontendRequest(request, env);
   }
 };
