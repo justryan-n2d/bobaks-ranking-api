@@ -44,7 +44,6 @@ test("scheduled workflow runs daily, supports manual dispatch, and retains artif
   assert.match(workflow, /permissions:\n\s+contents: read/);
 });
 
-  assert.ok(workflow.includes("node scripts/publish-social-discord.mjs"));
 
 test("Discord publisher builds a plain webhook payload and accepts 204", async () => {
   assert.deepEqual(
