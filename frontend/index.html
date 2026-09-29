@@ -16,7 +16,7 @@
 'use strict';
 const API='https://bobaks-ranking-api-service.ryan-oledan0.workers.dev';
 const periods=[['live','Live'],['week','This Week'],['month','This Month'],['year','This Year']];
-const state={view:'home',period:'live',games:[],saved:[],compare:[],selected:null,query:'',results:[],loading:false,error:'',next:null,timer:null};
+const state={view:'home',period:'live',games:[],saved:[],compare:[],selected:null,query:'',results:[],loading:false,error:'',next:null,timer:null,searchRequest:0};
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=v=>new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(Number(v)||0);
@@ -29,7 +29,27 @@ function schedule(){if(state.timer)clearTimeout(state.timer);if(state.next)state
 function movement(g){if(g.previousRank==null)return '<span class="new">NEW</span>';const d=Number(g.rankChange||0);if(d>0)return '<span class="up">▲ '+d+'</span>';if(d<0)return '<span class="down">▼ '+Math.abs(d)+'</span>';return '<span>•</span>'}
 function icon(url){return url?'<img src="'+esc(url)+'" alt="">':'<div class="cover"></div>'}
 async function loadRankings(){state.loading=true;state.error='';render();try{const p=await api('/api/rankings?period='+encodeURIComponent(state.period));state.games=(p.data||[]).map(x=>({rank:Number(x.rank),gameId:String(x.gameId),name:x.game?.name||'Unknown game',creator:x.game?.creatorName||'Unknown creator',icon:x.game?.iconUrl||'',playing:Number(x.score||0),previousRank:x.previousRank==null?null:Number(x.previousRank),rankChange:x.rankChange==null?null:Number(x.rankChange),calculatedAt:x.calculatedAt||null,placeId:Number(x.game?.placeId||0)}));state.next=p.nextCollectionAt||fallbackNext()}catch(e){state.games=[];state.next=null;state.error='Ranking data could not be loaded right now. Try again in a moment.'}finally{state.loading=false;render();schedule()}}
-async function search(q){if(q.trim().length<2){state.results=[];render();return}try{const p=await api('/api/search?q='+encodeURIComponent(q.trim()));state.results=(p.data||[]).map(x=>({id:String(x.id),name:x.name,creator:x.creatorName||'Unknown creator'}));render()}catch{state.results=[];render()}}
+function renderSearchResults(){
+  const el=document.querySelector('.results');
+  if(!el)return;
+  el.innerHTML=state.results.map(g=>'<button data-search-game="'+g.id+'"><b>'+esc(g.name)+'</b><br><small>'+esc(g.creator)+'</small></button>').join('');
+  document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});
+}
+async function search(q){
+  const query=q.trim();
+  const requestId=++state.searchRequest;
+  if(query.length<2){state.results=[];renderSearchResults();return}
+  try{
+    const p=await api('/api/search?q='+encodeURIComponent(query));
+    if(requestId!==state.searchRequest || query!==state.query.trim())return;
+    state.results=(p.data||[]).map(x=>({id:String(x.id),name:x.name,creator:x.creatorName||'Unknown creator'}));
+    renderSearchResults();
+  }catch{
+    if(requestId!==state.searchRequest)return;
+    state.results=[];
+    renderSearchResults();
+  }
+}
 function footer(){return '<footer class="foot"><div>Bobaks Ranking · Independent fan-made analytics site · Not affiliated with Roblox Corporation.</div><div><button data-info="methodology">How Rankings Work</button> <button data-info="privacy">Privacy</button> <button data-info="terms">Terms</button> <button data-info="sources">Data Sources</button></div></footer>'}
 function home(){const tabs=periods.map(p=>'<button class="'+(state.period===p[0]?'active':'')+'" data-period="'+p[0]+'">'+p[1]+'</button>').join('');let rows='';if(state.loading&&!state.games.length)rows='<div class="empty">Loading rankings...</div>';else if(!state.games.length)rows='<div class="empty">No ranking data is available.</div>';else rows=state.games.map(g=>'<div class="row"><span class="rank">#'+g.rank+'</span><button class="game" data-game="'+g.gameId+'">'+icon(g.icon)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creator)+'</small></span></button><span class="players"><b>'+fmt(g.playing)+'</b><small>'+(state.period==='live'?'players':'avg players')+'</small></span><span class="movement">'+movement(g)+'</span><span class="actions"><button class="mini" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save')+'</button><button class="mini" data-compare="'+g.gameId+'">'+(state.compare.includes(g.gameId)?'Compared':'Compare')+'</button></span></div>').join('');const result=state.results.map(g=>'<button data-search-game="'+g.id+'"><b>'+esc(g.name)+'</b><br><small>'+esc(g.creator)+'</small></button>').join('');return '<section class="hero"><div class="eyebrow">PLAYER COUNT TRACKER</div><h1>BOBAKS<br><em>RANKING</em></h1><p>Live rankings and historical trends for Roblox experiences.</p></section><div class="controls"><nav class="tabs">'+tabs+'</nav><button class="btn" id="refresh">↻ Refresh</button></div><div class="search"><input id="search" placeholder="Search a Roblox game, creator, or developer" value="'+esc(state.query)+'"><div class="results">'+result+'</div></div>'+(state.error?'<div class="banner error">'+esc(state.error)+'</div>':'')+'<div class="listhead"><div><h2>'+(state.period==='live'?'Top Games Right Now':periods.find(p=>p[0]===state.period)[1]+' Rankings')+'</h2><p>Ranked using Bobaks collected game-level data.</p></div><div class="updated">'+(state.next?'Next refresh '+new Date(state.next).toLocaleTimeString():'')+'</div></div><section class="rows">'+rows+'</section>'+footer()}
 async function openGame(id){state.view='detail';state.selected={gameId:String(id),loading:true};render();try{const [g,h,p,rh]=await Promise.all([api('/api/games/'+encodeURIComponent(id)),api('/api/games/'+encodeURIComponent(id)+'/history?days=365'),api('/api/games/'+encodeURIComponent(id)+'/peak'),api('/api/games/'+encodeURIComponent(id)+'/rank-history?days=31')]);state.selected={...(g.data||{}),gameId:String(id),history:h.data||[],peak:Number(p.data?.peakPlayers||0),peakAt:p.data?.peakAt||null,rankHistory:rh.data||[],loading:false}}catch{state.selected={gameId:String(id),loading:false};state.error='That game could not be loaded.'}render()}
@@ -43,7 +63,7 @@ function render(){nav();if(state.view==='detail'){$('app').innerHTML=detail();bi
 function bind(){const q=$('search');if(q){q.oninput=e=>{state.query=e.target.value;clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>search(state.query),250)}}document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.period=b.dataset.period;loadRankings()});const r=$('refresh');if(r)r.onclick=loadRankings;const back=$('back');if(back)back.onclick=()=>{state.view='home';state.selected=null;state.error='';render();loadRankings()};document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});document.querySelectorAll('[data-save]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.save);state.saved=state.saved.includes(id)?state.saved.filter(x=>x!==id):state.saved.length<25?[...state.saved,id]:state.saved;saveSaved();render()});document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.compare);state.compare=state.compare.includes(id)?state.compare.filter(x=>x!==id):state.compare.length<2?[...state.compare,id]:state.compare;render()});document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>share(b.dataset.share));document.querySelectorAll('[data-info]').forEach(b=>b.onclick=()=>{state.view='info';state.infoKey=b.dataset.info;render()})}
 async function share(id){try{const r=await api('/api/games/'+encodeURIComponent(id));const g=r.data||{};const rank=g.rankings?.live?.rank?'#'+g.rankings.live.rank:'Not ranked';const text='Bobaks Ranking · '+g.name+' · '+rank+' · '+fmt(g.currentPlayers)+' players';if(navigator.share)await navigator.share({title:'Bobaks Rank Card',text});else if(navigator.clipboard){await navigator.clipboard.writeText(text);state.error='Rank card text copied to clipboard.';render()}}catch{state.error='Sharing is unavailable right now.';render()}}
 $('homeBtn').onclick=()=>{state.view='home';state.selected=null;render();loadRankings()};$('rankNav').onclick=()=>{state.view='home';render();loadRankings()};$('savedNav').onclick=()=>{state.view='saved';render()};$('compareNav').onclick=()=>{state.view='compare';render()};
-loadSaved();render();loadRankings();setInterval(()=>{if(state.view==='home'||state.view==='detail')render()},1000);
+loadSaved();render();loadRankings();
 </script>
 </body>
 </html>
