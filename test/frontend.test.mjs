@@ -255,7 +255,7 @@ test("game rank cards embed a self-contained QR code linked to the Bobaks websit
   assert.match(html, /const qr=qrcode\(0,'M'\)/);
   assert.match(html, /qr\.addData\(text,'Byte'\)/);
   assert.ok(html.includes("drawCardQr(ctx,cardLink,945,1396,112,tier)"));
-  assert.match(html, /Scan the QR code to visit Bobaks Ranking/);
+  assert.ok(html.includes("SCAN TO VISIT BOBAKS"));
 });
 
 test("social helper buttons use custom neutral share icons and a consistent stacked layout", () => {
