@@ -473,76 +473,373 @@ html[data-theme="light"] .rank-toggle:hover{color:#14304D;border-color:var(--acc
 .rank-card-modal{
   position:fixed;inset:0;z-index:100;
   display:grid;place-items:center;
-  padding:18px;
-  background:rgba(2,7,14,.88);
-  backdrop-filter:blur(12px);
+  padding:16px;
+  background:
+    radial-gradient(circle at 50% 8%,rgba(1,158,251,.07),transparent 38%),
+    rgba(2,7,14,.9);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
 }
 .rank-card-dialog{
-  width:min(430px,100%);
-  max-height:94vh;
+  position:relative;
+  width:min(500px,100%);
+  max-height:calc(100dvh - 28px);
   overflow:auto;
   border:1px solid rgba(255,255,255,.12);
-  border-radius:18px;
-  background:#07111F;
-  box-shadow:0 28px 90px rgba(0,0,0,.55);
-  padding:14px;
+  border-radius:24px;
+  background:
+    linear-gradient(180deg,rgba(13,29,51,.96),rgba(6,15,27,.985));
+  box-shadow:
+    0 34px 110px rgba(0,0,0,.62),
+    0 0 0 1px rgba(1,158,251,.035);
+  padding:18px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(143,165,192,.25) transparent;
 }
+.rank-card-dialog::-webkit-scrollbar{width:8px}
+.rank-card-dialog::-webkit-scrollbar-track{background:transparent}
+.rank-card-dialog::-webkit-scrollbar-thumb{background:rgba(143,165,192,.2);border-radius:99px}
 .rank-card-dialog-head{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin-bottom:10px;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  margin-bottom:13px;
 }
+.rank-card-dialog-copy{min-width:0}
 .rank-card-dialog-title{
-  margin:0;font-family:Manrope,Inter,sans-serif;font-size:14px;
+  margin:0;
+  color:#F6FAFF;
+  font-family:Manrope,Inter,sans-serif;
+  font-size:11px;
+  font-weight:900;
+  line-height:1.2;
+  letter-spacing:.16em;
+  text-transform:uppercase;
 }
 .rank-card-dialog-sub{
-  margin:3px 0 0;color:#7F97B2;font-size:9px;
+  margin:6px 0 0;
+  color:#E7F1FC;
+  font-size:16px;
+  line-height:1.25;
+  font-weight:850;
+  letter-spacing:-.018em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.rank-card-live{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-top:7px;
+  color:#87A3BE;
+  font-size:9px;
+  line-height:1.2;
+  font-weight:750;
+}
+.rank-card-live-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#37D6A2;
+  box-shadow:0 0 0 4px rgba(55,214,162,.08),0 0 12px rgba(55,214,162,.22);
+  flex:none;
 }
 .rank-card-close{
-  border:1px solid var(--line);background:#0B1B31;color:#BFD2E7;
-  width:32px;height:32px;border-radius:9px;font-size:17px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.045);
+  color:#BFD2E7;
+  width:34px;height:34px;border-radius:10px;
+  font-size:18px;line-height:1;
+  flex:none;
+  transition:.18s ease;
+}
+.rank-card-close:hover{
+  color:#fff;
+  border-color:rgba(1,158,251,.4);
+  background:rgba(1,158,251,.08);
+  transform:translateY(-1px);
+}
+.rank-card-close:focus-visible{
+  outline:2px solid rgba(1,158,251,.75);
+  outline-offset:2px;
 }
 .rank-card-canvas-wrap{
-  padding:8px;border-radius:15px;
-  background:linear-gradient(145deg,#0B1A2D,#06101D);
-  border:1px solid var(--line);
+  position:relative;
+  isolation:isolate;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:260px;
+  padding:17px;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.09);
+  background:
+    radial-gradient(circle at 50% 28%,rgba(255,255,255,.035),transparent 44%),
+    linear-gradient(145deg,#0C1A2E,#05101C 68%,#07111F);
+  overflow:hidden;
 }
+.rank-card-canvas-wrap::before,
+.rank-card-canvas-wrap::after{
+  content:"";
+  position:absolute;
+  left:50%;top:50%;
+  transform:translate(-50%,-44%);
+  width:76%;height:62%;
+  border-radius:50%;
+  pointer-events:none;
+  z-index:-1;
+}
+.rank-card-canvas-wrap::before{
+  background:radial-gradient(circle,rgba(1,158,251,.18),transparent 68%);
+  filter:blur(24px);
+}
+.rank-card-canvas-wrap::after{
+  border:1px solid rgba(255,255,255,.045);
+  box-shadow:inset 0 0 50px rgba(255,255,255,.018);
+}
+.rank-card-canvas-wrap[data-tier="gold"]::before{background:radial-gradient(circle,rgba(244,201,93,.34),transparent 70%);filter:blur(28px)}
+.rank-card-canvas-wrap[data-tier="purple"]::before{background:radial-gradient(circle,rgba(191,167,255,.27),transparent 70%)}
+.rank-card-canvas-wrap[data-tier="blue"]::before{background:radial-gradient(circle,rgba(86,203,255,.24),transparent 70%)}
+.rank-card-canvas-wrap[data-tier="green"]::before{background:radial-gradient(circle,rgba(55,214,162,.2),transparent 70%)}
+.rank-card-canvas-wrap[data-tier="white"]::before{background:radial-gradient(circle,rgba(211,222,233,.17),transparent 70%)}
 .rank-card-canvas{
-  display:block;width:100%;height:auto;border-radius:10px;
+  position:relative;
+  z-index:2;
+  display:block;
+  width:min(100%,392px);
+  height:auto;
+  border-radius:13px;
   background:#06101D;
+  box-shadow:0 28px 52px rgba(0,0,0,.46),0 4px 18px rgba(0,0,0,.28);
 }
-.rank-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.rank-card-actions .btn{width:100%;justify-content:center}
-.rank-card-note{margin:9px 2px 1px;color:#738AA4;font-size:8px;line-height:1.5;text-align:center}
-.rank-card-share-status{
-  margin:9px 2px 0;padding:9px 10px;border:1px solid rgba(1,158,251,.18);
-  border-radius:9px;background:rgba(1,158,251,.045);color:#AFC3D9;
-  font-size:9px;line-height:1.45;text-align:center;display:none;
+.rank-card-canvas-wrap[data-tier="gold"] .rank-card-canvas{box-shadow:0 30px 62px rgba(0,0,0,.5),0 0 38px rgba(244,201,93,.12)}
+.rank-card-canvas-wrap[data-tier="purple"] .rank-card-canvas{box-shadow:0 28px 56px rgba(0,0,0,.48),0 0 34px rgba(191,167,255,.09)}
+.rank-card-canvas-wrap[data-tier="blue"] .rank-card-canvas{box-shadow:0 28px 56px rgba(0,0,0,.48),0 0 34px rgba(86,203,255,.08)}
+.rank-card-canvas-wrap[data-tier="green"] .rank-card-canvas{box-shadow:0 28px 56px rgba(0,0,0,.48),0 0 30px rgba(55,214,162,.08)}
+.rank-card-canvas-wrap[data-tier="white"] .rank-card-canvas{box-shadow:0 28px 56px rgba(0,0,0,.48),0 0 28px rgba(211,222,233,.06)}
+.rank-card-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-top:12px;
 }
-.rank-card-share-status.show{display:block}
-.rank-card-tools{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px;
+.rank-card-actions .btn{
+  width:100%;
+  min-height:48px;
+  justify-content:center;
+  border-radius:12px;
+  font-size:11px;
+  font-weight:850;
+  letter-spacing:.005em;
 }
-.rank-card-tools .btn{width:100%;justify-content:center;min-height:34px}
-.rank-card-tools-label{
-  margin-top:12px;color:#7890A8;font-size:8px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+.rank-card-actions .btn.primary{
+  box-shadow:0 12px 24px rgba(1,158,251,.2);
+}
+.rank-card-secondary{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin:10px 0 0;
+}
+.rank-card-secondary button{
+  border:0;
+  background:transparent;
+  color:#A7BCD2;
+  padding:3px 4px;
+  font-size:9px;
+  font-weight:800;
+  transition:.16s ease;
+}
+.rank-card-secondary button:hover{color:#fff}
+.rank-card-secondary button:focus-visible{outline:2px solid rgba(1,158,251,.65);outline-offset:2px;border-radius:5px}
+.rank-card-secondary-sep{color:#526A84;font-size:11px}
+.rank-card-section-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:20px;
+}
+.rank-card-section-title{
+  margin:0;
+  color:#F2F7FD;
+  font-family:Manrope,Inter,sans-serif;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+}
+.rank-card-section-sub{
+  margin:4px 0 0;
+  color:#7890A8;
+  font-size:9px;
+  line-height:1.45;
+}
+.rank-card-recommended{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+  padding:10px 11px;
+  border:1px solid rgba(244,201,93,.16);
+  border-radius:12px;
+  background:linear-gradient(135deg,rgba(244,201,93,.07),rgba(255,255,255,.025));
+}
+.rank-card-recommended-copy{
+  min-width:0;
+  color:#B8CADC;
+  font-size:9px;
+  line-height:1.45;
+}
+.rank-card-recommended-copy strong{
+  display:block;
+  margin-bottom:2px;
+  color:#F4C95D;
+  font-size:8px;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+.rank-card-recommended-action{
+  border:1px solid rgba(244,201,93,.28);
+  background:rgba(244,201,93,.08);
+  color:#FFE5A0;
+  border-radius:9px;
+  padding:8px 9px;
+  font-size:8px;
+  font-weight:850;
+  white-space:nowrap;
+  transition:.16s ease;
+}
+.rank-card-recommended-action:hover{
+  background:rgba(244,201,93,.13);
+  border-color:rgba(244,201,93,.4);
+  transform:translateY(-1px);
 }
 .rank-card-platform-grid{
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:7px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin-top:9px;
 }
-.rank-card-platform-grid .btn{padding:7px 5px;min-height:42px;flex-direction:column;gap:4px}
-.rank-card-platform-grid .btn small{font-size:7px;color:#7890A8}
-@media(max-width:420px){.rank-card-platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
+.rank-card-platform-grid .platform{
+  min-width:0;
+  min-height:82px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  padding:10px 6px;
+  border-radius:13px;
+  text-align:center;
+  overflow:hidden;
+}
+.rank-card-platform-grid .platform:hover{
+  transform:translateY(-2px);
+}
+.rank-card-platform-grid .platform strong{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#ECF3FB;
+  font-size:9px;
+  line-height:1.1;
+  font-weight:850;
+}
+.rank-card-platform-grid .platform small{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#7890A8;
+  font-size:7px;
+  line-height:1.1;
+  font-weight:750;
+}
+.platform-icon{
+  width:29px;height:29px;
+  display:grid;place-items:center;
+  border-radius:9px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:#AFC4D9;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.platform-icon svg{width:15px;height:15px;display:block}
+[data-platform="messenger"]{background:linear-gradient(145deg,rgba(67,144,255,.11),rgba(255,255,255,.025));border-color:rgba(67,144,255,.18)}
+[data-platform="messenger"] .platform-icon{color:#6DAAFF;background:rgba(67,144,255,.12);border-color:rgba(67,144,255,.2)}
+[data-platform="instagram"]{background:linear-gradient(145deg,rgba(236,72,153,.1),rgba(122,75,255,.08) 55%,rgba(255,255,255,.025));border-color:rgba(194,92,219,.18)}
+[data-platform="instagram"] .platform-icon{color:#EAA3FF;background:linear-gradient(145deg,rgba(236,72,153,.12),rgba(122,75,255,.1));border-color:rgba(218,115,235,.2)}
+[data-platform="tiktok"]{background:linear-gradient(145deg,rgba(62,238,255,.08),rgba(255,75,110,.065),rgba(255,255,255,.025));border-color:rgba(116,220,232,.16)}
+[data-platform="tiktok"] .platform-icon{color:#B9FFFF;background:linear-gradient(135deg,rgba(62,238,255,.11),rgba(255,75,110,.09));border-color:rgba(116,220,232,.19)}
+[data-platform="whatsapp"]{background:linear-gradient(145deg,rgba(74,222,128,.095),rgba(255,255,255,.025));border-color:rgba(74,222,128,.17)}
+[data-platform="whatsapp"] .platform-icon{color:#73E8A4;background:rgba(74,222,128,.11);border-color:rgba(74,222,128,.2)}
+[data-platform="facebook"]{background:linear-gradient(145deg,rgba(59,130,246,.1),rgba(255,255,255,.025));border-color:rgba(59,130,246,.17)}
+[data-platform="facebook"] .platform-icon{color:#83B8FF;background:rgba(59,130,246,.11);border-color:rgba(59,130,246,.2)}
+[data-platform="x"]{background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.02));border-color:rgba(255,255,255,.11)}
+[data-platform="x"] .platform-icon{color:#F6FAFF;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.13)}
+[data-platform="discord"]{background:linear-gradient(145deg,rgba(139,92,246,.1),rgba(255,255,255,.025));border-color:rgba(139,92,246,.17)}
+[data-platform="discord"] .platform-icon{color:#B89DFF;background:rgba(139,92,246,.11);border-color:rgba(139,92,246,.2)}
+[data-platform="native"]{background:linear-gradient(145deg,rgba(1,158,251,.075),rgba(255,255,255,.025));border-color:rgba(1,158,251,.16)}
+[data-platform="native"] .platform-icon{color:#86D4FF;background:rgba(1,158,251,.1);border-color:rgba(1,158,251,.19)}
+.rank-card-share-status{
+  margin:10px 1px 0;
+  padding:9px 10px;
+  border:1px solid rgba(1,158,251,.18);
+  border-radius:10px;
+  background:rgba(1,158,251,.045);
+  color:#AFC3D9;
+  font-size:9px;
+  line-height:1.5;
+  text-align:center;
+  display:none;
+}
+.rank-card-share-status.show{display:block}
+.rank-card-note{
+  margin:8px 1px 0;
+  color:#5F7590;
+  font-size:7px;
+  line-height:1.45;
+  text-align:center;
+}
 .rank-card-generating{
-  display:grid;place-items:center;min-height:240px;
-  color:#9CB2C9;font-size:11px;gap:7px;
+  display:grid;place-items:center;
+  min-height:240px;
+  color:#9CB2C9;
+  font-size:11px;
+  gap:8px;
 }
 .rank-card-generating .spinner{
-  width:24px;height:24px;border:2px solid rgba(1,158,251,.2);
-  border-top-color:var(--accent);border-radius:50%;animation:rankSpin .8s linear infinite;
+  width:24px;height:24px;
+  border:2px solid rgba(1,158,251,.2);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:rankSpin .8s linear infinite;
 }
 @keyframes rankSpin{to{transform:rotate(360deg)}}
-
+@media(max-width:620px){
+  .rank-card-modal{padding:8px}
+  .rank-card-dialog{
+    width:100%;
+    max-height:calc(100dvh - 16px);
+    border-radius:19px;
+    padding:14px;
+  }
+  .rank-card-dialog-sub{font-size:15px}
+  .rank-card-canvas-wrap{padding:12px;border-radius:17px}
+  .rank-card-canvas{width:min(100%,345px)}
+  .rank-card-actions{grid-template-columns:1fr}
+  .rank-card-actions .btn{min-height:50px}
+  .rank-card-secondary{margin-top:9px}
+  .rank-card-section-head{margin-top:18px}
+  .rank-card-section-title{font-size:10px}
+  .rank-card-recommended{grid-template-columns:1fr}
+  .rank-card-recommended-action{justify-self:start}
+  .rank-card-platform-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .rank-card-platform-grid .platform{min-height:80px}
+}
 @media(max-width:1040px){
   .dashboard{grid-template-columns:1fr}
   .side-stack{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -1407,7 +1704,7 @@ async function share(id){
 
     modal=document.createElement('div');
     modal.className='rank-card-modal';
-    modal.innerHTML='<div class="rank-card-dialog" role="dialog" aria-modal="true" aria-label="Bobaks Game Rank Card"><div class="rank-card-dialog-head"><div><h2 class="rank-card-dialog-title">Your Bobaks Game Rank Card</h2><p class="rank-card-dialog-sub">Data-driven from the current Bobaks ranking</p></div><button class="rank-card-close" aria-label="Close">×</button></div><div class="rank-card-canvas-wrap"><div class="rank-card-generating"><span class="spinner"></span><span>Generating your card…</span></div></div></div>';
+    modal.innerHTML='<div class="rank-card-dialog" role="dialog" aria-modal="true" aria-label="Your Bobaks Game Rank Card"><div class="rank-card-dialog-head"><div class="rank-card-dialog-copy"><h2 class="rank-card-dialog-title">Your Game Rank Card</h2><p class="rank-card-dialog-sub" data-rank-context>Preparing your card…</p><span class="rank-card-live"><span class="rank-card-live-dot"></span>Live Bobaks data</span></div><button class="rank-card-close" aria-label="Close">×</button></div><div class="rank-card-canvas-wrap"><div class="rank-card-generating"><span class="spinner"></span><span>Generating your card…</span></div></div></div>';
     document.body.appendChild(modal);
 
     const result=await generateRankCard(g);
@@ -1450,20 +1747,39 @@ async function share(id){
     modal.querySelector('.rank-card-close').onclick=()=>{stop();closeRankCardModal()};
     modal.addEventListener('click',e=>{if(e.target===modal){stop();closeRankCardModal()}});
 
+    const rankHeader=(()=>{
+      const rank=result.rank;
+      if(!rank)return 'Discovered';
+      const mod100=rank%100;
+      const suffix=(mod100>=11&&mod100<=13)?'TH':({1:'ST',2:'ND',3:'RD'}[rank%10]||'TH');
+      return String(rank)+suffix;
+    })();
+
+    const rankContext=modal.querySelector('[data-rank-context]');
+    if(rankContext)rankContext.textContent=String(g.name||'Unknown game')+' · '+rankHeader;
+
+    wrap.dataset.tier=result.tier?.family||'blue';
+    if(result.tier?.accent)wrap.style.setProperty('--rank-accent',result.tier.accent);
+
     const actions=document.createElement('div');
     actions.className='rank-card-actions';
-    actions.innerHTML='<button class="btn primary" data-download>Download PNG</button><button class="btn" data-share>Share Card</button>';
+    actions.innerHTML='<button class="btn primary" data-download>↓ Download Card</button><button class="btn" data-share>↗ Share Card</button>';
     wrap.parentElement.appendChild(actions);
 
     const toolsBox=document.createElement('div');
-    toolsBox.className='rank-card-tools';
-    toolsBox.innerHTML='<button class="btn" data-copy-caption>Copy caption</button><button class="btn" data-copy-link>Copy link</button>';
+    toolsBox.className='rank-card-secondary';
+    toolsBox.innerHTML='<button type="button" data-copy-caption>Copy caption</button><span class="rank-card-secondary-sep" aria-hidden="true">·</span><button type="button" data-copy-link>Copy link</button>';
     wrap.parentElement.appendChild(toolsBox);
 
-    const label=document.createElement('div');
-    label.className='rank-card-tools-label';
-    label.textContent='Social share helpers';
-    wrap.parentElement.appendChild(label);
+    const sectionHead=document.createElement('div');
+    sectionHead.className='rank-card-section-head';
+    sectionHead.innerHTML='<div><h3 class="rank-card-section-title">Share your rank</h3><p class="rank-card-section-sub">Choose where to share</p></div>';
+    wrap.parentElement.appendChild(sectionHead);
+
+    const recommended=document.createElement('div');
+    recommended.className='rank-card-recommended';
+    recommended.innerHTML='<div class="rank-card-recommended-copy"><strong>Recommended</strong>Copy caption + share card for apps that separate the image and text.</div><button class="rank-card-recommended-action" type="button" data-recommended>Copy + share</button>';
+    wrap.parentElement.appendChild(recommended);
 
     const platforms=document.createElement('div');
     platforms.className='rank-card-platform-grid';
@@ -1476,12 +1792,12 @@ async function share(id){
       ['X','x','Prepare post'],
       ['Discord','discord','Prepare share'],
       ['More apps','native','Use share sheet']
-    ].map(([name,key,sub])=>'<button class="btn platform" data-platform="'+key+'"><span class="platform-icon">'+shareIconSvg(key)+'</span><strong>'+name+'</strong><small>'+sub+'</small></button>').join('');
+    ].map(([name,key,sub])=>'<button class="btn platform" type="button" data-platform="'+key+'"><span class="platform-icon">'+shareIconSvg(key)+'</span><strong>'+name+'</strong><small>'+sub+'</small></button>').join('');
     wrap.parentElement.appendChild(platforms);
 
     const note=document.createElement('div');
     note.className='rank-card-note';
-    note.textContent='Some apps accept an image and text together, while others may keep only the image. Bobaks prepares the caption and image separately so the user can post them together.';
+    note.textContent='Some apps may separate the image and caption. Bobaks keeps both ready for you.';
     wrap.parentElement.appendChild(note);
 
     const status=document.createElement('div');
@@ -1542,6 +1858,16 @@ async function share(id){
         await copyText(link);
         setStatus('Bobaks link copied. Paste it below your caption on any platform.');
       }catch{setStatus('Clipboard access is unavailable.')}
+    };
+
+    modal.querySelector('[data-recommended]').onclick=async()=>{
+      try{
+        await copyText(caption);
+        setStatus('Caption copied. Opening the share flow next…');
+        modal.querySelector('[data-share]').click();
+      }catch{
+        setStatus('Clipboard access is unavailable. Use Share Card instead.');
+      }
     };
 
     const preparePlatform=async key=>{
