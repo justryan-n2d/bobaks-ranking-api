@@ -1639,22 +1639,27 @@ function drawFrame(time=0,preview=true){
     ctx.fillStyle=rankChange==null?tier.accent2:rankChange>0?'#37D6A2':rankChange<0?'#FF7586':tier.accent2;
     ctx.font='900 25px Inter,system-ui,sans-serif';
     const movement=rankChange==null?(previousRank==null?'NEW ENTRY':'RANK'):(rankChange>0?'▲ '+rankChange+' RANK'+(rankChange===1?'':'S')+' UP':rankChange<0?'▼ '+Math.abs(rankChange)+' RANK'+(Math.abs(rankChange)===1?'':'S')+' DOWN':'NO RANK CHANGE');
-    ctx.fillText(movement,100,1384);
+    ctx.fillText(movement,100,1380);
 
     ctx.fillStyle='#EEF6FF';ctx.font='800 22px Inter,system-ui,sans-serif';
-    const msgLines=wrapLines(ctx,cardMessage({...g,isNewEntry:previousRank==null},rank),980,2);
-    msgLines.forEach((line,i)=>ctx.fillText(line,100,1423+i*30));
+    const msgLines=wrapLines(ctx,cardMessage({...g,isNewEntry:previousRank==null},rank),760,2);
+    msgLines.forEach((line,i)=>ctx.fillText(line,100,1418+i*29));
 
     const cardLink=location.origin;
-    drawCardQr(ctx,cardLink,930,1430,150,tier);
+
+    // Dedicated footer composition: keep the QR code in its own right-hand zone
+    // and keep the destination text comfortably above the inner card border.
+    drawCardQr(ctx,cardLink,945,1396,112,tier);
 
     ctx.fillStyle='#7A91A8';ctx.font='700 17px Inter,system-ui,sans-serif';
-    ctx.fillText('Track this game and discover more rankings at',100,1492);
+    ctx.fillText('Track this game on Bobaks Ranking',100,1502);
+
     ctx.fillStyle=tier.accent2;ctx.font='900 19px Inter,system-ui,sans-serif';
-    ctx.fillText(location.host,100,1524);
-    ctx.fillStyle='#6C849D';ctx.font='700 14px Inter,system-ui,sans-serif';
-    ctx.fillText('Scan the QR code to visit Bobaks Ranking',100,1555);
-    ctx.textAlign='right';ctx.fillText('BOBAKS · GAME RANK CARD',1080,1555);
+    ctx.fillText(location.host,100,1534);
+
+    ctx.textAlign='center';
+    ctx.fillStyle='#6C849D';ctx.font='800 12px Inter,system-ui,sans-serif';
+    ctx.fillText('SCAN TO VISIT BOBAKS',1001,1385);
     ctx.textAlign='left';
   }
 
