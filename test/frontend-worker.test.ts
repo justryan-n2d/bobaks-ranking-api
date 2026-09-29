@@ -116,6 +116,69 @@ test("sitemap lists the homepage and active game URLs", async () => {
   assert.ok(xml.includes("<lastmod>2026-09-29T00:00:00.000Z</lastmod>"));
 });
 
+test("ranking period routes return indexable landing pages", async () => {
+  const env = makeEnv([]);
+  const fakeFetch: typeof fetch = async input => {
+    const url = String(input);
+    if (url.endsWith("/api/rankings?period=week")) {
+      return response({
+        data: [
+          {
+            gameId: "42",
+            rank: 1,
+            score: 12345,
+            game: { name: "Example Experience", creatorName: "Example Studio" }
+          },
+          {
+            gameId: "99",
+            rank: 2,
+            score: 9876,
+            game: { name: "Second Experience", creatorName: "Second Studio" }
+          }
+        ]
+      });
+    }
+    throw new Error("Unexpected API request: " + url);
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/rankings/weekly"),
+    env,
+    fakeFetch
+  );
+  const html = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.match(html, /<title>This Week's Roblox Game Rankings \| Bobaks Ranking<\/title>/);
+  assert.ok(html.includes('rel="canonical" href="https://bobaks.example/rankings/weekly"'));
+  assert.ok(html.includes("Example Experience"));
+  assert.ok(html.includes("/game/42"));
+  assert.ok(html.includes('"@type":"ItemList"'));
+  assert.match(result.headers.get("cache-control") || "", /max-age=60/);
+});
+
+test("sitemap includes crawlable ranking period URLs", async () => {
+  const env = makeEnv([]);
+  const fakeFetch: typeof fetch = async input => {
+    const url = String(input);
+    if (url.endsWith("/api/games")) {
+      return response({ data: [] });
+    }
+    throw new Error("Unexpected API request: " + url);
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/sitemap.xml"),
+    env,
+    fakeFetch
+  );
+  const xml = await result.text();
+
+  assert.ok(xml.includes("https://bobaks.example/rankings/weekly"));
+  assert.ok(xml.includes("https://bobaks.example/rankings/monthly"));
+  assert.ok(xml.includes("https://bobaks.example/rankings/yearly"));
+});
+
 test("robots.txt exposes the sitemap and excludes API paths", async () => {
   const env = makeEnv([]);
   const result = await handleFrontendRequest(
