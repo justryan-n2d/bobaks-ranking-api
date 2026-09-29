@@ -206,7 +206,9 @@ test("analytics endpoint only accepts bounded allowlisted events", async () => {
         route: "/game/42",
         period: "live",
         gameId: "42",
-        channel: "rank_card"
+        channel: "rank_card",
+        visitorId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        sessionId: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       })
     }),
     env
@@ -215,9 +217,17 @@ test("analytics endpoint only accepts bounded allowlisted events", async () => {
   assert.equal(result.status, 204);
   assert.equal(points.length, 1);
   const point = points[0] as { blobs: string[]; doubles: number[]; indexes: string[] };
-  assert.deepEqual(point.blobs, ["watchlist_add", "/game/:id", "live", "42", "rank_card"]);
+  assert.deepEqual(point.blobs, [
+    "watchlist_add",
+    "/game/:id",
+    "live",
+    "42",
+    "rank_card",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  ]);
   assert.deepEqual(point.doubles, [1]);
-  assert.deepEqual(point.indexes, ["watchlist_add"]);
+  assert.deepEqual(point.indexes, ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
 
   const invalid = await handleFrontendRequest(
     new Request("https://bobaks.example/analytics", {
@@ -231,7 +241,34 @@ test("analytics endpoint only accepts bounded allowlisted events", async () => {
 });
 
 
-test("community route returns an indexable hub with configurable Discord and public contact paths", async () => {
+
+
+test("analytics endpoint drops malformed visitor and session identifiers", async () => {
+  const points: unknown[] = [];
+  const env = makeEnv(points);
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/analytics", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        event: "page_view",
+        route: "/",
+        visitorId: "not-a-valid-id",
+        sessionId: "also-invalid"
+      })
+    }),
+    env
+  );
+
+  assert.equal(result.status, 204);
+  assert.equal(points.length, 1);
+  const point = points[0] as { blobs: string[]; indexes: string[] };
+  assert.equal(point.blobs[5], "");
+  assert.equal(point.blobs[6], "");
+  assert.deepEqual(point.indexes, ["page_view"]);
+});
+\ntest("community route returns an indexable hub with configurable Discord and public contact paths", async () => {
   const env = { ...makeEnv([]), DISCORD_INVITE_URL: "https://discord.gg/example" };
   const result = await handleFrontendRequest(
     new Request("https://bobaks.example/community"),
