@@ -4,10 +4,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 const frontendPath = path.resolve("frontend/index.html");
+const returnLoopsPath = path.resolve("frontend/return-loops.js");
 
 function readHtml() {
   assert.ok(fs.existsSync(frontendPath));
   return fs.readFileSync(frontendPath, "utf8");
+}
+
+function readReturnLoops() {
+  assert.ok(fs.existsSync(returnLoopsPath));
+  return fs.readFileSync(returnLoopsPath, "utf8");
 }
 
 test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
@@ -349,19 +355,20 @@ test("frontend Community navigation uses a real route link so server configurati
 
 test("Phase 6.4 return-loop module is wired into the SPA and keeps watchlist alerts local", () => {
   const html = readHtml();
+  const module = readReturnLoops();
   assert.match(html, /window\.__BOBAKS_API__=API/);
   assert.match(html, /<script type="module" src="\/return-loops\.js"><\/script>/);
-  assert.match(html, /bobaks\.return\.alert-preferences/);
-  assert.match(html, /bobaks\.return\.observations/);
-  assert.match(html, /bobaks\.return\.peaks/);
-  assert.match(html, /bobaks\.return\.alert-feed/);
-  assert.match(html, /data-return-alert/);
-  assert.match(html, /Historical Milestones/);
-  assert.match(html, /DAILY RANKINGS/);
-  assert.match(html, /WEEKLY CHANGES/);
-  assert.match(html, /BIGGEST MOVERS/);
-  assert.match(html, /NEW PEAKS/);
-  assert.match(html, /WATCHLIST/);
+  assert.match(module, /bobaks\.return\.alert-preferences/);
+  assert.match(module, /bobaks\.return\.observations/);
+  assert.match(module, /bobaks\.return\.peaks/);
+  assert.match(module, /bobaks\.return\.alert-feed/);
+  assert.match(module, /data-return-alert/);
+  assert.match(module, /Historical Milestones/);
+  assert.match(module, /DAILY RANKINGS/);
+  assert.match(module, /WEEKLY CHANGES/);
+  assert.match(module, /BIGGEST MOVERS/);
+  assert.match(module, /NEW PEAKS/);
+  assert.match(module, /WATCHLIST/);
 });
 
 test("game detail exposes the selected game to the return-loop module without changing ranking routes", () => {
