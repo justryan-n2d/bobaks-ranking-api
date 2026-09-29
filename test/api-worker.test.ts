@@ -225,6 +225,36 @@ test("game, history, peak, and search endpoints return data", async () => {
   assert.ok(calls.some(call => call.url.includes("name=ilike")));
 });
 
+
+test("long history reports snapshot resolution when no daily summaries exist", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fallback = makeFetch(calls);
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("/rest/v1/DailyGameStat?")) {
+      calls.push({ url, headers: new Headers(init?.headers) });
+      return response([]);
+    }
+    return fallback(input, init);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/games/1/history?days=365"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as {
+    resolution: string;
+    data: Array<{ resolution: string }>;
+  };
+
+  assert.equal(result.status, 200);
+  assert.equal(body.resolution, "snapshot");
+  assert.equal(body.data.length, 1);
+  assert.equal(body.data[0].resolution, "snapshot");
+});
+
+
 test("invalid inputs are rejected before database access", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const fetchImpl = makeFetch(calls);
