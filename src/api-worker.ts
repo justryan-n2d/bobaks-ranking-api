@@ -612,18 +612,43 @@ async function searchGames(
   q: string,
   fetchImpl: FetchLike
 ): Promise<JsonRow[]> {
-  return supabaseGet(
-    env,
-    "Game",
-    {
-      select: gameSelect(),
-      isActive: "eq.true",
-      name: `ilike.*${q}*`,
-      order: "name.asc",
-      limit: "50"
-    },
-    fetchImpl
-  );
+  const [nameMatches, creatorMatches] = await Promise.all([
+    supabaseGet(
+      env,
+      "Game",
+      {
+        select: gameSelect(),
+        isActive: "eq.true",
+        name: `ilike.*${q}*`,
+        order: "name.asc",
+        limit: "50"
+      },
+      fetchImpl
+    ),
+    supabaseGet(
+      env,
+      "Game",
+      {
+        select: gameSelect(),
+        isActive: "eq.true",
+        creatorName: `ilike.*${q}*`,
+        order: "name.asc",
+        limit: "50"
+      },
+      fetchImpl
+    )
+  ]);
+
+  const byId = new Map<string, JsonRow>();
+  for (const row of [...nameMatches, ...creatorMatches]) {
+    if (row.id != null) byId.set(String(row.id), row);
+  }
+
+  return [...byId.values()]
+    .sort((a, b) =>
+      String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" })
+    )
+    .slice(0, 50);
 }
 
 async function getRankingAudit(
