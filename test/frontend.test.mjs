@@ -132,7 +132,7 @@ test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
   const html = readHtml();
 
   assert.match(html, /Keep your crown shining/);
-  assert.match(html, /charging up the leaderboard/);
+  assert.match(html, /flying up the leaderboard/);
   assert.match(html, /Track this game and discover more rankings at/);
   assert.match(html, /location\.host/);
 });
