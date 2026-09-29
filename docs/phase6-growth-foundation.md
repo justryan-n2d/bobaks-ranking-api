@@ -48,7 +48,7 @@ The implementation does not intentionally send player names, Roblox account IDs,
 ## Still pending in Phase 6
 
 These items should be implemented as separate, evidence-backed follow-up work:
-- actual scheduled publishing to supported social platforms using explicitly configured credentials
+- actual third-party publishing to supported social platforms using explicitly configured credentials
 - community/Discord integration
 - game alerts and milestone notifications
 - richer return-loop surfaces for daily/weekly movers and new peaks
@@ -74,4 +74,11 @@ The API exposes a read-only automation seam:
 - The endpoint uses existing Ranking and GamePeak data only.
 - The endpoint does not publish to external social platforms or store third-party credentials.
 
-The social feed is intended to be the stable input for a future scheduled publisher or content workflow.
+The social feed is now consumed by a scheduled GitHub Actions content-generation workflow. The generated Top 10, Trending, and Peak Records text files are uploaded as a short-lived artifact for downstream publishing workflows.
+
+Actual third-party publishing remains separate so Bobaks can add platform-specific credentials and permissions deliberately.
+
+
+## Phase 6.2 scheduled content generation
+
+The repository now has `.github/workflows/social-content-generation.yml`, which runs daily at 00:30 UTC and can also be started manually. It fetches all four ranking periods from `/api/social/feed`, generates Top 10 and Trending post files plus a Peak Records file, and uploads them as the `bobaks-social-content` artifact with 14-day retention.
