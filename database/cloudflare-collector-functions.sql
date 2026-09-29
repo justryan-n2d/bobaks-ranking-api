@@ -128,36 +128,36 @@ BEGIN
 
   -- Live: every ranked row must match the latest qualifying snapshot and
   -- that snapshot must be no older than 15 minutes at the ranking timestamp.
+  -- Use one indexed lookup per ranked game instead of sorting the entire snapshot table.
   WITH calc AS (
     SELECT min("calculatedAt") AS calculated_at
     FROM public."Ranking"
     WHERE "period" = 'live'
-  ),
-  latest AS (
-    SELECT DISTINCT ON (s."gameId")
-      s."gameId",
-      s."playerCount",
-      s."timestamp"
-    FROM public."GameSnapshot" s
-    LEFT JOIN public."DataCollectionLog" l
-      ON l."collectionRunId" = s."collectionRunId"
-    CROSS JOIN calc
-    WHERE s."timestamp" <= calc.calculated_at
-      AND (
-        s."collectionRunId" IS NULL
-        OR l."status" IN ('success', 'partial')
-      )
-    ORDER BY s."gameId", s."timestamp" DESC, s."id" DESC
   )
   SELECT count(*)
   INTO v_bad
   FROM public."Ranking" r
   JOIN public."Game" g ON g."id" = r."gameId"
-  LEFT JOIN latest s ON s."gameId" = r."gameId"
   CROSS JOIN calc
+  LEFT JOIN LATERAL (
+    SELECT
+      s."playerCount",
+      s."timestamp"
+    FROM public."GameSnapshot" s
+    LEFT JOIN public."DataCollectionLog" l
+      ON l."collectionRunId" = s."collectionRunId"
+    WHERE s."gameId" = r."gameId"
+      AND s."timestamp" <= calc.calculated_at
+      AND (
+        s."collectionRunId" IS NULL
+        OR l."status" IN ('success', 'partial')
+      )
+    ORDER BY s."timestamp" DESC, s."id" DESC
+    LIMIT 1
+  ) s ON true
   WHERE r."period" = 'live'
     AND (
-      s."gameId" IS NULL
+      s."timestamp" IS NULL
       OR s."timestamp" < calc.calculated_at - interval '15 minutes'
       OR s."playerCount"::double precision <> r."score"
       OR g."isActive" IS DISTINCT FROM true
@@ -167,127 +167,113 @@ BEGIN
     RAISE EXCEPTION 'Ranking integrity failed: live has % invalid rows', v_bad;
   END IF;
 
-  -- Weekly: verify score, 12-sample minimum, and 50% coverage for every
-  -- persisted ranked game.
+  -- Weekly and monthly integrity checks share one current-period scan.
+  -- The lower bound includes a week that crosses a UTC month boundary.
   WITH calc AS (
     SELECT min("calculatedAt") AS calculated_at
     FROM public."Ranking"
-    WHERE "period" = 'weekly'
   ),
   bounds AS (
     SELECT
-      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS period_start,
-      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '7 days' AS period_end,
+      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS week_start,
+      date_trunc('week', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '7 days' AS week_end,
+      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS month_start,
+      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '1 month' AS month_end,
       calculated_at
     FROM calc
   ),
   opportunities AS (
-    SELECT count(*) AS opportunity_count
+    SELECT
+      count(*) FILTER (
+        WHERE l."startedAt" >= b.week_start
+          AND l."startedAt" < b.week_end
+      ) AS weekly_opportunity_count,
+      count(*) FILTER (
+        WHERE l."startedAt" >= b.month_start
+          AND l."startedAt" < b.month_end
+      ) AS monthly_opportunity_count
     FROM public."DataCollectionLog" l
     CROSS JOIN bounds b
     WHERE l."status" IN ('success', 'partial')
-      AND l."startedAt" >= b.period_start
-      AND l."startedAt" < b.period_end
       AND l."startedAt" <= b.calculated_at
+      AND l."startedAt" >= LEAST(b.week_start, b.month_start)
   ),
-  samples AS (
+  current_month_samples AS MATERIALIZED (
     SELECT
       s."gameId",
-      avg(s."playerCount")::double precision AS score,
-      count(*)::bigint AS sample_count
+      avg(s."playerCount") FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= b.week_start
+          AND COALESCE(l."startedAt", s."timestamp") < b.week_end
+          AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
+      )::double precision AS weekly_score,
+      count(*) FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= b.week_start
+          AND COALESCE(l."startedAt", s."timestamp") < b.week_end
+          AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
+      )::bigint AS weekly_sample_count,
+      avg(s."playerCount") FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= b.month_start
+          AND COALESCE(l."startedAt", s."timestamp") < b.month_end
+          AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
+      )::double precision AS monthly_score,
+      count(*) FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= b.month_start
+          AND COALESCE(l."startedAt", s."timestamp") < b.month_end
+          AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
+      )::bigint AS monthly_sample_count
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
     CROSS JOIN bounds b
-    WHERE COALESCE(l."startedAt", s."timestamp") >= b.period_start
-      AND COALESCE(l."startedAt", s."timestamp") < b.period_end
+    WHERE COALESCE(l."startedAt", s."timestamp") >= LEAST(b.week_start, b.month_start)
       AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
       AND (
         s."collectionRunId" IS NULL
         OR l."status" IN ('success', 'partial')
       )
     GROUP BY s."gameId"
-  )
-  SELECT count(*)
-  INTO v_bad
-  FROM public."Ranking" r
-  LEFT JOIN samples s ON s."gameId" = r."gameId"
-  CROSS JOIN opportunities o
-  WHERE r."period" = 'weekly'
-    AND (
-      s."gameId" IS NULL
-      OR s.sample_count < 12
-      OR o.opportunity_count = 0
-      OR least(
-        s.sample_count::numeric / o.opportunity_count::numeric,
-        1.0
-      ) < 0.50
-      OR s.score <> r."score"
-    );
-
-  IF v_bad > 0 THEN
-    RAISE EXCEPTION 'Ranking integrity failed: weekly has % invalid rows', v_bad;
-  END IF;
-
-  -- Monthly: same score and eligibility checks for the current UTC month.
-  WITH calc AS (
-    SELECT min("calculatedAt") AS calculated_at
-    FROM public."Ranking"
-    WHERE "period" = 'monthly'
   ),
-  bounds AS (
-    SELECT
-      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS period_start,
-      date_trunc('month', calculated_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + interval '1 month' AS period_end,
-      calculated_at
-    FROM calc
-  ),
-  opportunities AS (
-    SELECT count(*) AS opportunity_count
-    FROM public."DataCollectionLog" l
-    CROSS JOIN bounds b
-    WHERE l."status" IN ('success', 'partial')
-      AND l."startedAt" >= b.period_start
-      AND l."startedAt" < b.period_end
-      AND l."startedAt" <= b.calculated_at
-  ),
-  samples AS (
-    SELECT
-      s."gameId",
-      avg(s."playerCount")::double precision AS score,
-      count(*)::bigint AS sample_count
-    FROM public."GameSnapshot" s
-    LEFT JOIN public."DataCollectionLog" l
-      ON l."collectionRunId" = s."collectionRunId"
-    CROSS JOIN bounds b
-    WHERE COALESCE(l."startedAt", s."timestamp") >= b.period_start
-      AND COALESCE(l."startedAt", s."timestamp") < b.period_end
-      AND COALESCE(l."startedAt", s."timestamp") <= b.calculated_at
+  weekly_bad AS (
+    SELECT count(*)::bigint AS invalid_rows
+    FROM public."Ranking" r
+    LEFT JOIN current_month_samples s ON s."gameId" = r."gameId"
+    CROSS JOIN opportunities o
+    WHERE r."period" = 'weekly'
       AND (
-        s."collectionRunId" IS NULL
-        OR l."status" IN ('success', 'partial')
+        s."gameId" IS NULL
+        OR s.weekly_sample_count < 12
+        OR o.weekly_opportunity_count = 0
+        OR LEAST(
+          s.weekly_sample_count::numeric / o.weekly_opportunity_count::numeric,
+          1.0
+        ) < 0.50
+        OR s.weekly_score <> r."score"
       )
-    GROUP BY s."gameId"
+  ),
+  monthly_bad AS (
+    SELECT count(*)::bigint AS invalid_rows
+    FROM public."Ranking" r
+    LEFT JOIN current_month_samples s ON s."gameId" = r."gameId"
+    CROSS JOIN opportunities o
+    WHERE r."period" = 'monthly'
+      AND (
+        s."gameId" IS NULL
+        OR s.monthly_sample_count < 12
+        OR o.monthly_opportunity_count = 0
+        OR LEAST(
+          s.monthly_sample_count::numeric / o.monthly_opportunity_count::numeric,
+          1.0
+        ) < 0.50
+        OR s.monthly_score <> r."score"
+      )
   )
-  SELECT count(*)
+  SELECT weekly_bad.invalid_rows + monthly_bad.invalid_rows
   INTO v_bad
-  FROM public."Ranking" r
-  LEFT JOIN samples s ON s."gameId" = r."gameId"
-  CROSS JOIN opportunities o
-  WHERE r."period" = 'monthly'
-    AND (
-      s."gameId" IS NULL
-      OR s.sample_count < 12
-      OR o.opportunity_count = 0
-      OR least(
-        s.sample_count::numeric / o.opportunity_count::numeric,
-        1.0
-      ) < 0.50
-      OR s.score <> r."score"
-    );
+  FROM weekly_bad
+  CROSS JOIN monthly_bad;
 
   IF v_bad > 0 THEN
-    RAISE EXCEPTION 'Ranking integrity failed: monthly has % invalid rows', v_bad;
+    RAISE EXCEPTION 'Ranking integrity failed: weekly or monthly has % invalid rows', v_bad;
   END IF;
 
   -- Yearly: verify each ranked score against the same weighted-average
@@ -424,22 +410,8 @@ BEGIN
   DELETE FROM public."Ranking"
   WHERE "period" IN ('live', 'weekly', 'monthly', 'yearly');
 
-  WITH latest AS (
-    SELECT DISTINCT ON (s."gameId")
-      s."gameId",
-      s."playerCount",
-      s."timestamp"
-    FROM public."GameSnapshot" s
-    LEFT JOIN public."DataCollectionLog" l
-      ON l."collectionRunId" = s."collectionRunId"
-    WHERE s."timestamp" <= calculated_at
-      AND (
-        s."collectionRunId" IS NULL
-        OR l."status" IN ('success', 'partial')
-      )
-    ORDER BY s."gameId", s."timestamp" DESC, s."id" DESC
-  ),
-  ranked AS (
+  -- Live ranking uses one indexed latest-snapshot lookup per active game.
+  WITH ranked AS (
     SELECT
       g."id" AS "gameId",
       latest."playerCount"::double precision AS score,
@@ -447,7 +419,22 @@ BEGIN
         ORDER BY latest."playerCount" DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    INNER JOIN latest ON latest."gameId" = g."id"
+    LEFT JOIN LATERAL (
+      SELECT
+        s."playerCount",
+        s."timestamp"
+      FROM public."GameSnapshot" s
+      LEFT JOIN public."DataCollectionLog" l
+        ON l."collectionRunId" = s."collectionRunId"
+      WHERE s."gameId" = g."id"
+        AND s."timestamp" <= calculated_at
+        AND (
+          s."collectionRunId" IS NULL
+          OR l."status" IN ('success', 'partial')
+        )
+      ORDER BY s."timestamp" DESC, s."id" DESC
+      LIMIT 1
+    ) latest ON true
     WHERE g."isActive" = true
       AND latest."timestamp" >= calculated_at - interval '15 minutes'
   )
@@ -472,18 +459,31 @@ BEGIN
       active_game_count;
   END IF;
 
-  -- Weekly ranking = current UTC calendar week, Monday through Sunday.
-  -- Eligibility requires at least 12 observations and 50% coverage.
-  WITH averages AS (
+  -- Weekly and monthly rankings share one current-period snapshot scan.
+  -- The lower bound includes a week that crosses a UTC month boundary.
+  WITH current_period_samples AS MATERIALIZED (
     SELECT
       s."gameId",
-      AVG(s."playerCount")::double precision AS score,
-      COUNT(*)::bigint AS sample_count
+      AVG(s."playerCount") FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= current_week_start
+          AND COALESCE(l."startedAt", s."timestamp") < next_week_start
+      )::double precision AS weekly_score,
+      COUNT(*) FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= current_week_start
+          AND COALESCE(l."startedAt", s."timestamp") < next_week_start
+      )::bigint AS weekly_sample_count,
+      AVG(s."playerCount") FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= current_month_start
+          AND COALESCE(l."startedAt", s."timestamp") < next_month_start
+      )::double precision AS monthly_score,
+      COUNT(*) FILTER (
+        WHERE COALESCE(l."startedAt", s."timestamp") >= current_month_start
+          AND COALESCE(l."startedAt", s."timestamp") < next_month_start
+      )::bigint AS monthly_sample_count
     FROM public."GameSnapshot" s
     LEFT JOIN public."DataCollectionLog" l
       ON l."collectionRunId" = s."collectionRunId"
-    WHERE COALESCE(l."startedAt", s."timestamp") >= current_week_start
-      AND COALESCE(l."startedAt", s."timestamp") < next_week_start
+    WHERE COALESCE(l."startedAt", s."timestamp") >= LEAST(current_week_start, current_month_start)
       AND COALESCE(l."startedAt", s."timestamp") <= calculated_at
       AND (
         s."collectionRunId" IS NULL
@@ -491,79 +491,47 @@ BEGIN
       )
     GROUP BY s."gameId"
   ),
-  eligible AS (
+  weekly_ranked AS (
     SELECT
-      "gameId",
-      score
-    FROM averages
-    WHERE sample_count >= 12
+      g."id" AS "gameId",
+      cps.weekly_score AS score,
+      ROW_NUMBER() OVER (
+        ORDER BY cps.weekly_score DESC, g."id" ASC
+      ) AS rank
+    FROM public."Game" g
+    INNER JOIN current_period_samples cps ON cps."gameId" = g."id"
+    WHERE g."isActive" = true
+      AND cps.weekly_sample_count >= 12
       AND weekly_collection_opportunities > 0
       AND LEAST(
-        sample_count::numeric / weekly_collection_opportunities::numeric,
+        cps.weekly_sample_count::numeric / weekly_collection_opportunities::numeric,
         1.0
       ) >= 0.50
   ),
-  ranked AS (
+  monthly_ranked AS (
     SELECT
       g."id" AS "gameId",
-      eligible.score AS score,
+      cps.monthly_score AS score,
       ROW_NUMBER() OVER (
-        ORDER BY eligible.score DESC, g."id" ASC
+        ORDER BY cps.monthly_score DESC, g."id" ASC
       ) AS rank
     FROM public."Game" g
-    INNER JOIN eligible ON eligible."gameId" = g."id"
+    INNER JOIN current_period_samples cps ON cps."gameId" = g."id"
     WHERE g."isActive" = true
+      AND cps.monthly_sample_count >= 12
+      AND monthly_collection_opportunities > 0
+      AND LEAST(
+        cps.monthly_sample_count::numeric / monthly_collection_opportunities::numeric,
+        1.0
+      ) >= 0.50
   )
   INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
   SELECT "gameId", 'weekly', rank::integer, score, calculated_at
-  FROM ranked
-  WHERE rank <= 100;
-
-  -- Monthly ranking = current UTC calendar month.
-  -- Eligibility requires at least 12 observations and 50% coverage.
-  WITH averages AS (
-    SELECT
-      s."gameId",
-      AVG(s."playerCount")::double precision AS score,
-      COUNT(*)::bigint AS sample_count
-    FROM public."GameSnapshot" s
-    LEFT JOIN public."DataCollectionLog" l
-      ON l."collectionRunId" = s."collectionRunId"
-    WHERE COALESCE(l."startedAt", s."timestamp") >= current_month_start
-      AND COALESCE(l."startedAt", s."timestamp") < next_month_start
-      AND COALESCE(l."startedAt", s."timestamp") <= calculated_at
-      AND (
-        s."collectionRunId" IS NULL
-        OR l."status" IN ('success', 'partial')
-      )
-    GROUP BY s."gameId"
-  ),
-  eligible AS (
-    SELECT
-      "gameId",
-      score
-    FROM averages
-    WHERE sample_count >= 12
-      AND monthly_collection_opportunities > 0
-      AND LEAST(
-        sample_count::numeric / monthly_collection_opportunities::numeric,
-        1.0
-      ) >= 0.50
-  ),
-  ranked AS (
-    SELECT
-      g."id" AS "gameId",
-      eligible.score AS score,
-      ROW_NUMBER() OVER (
-        ORDER BY eligible.score DESC, g."id" ASC
-      ) AS rank
-    FROM public."Game" g
-    INNER JOIN eligible ON eligible."gameId" = g."id"
-    WHERE g."isActive" = true
-  )
-  INSERT INTO public."Ranking" ("gameId", "period", "rank", "score", "calculatedAt")
+  FROM weekly_ranked
+  WHERE rank <= 100
+  UNION ALL
   SELECT "gameId", 'monthly', rank::integer, score, calculated_at
-  FROM ranked
+  FROM monthly_ranked
   WHERE rank <= 100;
 
   /*
