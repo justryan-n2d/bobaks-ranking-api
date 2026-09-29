@@ -346,3 +346,29 @@ test("frontend Community navigation uses a real route link so server configurati
   assert.match(html, /<a id="communityNav"[^>]*href="\/community"[^>]*>Community<\/a>/);
   assert.doesNotMatch(html, /communityNav\.onclick=\(\)=>goCommunity\(\)/);
 });
+
+test("Phase 6.4 return-loop module is wired into the SPA and keeps watchlist alerts local", () => {
+  const html = readHtml();
+  assert.match(html, /window\.__BOBAKS_API__=API/);
+  assert.match(html, /<script type="module" src="\/return-loops\.js"><\/script>/);
+  assert.match(html, /bobaks\.return\.alert-preferences/);
+  assert.match(html, /bobaks\.return\.observations/);
+  assert.match(html, /bobaks\.return\.peaks/);
+  assert.match(html, /bobaks\.return\.alert-feed/);
+  assert.match(html, /data-return-alert/);
+  assert.match(html, /Historical Milestones/);
+  assert.match(html, /DAILY RANKINGS/);
+  assert.match(html, /WEEKLY CHANGES/);
+  assert.match(html, /BIGGEST MOVERS/);
+  assert.match(html, /NEW PEAKS/);
+  assert.match(html, /WATCHLIST/);
+});
+
+test("game detail exposes the selected game to the return-loop module without changing ranking routes", () => {
+  const html = readHtml();
+  assert.match(html, /window\.__BOBAKS_SELECTED_GAME__=state\.selected/);
+  assert.match(html, /function openGame\(id,\{push=true\}=\{\}\)/);
+  assert.match(html, /\/api\/games\/\+'\+encodeURIComponent\(gameId\)\+'\+\/history\?days=365/);
+  assert.match(html, /\/api\/games\/\+'\+encodeURIComponent\(gameId\)\+'\+\/rank-history\?days=31/);
+});
+\n
