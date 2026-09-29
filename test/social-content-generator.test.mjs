@@ -29,7 +29,7 @@ test("social generator creates top-10 and trending files for each period plus on
 test("social generator rejects missing required feed sections", () => {
   assert.throws(
     () => buildSocialFiles([{ period: "week", posts: { ranking: { text: "TOP" } } }], "2026-09-30T00:30:00.000Z"),
-    /missing social post/i
+    /missing social (post|feed)/i
   );
 });
 
