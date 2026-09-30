@@ -310,7 +310,27 @@ function gameSelect(): string {
   return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
 }
 
-async function getGames(env: Env, fetchImpl: FetchLike): Promise<JsonRow[]> {
+function parseGamesPagination(url: URL): { limit: number; offset: number } {
+  const rawLimit = url.searchParams.get("limit");
+  const rawOffset = url.searchParams.get("offset");
+  const limit = rawLimit == null || rawLimit === "" ? 100 : Number(rawLimit);
+  const offset = rawOffset == null || rawOffset === "" ? 0 : Number(rawOffset);
+
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error("Invalid limit");
+  }
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    throw new Error("Invalid offset");
+  }
+
+  return { limit, offset };
+}
+
+async function getGames(
+  env: Env,
+  fetchImpl: FetchLike,
+  pagination: { limit: number; offset: number }
+): Promise<JsonRow[]> {
   return supabaseGet(
     env,
     "Game",
@@ -318,7 +338,8 @@ async function getGames(env: Env, fetchImpl: FetchLike): Promise<JsonRow[]> {
       select: gameSelect(),
       isActive: "eq.true",
       order: "name.asc",
-      limit: "100"
+      limit: String(pagination.limit),
+      offset: String(pagination.offset)
     },
     fetchImpl
   );
@@ -1226,8 +1247,17 @@ async function handleApi(
   }
 
   if (path === "/api/games") {
+    let pagination: { limit: number; offset: number };
     try {
-      return json({ data: await getGames(env, fetchImpl) }, 200, {
+      pagination = parseGamesPagination(url);
+    } catch {
+      return json({
+        error: "Invalid pagination. Use limit 1-100 and a non-negative offset."
+      }, 400);
+    }
+
+    try {
+      return json({ data: await getGames(env, fetchImpl, pagination) }, 200, {
         "cache-control": "public, max-age=60, s-maxage=60"
       });
     } catch (error) {
