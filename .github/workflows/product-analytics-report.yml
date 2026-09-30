@@ -48,13 +48,22 @@ jobs:
           CLOUDFLARE_ANALYTICS_API_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_API_TOKEN }}
           ANALYTICS_REPORT_HOURS: "168"
           ANALYTICS_OUTPUT_FILE: "product-analytics-report.json"
+          ANALYTICS_MARKDOWN_OUTPUT_FILE: "product-analytics-report.md"
         run: node scripts/product-analytics-report.mjs
+
+      - name: Add report to workflow summary
+        if: steps.credentials.outputs.configured == 'true'
+        shell: bash
+        run: |
+          cat product-analytics-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload report
         if: steps.credentials.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: bobaks-product-analytics-report
-          path: product-analytics-report.json
+          path: |
+            product-analytics-report.json
+            product-analytics-report.md
           if-no-files-found: error
           retention-days: 30
