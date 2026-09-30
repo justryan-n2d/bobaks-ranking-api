@@ -7,13 +7,13 @@ Part 6.6 adds measurable production performance controls without changing rankin
 - Cloudflare Workers Caching is enabled for the frontend Worker.
 - Public static assets receive long-lived edge cache headers while HTML stays shorter-lived.
 - The browser uses same-origin `/api/...` requests through the frontend Worker.
-- The ranking API keeps live ranking responses non-cacheable so freshness is preserved.
+- Live ranking responses keep browsers uncacheable (`Cache-Control: no-store`) but use a 5-second Cloudflare edge cache with stale-while-revalidate and stale-if-error, which is small relative to the 10-minute ranking collection cadence.
 - The client keeps a small in-memory GET cache/deduper and uses `no-store` for manual refresh.
 - The main application code is a standalone `/app.js` asset.
 - The QR generator is loaded only when rank-card sharing is opened.
 - The return-loop module is imported after initial rendering instead of being part of the critical HTML path.
 - `/api/games` remains bounded to `limit=1..100` plus non-negative `offset` pagination.
-- Ranking requests no longer perform a second database query just to calculate the next collection timestamp.
+- Ranking retrieval and collection-schedule metadata retrieval run concurrently to reduce end-to-end API latency.
 
 ## Existing database optimization baseline
 
