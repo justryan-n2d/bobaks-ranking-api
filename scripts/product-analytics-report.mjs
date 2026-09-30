@@ -5,6 +5,7 @@ const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || "").trim();
 const API_TOKEN = String(process.env.CLOUDFLARE_ANALYTICS_API_TOKEN || "").trim();
 const HOURS = parseHours(process.env.ANALYTICS_REPORT_HOURS || "168");
 const OUTPUT_FILE = String(process.env.ANALYTICS_OUTPUT_FILE || "product-analytics-report.json").trim();
+const MARKDOWN_OUTPUT_FILE = String(process.env.ANALYTICS_MARKDOWN_OUTPUT_FILE || "product-analytics-report.md").trim();
 
 function parseHours(value) {
   const hours = Number(value);
@@ -245,6 +246,83 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
   };
 }
 
+function markdownCell(value) {
+  return String(value ?? "")
+    .replaceAll("|", "\\|")
+    .replaceAll("\\r", "")
+    .replaceAll("\\n", " ");
+}
+
+export function formatMarkdownReport(report) {
+  const interpretation = report.interpretation || {};
+  const metrics = report.metrics || {};
+  const lines = [
+    "# Bobaks Product Analytics Report",
+    "",
+    `Generated: ${markdownCell(report.generatedAt)}`,
+    `Window: ${markdownCell(report.windowHours)} hours`,
+    `Dataset: ${markdownCell(report.dataset)}`,
+    "",
+    "## Data readiness",
+    "",
+    `- Trend status: **${markdownCell(interpretation.trendStatus || "unknown")}**`,
+    `- Retention status: **${markdownCell(interpretation.retentionStatus || "unknown")}**`,
+    `- Observed days: **${markdownCell(interpretation.observedDays ?? 0)}**`,
+    `- Retention maturity: **${markdownCell(interpretation.retentionMaturity || "unknown")}**`,
+    `- Max observed retention day: **${markdownCell(interpretation.maxObservedRetentionDay ?? 0)}**`,
+    `- Observed period: ${markdownCell(interpretation.oldestObservedDay || "n/a")} to ${markdownCell(interpretation.newestObservedDay || "n/a")}`,
+    "",
+    "## Key metrics",
+    "",
+    "| Metric | Value |",
+    "| --- | ---: |",
+    `| Weighted events | ${markdownCell(metrics.weightedEvents ?? 0)} |`,
+    `| Observed visitors | ${markdownCell(metrics.observedVisitors ?? 0)} |`,
+    `| Observed sessions | ${markdownCell(metrics.observedSessions ?? 0)} |`,
+    `| Average events/session | ${markdownCell(metrics.averageEventsPerSession ?? 0)} |`,
+    `| Max events/session | ${markdownCell(metrics.maxEventsPerSession ?? 0)} |`,
+    `| Active visitors in return window | ${markdownCell(metrics.activeVisitorsInReturnWindow ?? 0)} |`,
+    `| Returning visitors in return window | ${markdownCell(metrics.returningVisitorsInReturnWindow ?? 0)} |`,
+    `| Returning visitor rate | ${markdownCell(metrics.returningVisitorRatePercent ?? 0)}% |`,
+    `| Max sample interval | ${markdownCell(metrics.maxSampleInterval ?? 0)} |`,
+    "",
+    "## Daily trend",
+    "",
+    "| Day | Weighted events | Visitors | Sessions |",
+    "| --- | ---: | ---: | ---: |"
+  ];
+
+  if ((report.dailyTrend || []).length === 0) {
+    lines.push("| No observed days | 0 | 0 | 0 |");
+  } else {
+    for (const row of report.dailyTrend) {
+      lines.push(
+        `| ${markdownCell(row.day)} | ${markdownCell(row.weightedEvents)} | ${markdownCell(row.observedVisitors)} | ${markdownCell(row.observedSessions)} |`
+      );
+    }
+  }
+
+  lines.push("", "## Retention cohorts", "", "| Cohort day | Size | Retention by observed day |", "| --- | ---: | --- |");
+  if ((report.retentionCohorts || []).length === 0) {
+    lines.push("| No cohorts observed | 0 | n/a |");
+  } else {
+    for (const cohort of report.retentionCohorts) {
+      const retention = (cohort.days || [])
+        .map(day => `D${day.dayOffset}: ${day.retentionRatePercent}%`)
+        .join(", ");
+      lines.push(`| ${markdownCell(cohort.cohortDay)} | ${markdownCell(cohort.cohortSize)} | ${markdownCell(retention)} |`);
+    }
+  }
+
+  lines.push("", "## Notes", "");
+  for (const note of report.notes || []) {
+    lines.push(`- ${markdownCell(note)}`);
+  }
+  lines.push("");
+
+  return lines.join("\\n");
+}
+
 export async function generateReport() {
   if (!ACCOUNT_ID || !API_TOKEN) {
     throw new Error("CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_ANALYTICS_API_TOKEN are required.");
@@ -258,6 +336,7 @@ export async function generateReport() {
 
   const report = buildReport(resultRows, new Date().toISOString(), HOURS);
   await fs.writeFile(OUTPUT_FILE, JSON.stringify(report, null, 2) + "\n", "utf8");
+  await fs.writeFile(MARKDOWN_OUTPUT_FILE, formatMarkdownReport(report) + "\n", "utf8");
   return report;
 }
 
