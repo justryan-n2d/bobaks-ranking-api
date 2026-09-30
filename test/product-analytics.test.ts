@@ -80,6 +80,8 @@ test("product analytics report calculates return rate and preserves sampling not
   assert.equal(report.metrics.returningVisitorsInReturnWindow, 4);
   assert.equal(report.metrics.returningVisitorRatePercent, 40);
   assert.equal(report.metrics.maxSampleInterval, 1);
+  assert.equal(report.interpretation.trendStatus, "single_day");
+  assert.equal(report.interpretation.retentionStatus, "observed_beyond_baseline");
   assert.equal(report.eventBreakdown.length, 1);
   assert.equal(report.pageBreakdown[0].route, "/game/:id");
   assert.equal(report.dailyTrend[0].weightedEvents, 80);
