@@ -610,6 +610,7 @@ async function getRankings(
     fetchImpl
   );
   // Keep ranking and active-game metadata reads concurrent to minimize API TTFB.
+// Production performance traces sample 20 requests so p95 is not just a cold-cache max.
   const activeGamesPromise = getActiveGamesForRanking(env, fetchImpl);
 
   const rankings = await rankingsPromise;
