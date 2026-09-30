@@ -39,13 +39,13 @@ test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
 test("frontend analytics uses anonymous visitor/session context without sending search text", () => {
   const html = readHtml();
   assert.ok(html.includes('<script src="/analytics-client.js"></script>'));
-  assert.match(html, /window\.__BOBAKS_ANALYTICS__=\{context\};/);
   assert.match(html, /visitorId:analyticsContext\.visitorId/);
   assert.match(html, /sessionId:analyticsContext\.sessionId/);
   assert.match(html, /sendBeacon\('\/analytics'/);
   assert.doesNotMatch(html, /search_used[^\n]*query/);
 
   const client = fs.readFileSync(path.resolve("frontend/analytics-client.js"), "utf8");
+  assert.match(client, /window\.__BOBAKS_ANALYTICS__=\{context\};/);
   assert.match(client, /bobaks\.analytics\.visitor/);
   assert.match(client, /bobaks\.analytics\.session/);
   assert.match(client, /30\*24\*60\*60\*1000/);
