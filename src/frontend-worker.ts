@@ -760,7 +760,7 @@ export async function handleFrontendRequest(
     return renderGamePage(request, env, gameMatch[1], fetchImpl);
   }
 
-  return env.ASSETS.fetch(request);
+  return assetResponse(env, request);
 }
 
 export default {
