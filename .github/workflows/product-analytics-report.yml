@@ -35,6 +35,9 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Verify report logic
         run: npm test
 
