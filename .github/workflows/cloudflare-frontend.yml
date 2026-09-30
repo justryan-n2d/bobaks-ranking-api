@@ -67,7 +67,7 @@ jobs:
           html=$(curl -fsS "$FRONTEND")
           app_js=$(curl -fsS "$FRONTEND/app.js")
           published=$(printf '%s\n%s\n' "$html" "$app_js")
-          echo "$app_js" | grep -F "const API=\'/api\'"
+          echo "$app_js" | grep -F "const API='/api'"
           ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
           echo "$html" | grep -F "Live Rankings & Historical Trends"
           echo "$html" | grep -F "How Bobaks Rankings Work"
