@@ -190,11 +190,19 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
   });
   const activeVisitors = numberOrZero(returning.active_visitors);
   const returningVisitors = numberOrZero(returning.returning_visitors);
+  const hasMultiDayTrend = dailyTrend.length >= 2;
+  const hasObservedRetentionBeyondBaseline = retentionCohorts.some(cohort =>
+    cohort.days.some(day => day.dayOffset > 0)
+  );
 
   return {
     generatedAt,
     windowHours: hours,
     dataset: DATASET,
+    interpretation: {
+      trendStatus: hasMultiDayTrend ? "multi_day" : "single_day",
+      retentionStatus: hasObservedRetentionBeyondBaseline ? "observed_beyond_baseline" : "baseline_only",
+    },
     metrics: {
       weightedEvents: numberOrZero(summary.events),
       observedVisitors: numberOrZero(summary.visitors),
@@ -217,6 +225,8 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
       "Visitor and session counts, including retention cohorts, are observed distinct identifiers and can be affected by Analytics Engine sampling.",
       "Returning visitor rate uses a 30-day lookback before the selected report window.",
       "Retention cohorts use each visitor's first observed timestamp from the 30-day lookback, with cohorts constrained to the selected report window, and report observed return rates through day 7 where data exists.",
+      "A day-0 retention value is the cohort baseline and should not be interpreted as repeat retention.",
+      "A single observed day is a snapshot, not a multi-day trend.",
       "Visitor identifiers are random first-party identifiers, expire after 30 days, and are not linked to Roblox account identities."
     ]
   };
