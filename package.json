@@ -8,7 +8,9 @@
     "test": "tsx --test test/*.test.ts",
     "test:frontend": "node --test test/frontend.test.mjs"
   },
-  "dependencies": {},
+  "dependencies": {
+    "jose": "^6.1.0"
+  },
   "devDependencies": {
     "@types/node": "^24.5.2",
     "tsx": "^4.20.5",
