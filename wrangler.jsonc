@@ -24,5 +24,13 @@
       "dataset": "bobaks_product_web"
     }
   ],
-  "previews": {}
+  "previews": {},
+  "run_worker_first": [
+    "/game/*",
+    "/sitemap.xml",
+    "/robots.txt",
+    "/community",
+    "/analytics",
+    "/admin/*"
+  ]
 }
