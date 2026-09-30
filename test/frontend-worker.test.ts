@@ -90,7 +90,7 @@ test("sitemap lists the homepage and active game URLs", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) {
+    if (new URL(url).pathname === "/api/games") {
       return response({
         data: [
           { id: 42, updatedAt: "2026-09-29T00:00:00.000Z" },
@@ -195,7 +195,7 @@ test("sitemap includes crawlable ranking period URLs", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) {
+    if (new URL(url).pathname === "/api/games") {
       return response({ data: [] });
     }
     throw new Error("Unexpected API request: " + url);
@@ -344,7 +344,7 @@ test("sitemap includes the public community hub", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) return response({ data: [] });
+    if (new URL(url).pathname === "/api/games") return response({ data: [] });
     throw new Error("Unexpected API request: " + url);
   };
   const result = await handleFrontendRequest(
@@ -362,7 +362,7 @@ test("sitemap stays crawlable when the game-list API has a temporary server erro
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) {
+    if (new URL(url).pathname === "/api/games") {
       return response({ error: "Database unavailable" }, 503);
     }
     throw new Error("Unexpected API request: " + url);
