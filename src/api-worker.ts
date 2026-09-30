@@ -780,10 +780,28 @@ async function getSocialFeed(
 const COLLECTION_INTERVAL_MS = 10 * 60 * 1000;
 const COLLECTION_REFRESH_BUFFER_MS = 15 * 1000;
 
-function getNextCollectionAtFromUpdatedAt(updatedAt: unknown): string {
-  const latestCalculatedAt = updatedAt == null ? NaN : Date.parse(String(updatedAt));
-  if (Number.isFinite(latestCalculatedAt)) {
-    let next = latestCalculatedAt + COLLECTION_INTERVAL_MS + COLLECTION_REFRESH_BUFFER_MS;
+async function getNextCollectionAt(
+  env: Env,
+  fetchImpl: FetchLike
+): Promise<string> {
+  const rows = await supabaseGet(
+    env,
+    "DataCollectionLog",
+    {
+      select: "startedAt,status",
+      status: "in.(success,partial,failed)",
+      order: "startedAt.desc",
+      limit: "1"
+    },
+    fetchImpl
+  );
+
+  const latestStartedAt = rows[0]?.startedAt == null
+    ? NaN
+    : Date.parse(String(rows[0].startedAt));
+
+  if (Number.isFinite(latestStartedAt)) {
+    let next = latestStartedAt + COLLECTION_INTERVAL_MS + COLLECTION_REFRESH_BUFFER_MS;
     const now = Date.now();
     while (next <= now) next += COLLECTION_INTERVAL_MS;
     return new Date(next).toISOString();
@@ -799,10 +817,12 @@ async function getRankingResponse(
   period: string,
   fetchImpl: FetchLike
 ): Promise<Record<string, unknown>> {
-  const data = await getRankings(env, period, fetchImpl);
+  const [data, nextCollectionAt] = await Promise.all([
+    getRankings(env, period, fetchImpl),
+    getNextCollectionAt(env, fetchImpl)
+  ]);
   const updatedAt = data[0]?.calculatedAt ?? null;
   const refreshIntervalSeconds = COLLECTION_INTERVAL_MS / 1000;
-  const nextCollectionAt = getNextCollectionAtFromUpdatedAt(updatedAt);
 
   return {
     period,
