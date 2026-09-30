@@ -112,6 +112,10 @@ The website exposes these under **How Bobaks Rankings Work**.
 
 Phase 4 Part 5 exposes read-only operational telemetry through [docs/operational-observability.md](docs/operational-observability.md). The endpoint summarizes collection throughput, run outcomes, duration percentiles, ranking-refresh latency, and observed collection gaps using retained `DataCollectionLog` data.
 
+## Phase 6.6 performance
+
+Part 6.6 adds Cloudflare edge caching, a same-origin API proxy, a split frontend bundle, lazy loading for optional sharing code, client GET request deduplication, and production performance budgets/traces. See [docs/performance.md](docs/performance.md).
+
 ## Database performance
 
 Phase 4 Part 6.1 and 6.2 production database reliability, baseline, index-audit evidence, and query optimization results are documented in [docs/database-performance.md](docs/database-performance.md). The repeatable read-only baseline is in [database/database-performance-baseline.sql](database/database-performance-baseline.sql), and the evidence-backed index cleanup is in [database/database-performance-hardening.sql](database/database-performance-hardening.sql). Query optimization migrations are recorded under [supabase/migrations/](supabase/migrations/).
