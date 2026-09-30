@@ -129,7 +129,8 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
     observedVisitors: numberOrZero(row.visitors),
     observedSessions: numberOrZero(row.sessions)
   }));
-  const reportWindowStart = Date.now() - (hours * 60 * 60 * 1000);
+  const reportEnd = new Date(generatedAt).getTime();
+  const reportWindowStart = reportEnd - (hours * 60 * 60 * 1000);
   const firstSeenByVisitor = new Map();
   for (const row of rows.retentionFirstSeen || []) {
     const visitorId = String(row.visitor_id || "");
