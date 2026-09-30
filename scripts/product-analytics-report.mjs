@@ -67,9 +67,10 @@ export function querySet(hours) {
       "AND blob6 != '' GROUP BY day ORDER BY day ASC",
     retentionCohorts:
       "WITH first_seen AS (" +
-      "SELECT blob6 AS visitor_id, toStartOfDay(min(timestamp)) AS cohort_day " +
+      "SELECT blob6 AS visitor_id, min(timestamp) AS first_seen_at, " +
+      "toStartOfDay(min(timestamp)) AS cohort_day " +
       "FROM " + TABLE +
-      " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      " WHERE timestamp >= NOW() - INTERVAL '" + lookbackHours + "' HOUR " +
       "AND blob6 != '' GROUP BY visitor_id) " +
       "SELECT first_seen.cohort_day AS cohort_day, " +
       "intDiv(toUnixTimestamp(toStartOfDay(events.timestamp)) - " +
@@ -78,6 +79,7 @@ export function querySet(hours) {
       "FROM " + TABLE + " AS events " +
       "INNER JOIN first_seen ON events.blob6 = first_seen.visitor_id " +
       "WHERE events.timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "AND first_seen.first_seen_at >= NOW() - INTERVAL '" + hours + "' HOUR " +
       "AND events.blob6 != '' " +
       "GROUP BY cohort_day, day_offset " +
       "HAVING day_offset BETWEEN 0 AND 7 " +
@@ -189,7 +191,7 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
       "Weighted event totals use _sample_interval so event counts remain statistically correct when Analytics Engine sampling occurs.",
       "Visitor and session counts, including retention cohorts, are observed distinct identifiers and can be affected by Analytics Engine sampling.",
       "Returning visitor rate uses a 30-day lookback before the selected report window.",
-      "Retention cohorts use the first observed day inside the selected report window as cohort day and report observed return rates through day 7 where data exists.",
+      "Retention cohorts use each visitor's first observed timestamp from the 30-day lookback, with cohorts constrained to the selected report window, and report observed return rates through day 7 where data exists.",
       "Visitor identifiers are random first-party identifiers, expire after 30 days, and are not linked to Roblox account identities."
     ]
   };
