@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "test": "tsx --test test/*.test.ts",
-    "test:frontend": "node --test test/frontend.test.mjs"
+    "test:frontend": "node --test test/frontend.test.mjs",
+    "test:performance": "node --test test/performance-budget.test.mjs",
+    "performance:production": "node scripts/production-performance-trace.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0"
