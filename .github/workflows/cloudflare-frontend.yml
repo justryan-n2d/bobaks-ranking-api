@@ -80,8 +80,8 @@ jobs:
           echo "$app_js" | grep -F "ensureQrCode"
           echo "$app_js" | grep -F "__BOBAKS_RANKING_SNAPSHOT__"
           ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
-          echo "$published" | grep -F "Live Rankings & Historical Trends"
-          echo "$published" | grep -F "How Bobaks Rankings Work"
+          echo "$app_js" | grep -F "Live Rankings & Historical Trends"
+          echo "$app_js" | grep -F "How Bobaks Rankings Work"
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true' >/dev/null
