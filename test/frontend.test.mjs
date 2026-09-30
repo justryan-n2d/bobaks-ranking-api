@@ -5,6 +5,7 @@ import path from "node:path";
 
 const frontendPath = path.resolve("frontend/index.html");
 const returnLoopsPath = path.resolve("frontend/return-loops.js");
+const appPath = path.resolve("frontend/app.js");
 
 function readHtml() {
   assert.ok(fs.existsSync(frontendPath));
@@ -16,8 +17,17 @@ function readReturnLoops() {
   return fs.readFileSync(returnLoopsPath, "utf8");
 }
 
+function readApp() {
+  assert.ok(fs.existsSync(appPath));
+  return fs.readFileSync(appPath, "utf8");
+}
+
+function readFrontend() {
+  return readHtml() + "\n" + readApp();
+}
+
 test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /id="seo-description"/);
   assert.match(html, /rel="canonical"/);
   assert.match(html, /property="og:title"/);
@@ -37,7 +47,7 @@ test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
 });
 
 test("frontend analytics uses anonymous visitor/session context without sending search text", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.ok(html.includes('<script src="/analytics-client.js"></script>'));
   assert.match(html, /visitorId:analyticsContext\.visitorId/);
   assert.match(html, /sessionId:analyticsContext\.sessionId/);
@@ -56,9 +66,9 @@ test("frontend analytics uses anonymous visitor/session context without sending 
 });
 
 test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /<title>Bobaks Ranking \| Live Rankings & Historical Trends<\/title>/);
-  assert.match(html, /const API='https:\/\/bobaks-ranking-api-service\.ryan-oledan0\.workers\.dev';/);
+  assert.match(html, /const API='\/api';window\.__BOBAKS_API__=API;/);
   for (const period of ["live", "week", "month", "year"]) {
     assert.ok(html.includes("'" + period + "'") || html.includes('"' + period + '"'));
   }
@@ -75,15 +85,13 @@ test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   assert.doesNotMatch(html, /bobaks-api-production\.up\.railway\.app/);
 });
 
-test("frontend script parses as valid JavaScript", () => {
-  const html = readHtml();
-  const match = html.match(/<script>([\s\S]*?)<\/script>/);
-  assert.ok(match, "frontend must contain an inline script");
-  assert.doesNotThrow(() => new Function(match[1]));
+test("frontend application bundle parses as valid JavaScript", () => {
+  const app = readApp();
+  assert.doesNotThrow(() => new Function(app));
 });
 
 test("frontend exposes a social ranking share flow for every ranking period", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /function rankingShareText\(period,games\)/);
   assert.match(html, /id="shareRanking"/);
   assert.match(html, /rankingPath\(state\.period\)/);
@@ -94,7 +102,7 @@ test("frontend exposes a social ranking share flow for every ranking period", ()
 });
 
 test("frontend uses the automation-ready social feed for ranking, trending, and peak sharing", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /function shareSocialPost\(kind\)/);
   assert.match(html, /\/api\/social\/feed\?period=/);
   assert.match(html, /id="shareTrending"/);
@@ -105,7 +113,7 @@ test("frontend uses the automation-ready social feed for ranking, trending, and 
 });
 
 test("frontend labels rank movement as trending and exposes peak-record sharing", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /Trending Games/);
   assert.match(html, /Share trending/);
   assert.match(html, /Peak Records/);
@@ -113,7 +121,7 @@ test("frontend labels rank movement as trending and exposes peak-record sharing"
 });
 
 test("frontend ranking share content includes game name, rank, players, and canonical ranking link", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /const lines=\(games\|\|\[\]\)\.slice\(0,10\)/);
   assert.match(html, /const rank=Number\(g\.rank\|\|index\+1\)/);
   assert.match(html, /const players=fmt\(g\.playing\)/);
@@ -122,7 +130,7 @@ test("frontend ranking share content includes game name, rank, players, and cano
 });
 
 test("privacy copy discloses anonymous product analytics identifiers", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.ok(html.includes("Anonymous first-party visitor and session identifiers may be used"));
   assert.ok(html.includes("Visitor identifiers expire after 30 days"));
   assert.ok(html.includes("session identifiers use a 30-minute idle window"));
@@ -131,7 +139,7 @@ test("privacy copy discloses anonymous product analytics identifiers", () => {
 });
 
 test("frontend records direct-entry page views and loads the analytics client", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(
     html,
     /if\(initialGame\)\{openGame\(initialGame\[1\],\{push:false\}\);track\('page_view',\{gameId:initialGame\[1\],period:state\.period\}\);\}/
@@ -146,7 +154,7 @@ test("frontend records direct-entry page views and loads the analytics client", 
 });
 
 test("frontend uses a device-local watchlist and bounded comparison", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /bobaks\.watchlist/);
   assert.match(html, /state\.saved\.length<25/);
   assert.match(html, /state\.compare\.length<2/);
@@ -154,14 +162,14 @@ test("frontend uses a device-local watchlist and bounded comparison", () => {
 });
 
 test("frontend refreshes from the server-supplied next collection time", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /function schedule\(\)/);
   assert.match(html, /state\.next=p\.nextCollectionAt\|\|fallbackNext\(\)/);
   assert.match(html, /state\.timer=setTimeout\(loadRankings,/);
 });
 
 test("search does not replace the input element while typing", () => {
-  const html = fs.readFileSync(frontendPath, "utf8");
+  const html = readFrontend();
 
   assert.match(html, /function renderSearchResults\(\)/);
   assert.match(html, /query!==state\.query\.trim\(\)/);
@@ -185,7 +193,7 @@ test("frontend references the Bobaks logo as its favicon and brand mark", () => 
 });
 
 test("data-driven rank card generator is wired for dynamic rank tiers and export", () => {
-  const html = fs.readFileSync(frontendPath, "utf8");
+  const html = readFrontend();
 
   assert.match(html, /function cardTier\(rank\)/);
   assert.match(html, /LEGENDARY/);
@@ -206,7 +214,7 @@ test("data-driven rank card generator is wired for dynamic rank tiers and export
 });
 
 test("rank card tiers match the Phase 5.5 rarity rules", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   const legendary = html.match(/if\(n===1\)return \{[\s\S]*?name:'LEGENDARY',[\s\S]*?family:'gold'/);
   const epic = html.match(/if\(n>=2&&n<=3\)return \{[\s\S]*?name:'EPIC',[\s\S]*?family:'purple'/);
@@ -223,7 +231,7 @@ test("rank card tiers match the Phase 5.5 rarity rules", () => {
 });
 
 test("rank card preview animates symbols and exports a still image", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /function drawRandomSymbols\(ctx,time,preview\)/);
   assert.match(html, /const step=500/);
@@ -238,7 +246,7 @@ test("rank card preview animates symbols and exports a still image", () => {
 });
 
 test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /Keep your crown shining/);
   assert.match(html, /flying up the leaderboard/);
@@ -247,7 +255,7 @@ test("rank card contains gamer-facing encouragement and Bobaks CTA", () => {
 });
 
 test("rank card preview uses randomized symbols with 0.5 second cross-fades and no white sweep export", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /function drawRandomSymbols\(ctx,time,preview\)/);
   assert.match(html, /const step=500/);
@@ -261,7 +269,7 @@ test("rank card preview uses randomized symbols with 0.5 second cross-fades and 
 });
 
 test("rank card sharing includes game name, rank, message, link, and PNG file", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /const gameLink=gameUrl\(g\.gameId\|\|g\.id\)/);
   assert.match(html, /Visit Bobaks Ranking:/);
@@ -273,7 +281,7 @@ test("rank card sharing includes game name, rank, message, link, and PNG file", 
 });
 
 test("rank card share toolkit supports caption/link copy and major social platforms", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   for (const label of [
     "Copy caption",
@@ -307,7 +315,7 @@ test("rank card share toolkit supports caption/link copy and major social platfo
 });
 
 test("Messenger helper prepares the image plus copied caption for apps that split media and text", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /if\(key==='messenger'\)/);
   assert.match(html, /await copyText\(caption\)/);
@@ -316,14 +324,14 @@ test("Messenger helper prepares the image plus copied caption for apps that spli
 });
 
 test("share helper communicates platform limitations instead of claiming guaranteed combined sharing", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.ok(html.includes('If the selected app drops the caption, use Copy caption and paste it after sending the image.'));
   assert.ok(html.includes('PNG downloaded. Your caption is ready to copy for platforms that need it separately.'));
 });
 
 test("game rank cards use ordinal rank labels and rank-specific TOP badges", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /function ordinalRank\(rank\)/);
   assert.match(html, /const suffix=\(/);
@@ -339,9 +347,9 @@ test("game rank cards use ordinal rank labels and rank-specific TOP badges", () 
 });
 
 test("game rank cards embed a self-contained QR code linked to the Bobaks website", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
-  assert.match(html, /<script src="\/qrcode-generator\.js"><\/script>/);
+  assert.doesNotMatch(readHtml(), /<script[^>]+src="\/qrcode-generator\.js"/);
   assert.match(html, /function drawCardQr\(ctx,text,x,y,size,tier\)/);
   assert.match(html, /const qr=qrcode\(0,'M'\)/);
   assert.match(html, /qr\.addData\(text,'Byte'\)/);
@@ -350,7 +358,7 @@ test("game rank cards embed a self-contained QR code linked to the Bobaks websit
 });
 
 test("social helper buttons use custom neutral share icons and a consistent stacked layout", () => {
-  const html = readHtml();
+  const html = readFrontend();
 
   assert.match(html, /function shareIconSvg\(key\)/);
   assert.match(html, /data-platform/);
@@ -362,7 +370,7 @@ test("social helper buttons use custom neutral share icons and a consistent stac
 
 
 test("frontend exposes a Community hub with the Phase 6.3 community actions", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.ok(html.includes("Community"));
   assert.ok(html.includes("/community"));
   for (const label of [
@@ -380,7 +388,7 @@ test("frontend exposes a Community hub with the Phase 6.3 community actions", ()
 });
 
 test("frontend community page keeps the Discord destination configurable and gives email fallbacks", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.ok(html.includes("const COMMUNITY_DISCORD_URL="));
   assert.ok(html.includes("mailto:bobaksranking@gmail.com"));
   assert.ok(html.includes("Feature request"));
@@ -391,16 +399,16 @@ test("frontend community page keeps the Discord destination configurable and giv
 
 
 test("frontend Community navigation uses a real route link so server configuration is loaded", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /<a id="communityNav"[^>]*href="\/community"[^>]*>Community<\/a>/);
   assert.doesNotMatch(html, /communityNav\.onclick=\(\)=>goCommunity\(\)/);
 });
 
 test("Phase 6.4 return-loop module is wired into the SPA and keeps watchlist alerts local", () => {
-  const html = readHtml();
+  const html = readFrontend();
   const module = readReturnLoops();
   assert.match(html, /window\.__BOBAKS_API__=API/);
-  assert.match(html, /<script type="module" src="\/return-loops\.js"><\/script>/);
+  assert.match(html, /setTimeout\(\(\)=>import\('\/return-loops\.js'\)\.catch\(\(\)=>\{\}\),800\)/);
   assert.match(module, /bobaks\.return\.alert-preferences/);
   assert.match(module, /bobaks\.return\.observations/);
   assert.match(module, /bobaks\.return\.peaks/);
@@ -415,7 +423,7 @@ test("Phase 6.4 return-loop module is wired into the SPA and keeps watchlist ale
 });
 
 test("game detail exposes the selected game to the return-loop module without changing ranking routes", () => {
-  const html = readHtml();
+  const html = readFrontend();
   assert.match(html, /window\.__BOBAKS_SELECTED_GAME__=state\.selected/);
   assert.match(html, /function openGame\(id,\{push=true\}=\{\}\)/);
   assert.ok(html.includes("api('/api/games/'+encodeURIComponent(gameId)+'/history?days=365')"));
@@ -432,4 +440,24 @@ test("return-loop decoration is guarded against stale homepage renders", () => {
   assert.match(module, /currentPath: location\.pathname/);
   assert.match(module, /host\.dataset\.returnHubPending === "1"/);
   assert.match(module, /host\.dataset\.returnHubPending = "1"/);
+});
+
+
+test("frontend has a small HTML shell and keeps optional modules out of the critical path", () => {
+  const html = readHtml();
+  const app = readApp();
+  assert.ok(Buffer.byteLength(html, "utf8") <= 70000);
+  assert.ok(Buffer.byteLength(app, "utf8") <= 80000);
+  assert.doesNotMatch(html, /<script[^>]+src="\/qrcode-generator\.js"/);
+  assert.doesNotMatch(html, /<script[^>]+src="\/return-loops\.js"/);
+  assert.match(app, /ensureQrCode/);
+  assert.match(app, /setTimeout\(\(\)=>import\('\/return-loops\.js'\)\.catch\(\(\)=>\{\}\),800\)/);
+});
+
+test("frontend API cache deduplicates identical requests and bypasses cache on manual refresh", () => {
+  const app = readApp();
+  assert.match(app, /const API_CACHE=new Map()/);
+  assert.match(app, /if\(hit&&hit\.expiresAt>now\)return hit\.promise/);
+  assert.match(app, /cache:cache\?'default':'no-store'/);
+  assert.match(app, /window\.__BOBAKS_API_REQUEST__=api/);
 });

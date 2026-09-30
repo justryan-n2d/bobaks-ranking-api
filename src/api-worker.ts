@@ -803,31 +803,26 @@ async function getNextCollectionAt(
   if (Number.isFinite(latestStartedAt)) {
     let next = latestStartedAt + COLLECTION_INTERVAL_MS + COLLECTION_REFRESH_BUFFER_MS;
     const now = Date.now();
-
-    while (next <= now) {
-      next += COLLECTION_INTERVAL_MS;
-    }
-
+    while (next <= now) next += COLLECTION_INTERVAL_MS;
     return new Date(next).toISOString();
   }
 
-  // Cold-start fallback: align with the global 10-minute cycle rather than
-  // starting a new 10-minute countdown from the page/API request.
   const now = Date.now();
   const nextBoundary = (Math.floor(now / COLLECTION_INTERVAL_MS) + 1) * COLLECTION_INTERVAL_MS;
   return new Date(nextBoundary + COLLECTION_REFRESH_BUFFER_MS).toISOString();
 }
-
 
 async function getRankingResponse(
   env: Env,
   period: string,
   fetchImpl: FetchLike
 ): Promise<Record<string, unknown>> {
-  const data = await getRankings(env, period, fetchImpl);
+  const [data, nextCollectionAt] = await Promise.all([
+    getRankings(env, period, fetchImpl),
+    getNextCollectionAt(env, fetchImpl)
+  ]);
   const updatedAt = data[0]?.calculatedAt ?? null;
   const refreshIntervalSeconds = COLLECTION_INTERVAL_MS / 1000;
-  const nextCollectionAt = await getNextCollectionAt(env, fetchImpl);
 
   return {
     period,
@@ -1422,14 +1417,23 @@ async function handleApi(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const startedAt = performance.now();
     const response = request.method === "OPTIONS"
       ? new Response(null, { status: 204, headers: { ...corsHeaders() } })
       : request.method !== "GET"
         ? json({ error: "Method not allowed" }, 405, { allow: "GET, OPTIONS" })
         : await handleApi(request, env);
 
-    recordApiAnalytics(env, request, response);
-    return withCors(response);
+    const headers = new Headers(response.headers);
+    headers.set("server-timing", "api;dur=" + (performance.now() - startedAt).toFixed(1));
+    const timedResponse = new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+
+    recordApiAnalytics(env, request, timedResponse);
+    return withCors(timedResponse);
   }
 };
 

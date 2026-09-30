@@ -118,6 +118,9 @@ function addAlerts(gameId, name, alerts) {
 }
 
 function api(path) {
+  if (typeof window.__BOBAKS_API_REQUEST__ === "function") {
+    return window.__BOBAKS_API_REQUEST__(path);
+  }
   if (!API) return Promise.reject(new Error("API origin unavailable"));
   return fetch(API + path, { headers: { accept: "application/json" } }).then(async response => {
     if (!response.ok) throw new Error("HTTP " + response.status);
@@ -214,10 +217,16 @@ async function decorateHome() {
   host.dataset.returnHubPending = "1";
 
   const saved = savedIds();
-  const [live, week] = await Promise.all([
-    api("/api/social/feed?period=live").catch(() => null),
-    api("/api/social/feed?period=week").catch(() => null)
-  ]);
+  const snapshot = window.__BOBAKS_RANKING_SNAPSHOT__;
+  const live = snapshot?.data ? { ranking: { items: snapshot.data.map(row => ({
+    rank: Number(row.rank),
+    gameId: String(row.gameId ?? ""),
+    name: String(row.game?.name ?? "Unknown game"),
+    creator: String(row.game?.creatorName ?? "Unknown creator"),
+    score: Number(row.score) || 0,
+    rankChange: row.rankChange == null ? null : Number(row.rankChange)
+  })) } } : null;
+  const week = await api("/api/social/feed?period=week").catch(() => null);
 
   await observeSavedGames(saved, CHECK_LIMIT_HOME);
 
@@ -420,4 +429,4 @@ new MutationObserver(schedule).observe(document.documentElement, {
   subtree: true
 });
 
-schedule();
+setTimeout(() => schedule(), 300);

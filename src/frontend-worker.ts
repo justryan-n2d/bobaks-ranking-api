@@ -156,6 +156,25 @@ async function assetShell(env: Env, request: Request): Promise<Response> {
   );
 }
 
+async function assetResponse(env: Env, request: Request): Promise<Response> {
+  const response = await env.ASSETS.fetch(request);
+  const pathname = new URL(request.url).pathname;
+  if (
+    response.ok &&
+    pathname !== "/" &&
+    /\.(?:js|mjs|css|png|jpe?g|webp|svg|ico|woff2?)$/i.test(pathname)
+  ) {
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", "public, max-age=300, s-maxage=86400");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+  }
+  return response;
+}
+
 async function apiFetch(
   env: Env,
   path: string,
@@ -699,7 +718,11 @@ export async function handleFrontendRequest(
   }
 
   if (request.method !== "GET") {
-    return env.ASSETS.fetch(request);
+    return assetResponse(env, request);
+  }
+
+  if (url.pathname.startsWith("/api/")) {
+    return apiFetch(env, url.pathname + url.search, fetchImpl);
   }
 
   if (url.pathname === "/robots.txt") {
@@ -737,7 +760,7 @@ export async function handleFrontendRequest(
     return renderGamePage(request, env, gameMatch[1], fetchImpl);
   }
 
-  return env.ASSETS.fetch(request);
+  return assetResponse(env, request);
 }
 
 export default {

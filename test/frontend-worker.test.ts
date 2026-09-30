@@ -87,6 +87,7 @@ test("game routes return an indexable SEO page with canonical metadata and JSON-
 });
 
 test("game routes prefer the Cloudflare API service binding when available", async () => {
+  const paths: string[] = [];
   const env = makeEnv([]) as ReturnType<typeof makeEnv> & {
     API: { fetch(request: Request): Promise<Response> };
   };
@@ -94,7 +95,7 @@ test("game routes prefer the Cloudflare API service binding when available", asy
   env.API = {
     async fetch(request: Request) {
       const url = new URL(request.url);
-      assert.equal(url.pathname, "/api/games/42");
+      paths.push(url.pathname);
       return response({
         data: {
           id: 42,
@@ -123,6 +124,7 @@ test("game routes prefer the Cloudflare API service binding when available", asy
 
   assert.equal(result.status, 200);
   assert.match(await result.text(), /Service Binding Experience/);
+  assert.deepEqual(paths.sort(), ["/api/games/42", "/api/games/42/peak"]);
 });
 
 test("sitemap prefers the Cloudflare API service binding when available", async () => {
@@ -481,4 +483,40 @@ test("private admin analytics API fails closed without a Cloudflare Access asser
 
   assert.equal(result.status, 401);
   assert.match(await result.text(), /Authentication required/);
+});
+
+test("frontend worker proxies same-origin API requests through the API service binding", async () => {
+  const env = makeEnv() as ReturnType<typeof makeEnv> & {
+    API: { fetch(request: Request): Promise<Response> };
+  };
+  const calls: string[] = [];
+  const paths: string[] = [];
+  env.API = {
+    async fetch(request: Request) {
+      calls.push(request.url);
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/api/rankings?period=live"),
+    env
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(await result.text(), '{"ok":true}');
+  assert.deepEqual(calls, ["https://api.example/api/rankings?period=live"]);
+});
+
+test("frontend worker gives cacheable static assets a long edge cache window", async () => {
+  const env = makeEnv();
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/app.js"),
+    env
+  );
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("cache-control"), "public, max-age=300, s-maxage=86400");
 });
