@@ -2,7 +2,8 @@
 
 import fs from "node:fs/promises";
 
-const ORIGIN=(process.env.BOBAKS_PERF_ORIGIN||"https://bobaks-ranking-api.ryan-oledan0.workers.dev").replace(/\/$/,"");
+const FRONTEND_ORIGIN=(process.env.BOBAKS_FRONTEND_ORIGIN||"https://bobaks-ranking-api.ryan-oledan0.workers.dev").replace(/\/$/,"");
+const API_ORIGIN=(process.env.BOBAKS_API_ORIGIN||"https://bobaks-ranking-api-service.ryan-oledan0.workers.dev").replace(/\/$/,"");
 const SAMPLES=Math.max(3,Math.min(9,Number(process.env.BOBAKS_PERF_SAMPLES||5)));
 const BUDGETS={htmlBytes:70000,appJsBytes:80000,qrcodeBytes:60000,p95TtfbMs:1500,p95TotalMs:3000};
 
@@ -21,9 +22,9 @@ function percentile(values,p){
   return sorted[index];
 }
 
-async function trace(label,path){
+async function trace(label,origin,path){
   const samples=[];
-  for(let i=0;i<SAMPLES;i++) samples.push(await fetchTrace(ORIGIN+path));
+  for(let i=0;i<SAMPLES;i++) samples.push(await fetchTrace(origin+path));
   return {label,path,samples,summary:{
     p50TtfbMs:percentile(samples.map(x=>x.ttfbMs),50),
     p95TtfbMs:percentile(samples.map(x=>x.ttfbMs),95),
@@ -35,16 +36,18 @@ async function trace(label,path){
 }
 
 async function main(){
-  const gameList=await (await fetch(ORIGIN+"/api/games?limit=1&offset=0")).json();
+  const gameListResponse=await fetch(API_ORIGIN+"/api/games?limit=1&offset=0");
+  if(!gameListResponse.ok) throw new Error("Production API discovery failed with HTTP "+gameListResponse.status);
+  const gameList=await gameListResponse.json();
   const gameId=String(gameList?.data?.[0]?.id||"");
   if(!/^\d+$/.test(gameId)) throw new Error("Could not discover a production game ID");
   const traces=[];
-  traces.push(await trace("homepage","/"));
-  traces.push(await trace("weekly-page","/rankings/weekly"));
-  traces.push(await trace("live-ranking-api","/api/rankings?period=live"));
+  traces.push(await trace("homepage",FRONTEND_ORIGIN,"/"));
+  traces.push(await trace("weekly-page",FRONTEND_ORIGIN,"/rankings/weekly"));
+  traces.push(await trace("live-ranking-api",API_ORIGIN,"/api/rankings?period=live"));
   traces.push(await trace("game-page","/game/"+encodeURIComponent(gameId)));
-  traces.push(await trace("app-js","/app.js"));
-  traces.push(await trace("qr-js","/qrcode-generator.js"));
+  traces.push(await trace("app-js",FRONTEND_ORIGIN,"/app.js"));
+  traces.push(await trace("qr-js",FRONTEND_ORIGIN,"/qrcode-generator.js"));
   const violations=[];
   for(const t of traces){
     if(t.summary.p95TtfbMs>BUDGETS.p95TtfbMs)violations.push(t.label+" p95 TTFB "+t.summary.p95TtfbMs+"ms > "+BUDGETS.p95TtfbMs+"ms");
@@ -54,14 +57,15 @@ async function main(){
   if(byLabel("homepage")>BUDGETS.htmlBytes)violations.push("homepage body exceeds 70 KB");
   if(byLabel("app-js")>BUDGETS.appJsBytes)violations.push("app.js exceeds 80 KB");
   if(byLabel("qr-js")>BUDGETS.qrcodeBytes)violations.push("QR library exceeds 60 KB");
-  const report={generatedAt:new Date().toISOString(),origin:ORIGIN,samplesPerTarget:SAMPLES,budgets:BUDGETS,traces};
+  const report={generatedAt:new Date().toISOString(),frontendOrigin:FRONTEND_ORIGIN,apiOrigin:API_ORIGIN,samplesPerTarget:SAMPLES,budgets:BUDGETS,traces};
   await fs.mkdir("performance-output",{recursive:true});
   await fs.writeFile("performance-output/production-performance.json",JSON.stringify(report,null,2)+"\n");
   const md=[
     "# Bobaks production performance trace",
     "",
     "Generated: "+report.generatedAt,
-    "Origin: "+ORIGIN,
+    "Frontend origin: "+FRONTEND_ORIGIN,
+    "API origin: "+API_ORIGIN,
     "Samples per target: "+SAMPLES,
     "",
     "| Target | p50 TTFB | p95 TTFB | p50 total | p95 total | Max body | Cache |",
