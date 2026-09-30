@@ -9,6 +9,7 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": [
       "/game/*",
+      "/rankings/*",
       "/sitemap.xml",
       "/robots.txt",
       "/community",
@@ -18,6 +19,12 @@
   "vars": {
     "API_ORIGIN": "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
   },
+  "services": [
+    {
+      "binding": "API",
+      "service": "bobaks-ranking-api-service"
+    }
+  ],
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
@@ -27,6 +34,7 @@
   "previews": {},
   "run_worker_first": [
     "/game/*",
+    "/rankings/*",
     "/sitemap.xml",
     "/robots.txt",
     "/community",
