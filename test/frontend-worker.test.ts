@@ -86,6 +86,78 @@ test("game routes return an indexable SEO page with canonical metadata and JSON-
   assert.match(html, /"@type":"VideoGame"/);
 });
 
+test("game routes prefer the Cloudflare API service binding when available", async () => {
+  const env = makeEnv([]) as ReturnType<typeof makeEnv> & {
+    API: { fetch(request: Request): Promise<Response> };
+  };
+
+  env.API = {
+    async fetch(request: Request) {
+      const url = new URL(request.url);
+      assert.equal(url.pathname, "/api/games/42");
+      return response({
+        data: {
+          id: 42,
+          name: "Service Binding Experience",
+          creatorName: "Example Studio",
+          description: "Served through the Cloudflare service binding.",
+          iconUrl: "https://cdn.example/icon.png",
+          currentPlayers: 321,
+          rankings: { live: { rank: 9, score: 321 } },
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-09-30T00:00:00.000Z"
+        }
+      });
+    }
+  };
+
+  const shouldNotCallPublicApi: typeof fetch = async () => {
+    throw new Error("public API fetch should not be used when service binding is available");
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/game/42"),
+    env,
+    shouldNotCallPublicApi
+  );
+
+  assert.equal(result.status, 200);
+  assert.match(await result.text(), /Service Binding Experience/);
+});
+
+test("sitemap prefers the Cloudflare API service binding when available", async () => {
+  const env = makeEnv([]) as ReturnType<typeof makeEnv> & {
+    API: { fetch(request: Request): Promise<Response> };
+  };
+  let requestCount = 0;
+
+  env.API = {
+    async fetch(request: Request) {
+      requestCount += 1;
+      const url = new URL(request.url);
+      assert.equal(url.pathname, "/api/games");
+      assert.equal(url.searchParams.get("limit"), "100");
+      assert.equal(url.searchParams.get("offset"), "0");
+      return response({ data: [{ id: 42, updatedAt: "2026-09-30T00:00:00.000Z" }] });
+    }
+  };
+
+  const shouldNotCallPublicApi: typeof fetch = async () => {
+    throw new Error("public API fetch should not be used when service binding is available");
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/sitemap.xml"),
+    env,
+    shouldNotCallPublicApi
+  );
+  const xml = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.equal(requestCount, 1);
+  assert.ok(xml.includes("https://bobaks.example/game/42"));
+});
+
 test("sitemap lists the homepage and active game URLs", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
