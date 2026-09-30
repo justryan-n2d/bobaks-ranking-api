@@ -505,8 +505,8 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.ok(nextCollectionAt >= Date.now() + 10_000);
   assert.ok(nextCollectionAt <= Date.now() + 25_000);
   assert.equal(result.headers.get("cache-control"), "no-store, no-cache, must-revalidate");
-  assert.equal(calls.length, 3);
-  assert.ok(calls.some(call => call.url.includes("/rest/v1/DataCollectionLog?")));
+  assert.equal(calls.length, 2);
+  assert.equal(calls.some(call => call.url.includes("/rest/v1/DataCollectionLog?")), false);
   assert.equal((body.data as unknown[]).length, 1);
   assert.match(calls[0].url, /period=eq\.weekly/);
   assert.equal(new URL(calls[1].url).searchParams.get("id"), "in.(1)");
