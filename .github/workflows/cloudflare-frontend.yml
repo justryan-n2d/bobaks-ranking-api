@@ -6,6 +6,7 @@ on:
     paths:
       - "frontend/**"
       - "src/frontend-worker.ts"
+      - "src/admin-analytics.ts"
       - "test/frontend.test.mjs"
       - "test/frontend-worker.test.ts"
       - "wrangler.jsonc"
@@ -30,6 +31,25 @@ jobs:
 
       - name: Run frontend verification
         run: npm run test:frontend
+
+      - name: Sync Worker analytics secrets
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ANALYTICS_API_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_API_TOKEN }}
+          CF_ACCESS_TEAM_DOMAIN: ${{ secrets.CF_ACCESS_TEAM_DOMAIN }}
+          CF_ACCESS_AUD: ${{ secrets.CF_ACCESS_AUD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | npx wrangler secret put CLOUDFLARE_ACCOUNT_ID --config wrangler.jsonc
+          printf '%s' "$CLOUDFLARE_ANALYTICS_API_TOKEN" | npx wrangler secret put CLOUDFLARE_ANALYTICS_API_TOKEN --config wrangler.jsonc
+          if [ -n "$CF_ACCESS_TEAM_DOMAIN" ]; then
+            printf '%s' "$CF_ACCESS_TEAM_DOMAIN" | npx wrangler secret put CF_ACCESS_TEAM_DOMAIN --config wrangler.jsonc
+          fi
+          if [ -n "$CF_ACCESS_AUD" ]; then
+            printf '%s' "$CF_ACCESS_AUD" | npx wrangler secret put CF_ACCESS_AUD --config wrangler.jsonc
+          fi
 
       - name: Deploy frontend Worker
         run: npx wrangler deploy --config wrangler.jsonc
