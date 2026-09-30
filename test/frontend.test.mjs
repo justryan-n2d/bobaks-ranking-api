@@ -121,6 +121,15 @@ test("frontend ranking share content includes game name, rank, players, and cano
   assert.match(html, /Visit Bobaks Ranking:/);
 });
 
+test("privacy copy discloses anonymous product analytics identifiers", () => {
+  const html = readHtml();
+  assert.ok(html.includes("Anonymous first-party visitor and session identifiers may be used"));
+  assert.ok(html.includes("Visitor identifiers expire after 30 days"));
+  assert.ok(html.includes("session identifiers use a 30-minute idle window"));
+  assert.ok(html.includes("are not Roblox account IDs"));
+  assert.ok(html.includes("do not include IP addresses or raw search text"));
+});
+
 test("frontend records direct-entry page views and loads the analytics client", () => {
   const html = readHtml();
   assert.match(
