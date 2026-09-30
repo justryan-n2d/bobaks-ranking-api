@@ -65,25 +65,16 @@ export function querySet(hours) {
       "FROM " + TABLE +
       " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
       "AND blob6 != '' GROUP BY day ORDER BY day ASC",
-    retentionCohorts:
-      "WITH first_seen AS (" +
-      "SELECT blob6 AS visitor_id, min(timestamp) AS first_seen_at, " +
-      "toStartOfDay(min(timestamp)) AS cohort_day " +
+    retentionFirstSeen:
+      "SELECT blob6 AS visitor_id, min(timestamp) AS first_seen_at " +
       "FROM " + TABLE +
       " WHERE timestamp >= NOW() - INTERVAL '" + lookbackHours + "' HOUR " +
-      "AND blob6 != '' GROUP BY visitor_id) " +
-      "SELECT first_seen.cohort_day AS cohort_day, " +
-      "intDiv(toUnixTimestamp(toStartOfDay(timestamp)) - " +
-      "toUnixTimestamp(first_seen.cohort_day), 86400) AS day_offset, " +
-      "count(DISTINCT blob6) AS visitors " +
-      "FROM " + TABLE + " " +
-      "INNER JOIN first_seen ON blob6 = first_seen.visitor_id " +
-      "WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
-      "AND first_seen.first_seen_at >= NOW() - INTERVAL '" + hours + "' HOUR " +
-      "AND blob6 != '' " +
-      "GROUP BY cohort_day, day_offset " +
-      "HAVING day_offset BETWEEN 0 AND 7 " +
-      "ORDER BY cohort_day ASC, day_offset ASC LIMIT 500",
+      "AND blob6 != '' GROUP BY visitor_id LIMIT ALL",
+    retentionActivity:
+      "SELECT blob6 AS visitor_id, toStartOfDay(timestamp) AS activity_day " +
+      "FROM " + TABLE +
+      " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "AND blob6 != '' GROUP BY visitor_id, activity_day LIMIT ALL",
     returning:
       "SELECT " +
       "countIf(last_seen >= NOW() - INTERVAL '" + hours + "' HOUR) AS active_visitors, " +
@@ -138,30 +129,63 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
     observedVisitors: numberOrZero(row.visitors),
     observedSessions: numberOrZero(row.sessions)
   }));
-  const cohortGroups = new Map();
-  for (const row of rows.retentionCohorts || []) {
-    const cohortDay = String(row.cohort_day || "");
-    if (!cohortDay) continue;
-    if (!cohortGroups.has(cohortDay)) cohortGroups.set(cohortDay, []);
-    cohortGroups.get(cohortDay).push({
-      dayOffset: numberOrZero(row.day_offset),
-      observedVisitors: numberOrZero(row.visitors)
-    });
+  const reportWindowStart = Date.now() - (hours * 60 * 60 * 1000);
+  const firstSeenByVisitor = new Map();
+  for (const row of rows.retentionFirstSeen || []) {
+    const visitorId = String(row.visitor_id || "");
+    const firstSeenAt = new Date(String(row.first_seen_at || "")).getTime();
+    if (!visitorId || !Number.isFinite(firstSeenAt)) continue;
+    if (firstSeenAt >= reportWindowStart) {
+      firstSeenByVisitor.set(visitorId, new Date(firstSeenAt));
+    }
   }
-  const retentionCohorts = [...cohortGroups.entries()].map(([cohortDay, points]) => {
-    const dayZero = points.find(point => point.dayOffset === 0);
-    const cohortSize = dayZero?.observedVisitors || 0;
-    return {
-      cohortDay,
-      cohortSize,
-      days: points.map(point => ({
-        dayOffset: point.dayOffset,
-        observedVisitors: point.observedVisitors,
+  const cohortVisitors = new Map();
+  for (const [visitorId, firstSeenAt] of firstSeenByVisitor) {
+    const cohortDay = firstSeenAt.toISOString().slice(0, 10);
+    if (!cohortVisitors.has(cohortDay)) cohortVisitors.set(cohortDay, new Map());
+    cohortVisitors.get(cohortDay).set(visitorId, new Set([0]));
+  }
+  for (const row of rows.retentionActivity || []) {
+    const visitorId = String(row.visitor_id || "");
+    const firstSeenAt = firstSeenByVisitor.get(visitorId);
+    if (!firstSeenAt) continue;
+    const activityDay = new Date(String(row.activity_day || "")).getTime();
+    if (!Number.isFinite(activityDay)) continue;
+    const cohortDay = firstSeenAt.toISOString().slice(0, 10);
+    const dayOffset = Math.floor((activityDay - Date.UTC(
+      firstSeenAt.getUTCFullYear(),
+      firstSeenAt.getUTCMonth(),
+      firstSeenAt.getUTCDate()
+    )) / 86400000);
+    if (dayOffset < 0 || dayOffset > 7) continue;
+    if (!cohortVisitors.has(cohortDay)) cohortVisitors.set(cohortDay, new Map());
+    if (!cohortVisitors.get(cohortDay).has(visitorId)) {
+      cohortVisitors.get(cohortDay).set(visitorId, new Set());
+    }
+    cohortVisitors.get(cohortDay).get(visitorId).add(dayOffset);
+  }
+  const cohortCounts = new Map();
+  for (const [cohortDay, visitors] of cohortVisitors) {
+    const dayCounts = new Map();
+    for (const offsets of visitors.values()) {
+      for (const dayOffset of offsets) {
+        dayCounts.set(dayOffset, (dayCounts.get(dayOffset) || 0) + 1);
+      }
+    }
+    cohortCounts.set(cohortDay, dayCounts);
+  }
+  const retentionCohorts = [...cohortCounts.entries()].map(([cohortDay, dayCounts]) => {
+    const cohortSize = dayCounts.get(0) || 0;
+    const days = [...dayCounts.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([dayOffset, observedVisitors]) => ({
+        dayOffset,
+        observedVisitors,
         retentionRatePercent: cohortSize > 0
-          ? Number(((point.observedVisitors / cohortSize) * 100).toFixed(2))
+          ? Number(((observedVisitors / cohortSize) * 100).toFixed(2))
           : 0
-      }))
-    };
+      }));
+    return { cohortDay, cohortSize, days };
   });
   const activeVisitors = numberOrZero(returning.active_visitors);
   const returningVisitors = numberOrZero(returning.returning_visitors);
