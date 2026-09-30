@@ -169,7 +169,7 @@ test("frontend refreshes from the server-supplied next collection time", () => {
 });
 
 test("search does not replace the input element while typing", () => {
-  const html = fs.readFileSync(frontendPath, "utf8");
+  const html = readFrontend();
 
   assert.match(html, /function renderSearchResults\(\)/);
   assert.match(html, /query!==state\.query\.trim\(\)/);
