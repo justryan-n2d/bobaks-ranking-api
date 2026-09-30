@@ -18,6 +18,8 @@ test("product analytics query set uses a bounded lookback and safe dataset name"
   assert.ok(queries.dailyTrend.includes("GROUP BY day"));
   assert.ok(queries.retentionCohorts.includes("toUnixTimestamp"));
   assert.ok(queries.retentionCohorts.includes("day_offset"));
+  assert.ok(queries.retentionCohorts.includes("INTERVAL '888' HOUR"));
+  assert.ok(queries.retentionCohorts.includes("first_seen_at"));
 });
 
 test("product analytics report calculates return rate and preserves sampling notes", async () => {
