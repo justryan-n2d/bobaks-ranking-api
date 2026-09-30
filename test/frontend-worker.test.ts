@@ -268,7 +268,9 @@ test("analytics endpoint drops malformed visitor and session identifiers", async
   assert.equal(point.blobs[6], "");
   assert.deepEqual(point.indexes, ["page_view"]);
 });
-\ntest("community route returns an indexable hub with configurable Discord and public contact paths", async () => {
+
+
+test("community route returns an indexable hub with configurable Discord and public contact paths", async () => {
   const env = { ...makeEnv([]), DISCORD_INVITE_URL: "https://discord.gg/example" };
   const result = await handleFrontendRequest(
     new Request("https://bobaks.example/community"),
