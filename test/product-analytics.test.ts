@@ -25,6 +25,56 @@ test("product analytics query set uses a bounded lookback and safe dataset name"
   assert.ok(!queries.retentionActivity.includes("JOIN"));
 });
 
+test("product analytics markdown formatter produces a human-readable review artifact", async () => {
+  const { formatMarkdownReport } = await loadModule();
+  const markdown = formatMarkdownReport({
+    generatedAt: "2026-09-30T00:00:00.000Z",
+    windowHours: 168,
+    dataset: "bobaks_product_web",
+    interpretation: {
+      trendStatus: "multi_day",
+      retentionStatus: "observed_beyond_baseline",
+      observedDays: 3,
+      oldestObservedDay: "2026-09-28 00:00:00",
+      newestObservedDay: "2026-09-30 00:00:00",
+      maxObservedRetentionDay: 2,
+      retentionMaturity: "emerging"
+    },
+    metrics: {
+      weightedEvents: 120,
+      observedVisitors: 20,
+      observedSessions: 15,
+      averageEventsPerSession: 4.5,
+      maxEventsPerSession: 13,
+      activeVisitorsInReturnWindow: 10,
+      returningVisitorsInReturnWindow: 4,
+      returningVisitorRatePercent: 40,
+      maxSampleInterval: 2
+    },
+    dailyTrend: [
+      { day: "2026-09-28 00:00:00", weightedEvents: 40, observedVisitors: 8, observedSessions: 6 }
+    ],
+    retentionCohorts: [
+      {
+        cohortDay: "2026-09-28",
+        cohortSize: 8,
+        days: [
+          { dayOffset: 0, retentionRatePercent: 100 },
+          { dayOffset: 2, retentionRatePercent: 50 }
+        ]
+      }
+    ],
+    notes: ["Sampling note"]
+  });
+
+  assert.ok(markdown.includes("# Bobaks Product Analytics Report"));
+  assert.ok(markdown.includes("Trend status: **multi_day**"));
+  assert.ok(markdown.includes("| Returning visitor rate | 40% |"));
+  assert.ok(markdown.includes("| 2026-09-28 00:00:00 | 40 | 8 | 6 |"));
+  assert.ok(markdown.includes("D2: 50%"));
+  assert.ok(markdown.includes("- Sampling note"));
+});
+
 test("product analytics report calculates return rate and preserves sampling notes", async () => {
   const { buildReport } = await loadModule();
   const report = buildReport({
