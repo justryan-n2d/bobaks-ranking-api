@@ -82,6 +82,11 @@ test("product analytics report calculates return rate and preserves sampling not
   assert.equal(report.metrics.maxSampleInterval, 1);
   assert.equal(report.interpretation.trendStatus, "single_day");
   assert.equal(report.interpretation.retentionStatus, "observed_beyond_baseline");
+  assert.equal(report.interpretation.observedDays, 1);
+  assert.equal(report.interpretation.oldestObservedDay, "2026-09-29 00:00:00");
+  assert.equal(report.interpretation.newestObservedDay, "2026-09-29 00:00:00");
+  assert.equal(report.interpretation.maxObservedRetentionDay, 7);
+  assert.equal(report.interpretation.retentionMaturity, "7_day");
   assert.equal(report.eventBreakdown.length, 1);
   assert.equal(report.pageBreakdown[0].route, "/game/:id");
   assert.equal(report.dailyTrend[0].weightedEvents, 80);
