@@ -76,11 +76,11 @@ export function querySet(hours) {
       "intDiv(toUnixTimestamp(toStartOfDay(events.timestamp)) - " +
       "toUnixTimestamp(first_seen.cohort_day), 86400) AS day_offset, " +
       "count(DISTINCT events.blob6) AS visitors " +
-      "FROM " + TABLE + " AS events " +
-      "INNER JOIN first_seen ON events.blob6 = first_seen.visitor_id " +
-      "WHERE events.timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "FROM " + TABLE + " " +
+      "INNER JOIN first_seen ON blob6 = first_seen.visitor_id " +
+      "WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
       "AND first_seen.first_seen_at >= NOW() - INTERVAL '" + hours + "' HOUR " +
-      "AND events.blob6 != '' " +
+      "AND blob6 != '' " +
       "GROUP BY cohort_day, day_offset " +
       "HAVING day_offset BETWEEN 0 AND 7 " +
       "ORDER BY cohort_day ASC, day_offset ASC LIMIT 500",
