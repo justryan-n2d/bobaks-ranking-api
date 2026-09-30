@@ -33,6 +33,21 @@ Phase 6 begins the growth and discovery work from the master roadmap. The curren
 
 See [docs/phase6-growth-foundation.md](docs/phase6-growth-foundation.md) for the implemented scope and remaining Phase 6 work.
 
+
+## Phase 6.5 product analytics
+
+Bobaks now has a privacy-aware product analytics foundation for measuring return usage and session depth:
+
+- Anonymous first-party visitor identifiers expire after 30 days.
+- Anonymous session identifiers use a 30-minute idle window.
+- Product events do not include player names, Roblox account IDs, IP addresses, message content, or raw search text.
+- Page views are explicitly emitted by the client, avoiding crawler-generated page-view events from server-rendered GET requests.
+- `scripts/product-analytics-report.mjs` generates weighted event totals, observed visitors/sessions, event and page breakdowns, session depth, and returning-visitor rate from Cloudflare Analytics Engine.
+- `.github/workflows/product-analytics-report.yml` schedules the report daily and supports manual execution.
+- Configure the repository secret `CLOUDFLARE_ANALYTICS_API_TOKEN` with Cloudflare Analytics read permission before the scheduled report can query production analytics.
+
+Visitor/session metrics are not backfilled. They begin when the updated analytics client is deployed.
+
 ## Phase 5 gamer experience
 
 Phase 5 adds the core gamer-facing experience: ranking movement, richer game details, daily rank history, trend signals, device-local saved games, side-by-side comparison, shareable rank cards, and visible data/freshness explanations.

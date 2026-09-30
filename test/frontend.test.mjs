@@ -36,6 +36,25 @@ test("frontend entrypoint contains Phase 6 SEO and routing surfaces", () => {
   assert.match(html, /const gameUrl=id=>new URL\('\/game\/'/);
 });
 
+test("frontend analytics uses anonymous visitor/session context without sending search text", () => {
+  const html = readHtml();
+  assert.ok(html.includes('<script src="/analytics-client.js"></script>'));
+  assert.match(html, /visitorId:analyticsContext\.visitorId/);
+  assert.match(html, /sessionId:analyticsContext\.sessionId/);
+  assert.match(html, /sendBeacon\('\/analytics'/);
+  assert.doesNotMatch(html, /search_used[^\n]*query/);
+
+  const client = fs.readFileSync(path.resolve("frontend/analytics-client.js"), "utf8");
+  assert.match(client, /window\.__BOBAKS_ANALYTICS__=\{context\};/);
+  assert.match(client, /bobaks\.analytics\.visitor/);
+  assert.match(client, /bobaks\.analytics\.session/);
+  assert.match(client, /30\*24\*60\*60\*1000/);
+  assert.match(client, /30\*60\*1000/);
+  assert.match(client, /crypto\.randomUUID/);
+  assert.match(client, /localStorage/);
+  assert.match(client, /sessionStorage/);
+});
+
 test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   const html = readHtml();
   assert.match(html, /<title>Bobaks Ranking \| Live Rankings & Historical Trends<\/title>/);
@@ -100,6 +119,30 @@ test("frontend ranking share content includes game name, rank, players, and cano
   assert.match(html, /const players=fmt\(g\.playing\)/);
   assert.match(html, /const url=new URL\(rankingPath\(period\),location\.origin\)\.toString\(\)/);
   assert.match(html, /Visit Bobaks Ranking:/);
+});
+
+test("privacy copy discloses anonymous product analytics identifiers", () => {
+  const html = readHtml();
+  assert.ok(html.includes("Anonymous first-party visitor and session identifiers may be used"));
+  assert.ok(html.includes("Visitor identifiers expire after 30 days"));
+  assert.ok(html.includes("session identifiers use a 30-minute idle window"));
+  assert.ok(html.includes("are not Roblox account IDs"));
+  assert.ok(html.includes("do not include IP addresses or raw search text"));
+});
+
+test("frontend records direct-entry page views and loads the analytics client", () => {
+  const html = readHtml();
+  assert.match(
+    html,
+    /if\(initialGame\)\{openGame\(initialGame\[1\],\{push:false\}\);track\('page_view',\{gameId:initialGame\[1\],period:state\.period\}\);\}/
+  );
+  assert.match(
+    html,
+    /else \{setPageMeta\(null\);render\(\);track\('page_view',\{period:state\.period\}\);loadRankings\(\);\}/
+  );
+
+  const client = fs.readFileSync(path.resolve("frontend/analytics-client.js"), "utf8");
+  assert.doesNotThrow(() => new Function(client));
 });
 
 test("frontend uses a device-local watchlist and bounded comparison", () => {
