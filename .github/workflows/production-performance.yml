@@ -1,7 +1,7 @@
 name: Production Performance
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - "frontend/**"
@@ -11,21 +11,34 @@ on:
       - "test/performance-budget.test.mjs"
       - "package.json"
       - "wrangler.jsonc"
-  pull_request:
-    paths:
-      - "frontend/**"
-      - "src/frontend-worker.ts"
-      - "src/api-worker.ts"
-      - "scripts/production-performance-trace.mjs"
-      - "test/performance-budget.test.mjs"
-      - "package.json"
-      - "wrangler.jsonc"
+  workflow_run:
+    workflows:
+      - "Deploy Cloudflare Frontend"
+      - "Deploy Cloudflare API"
+    types: [completed]
   workflow_dispatch:
   schedule:
     - cron: "30 2 * * *"
 
 jobs:
-  trace:
+  static-budget:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Run static performance budgets
+        run: npm run test:performance
+
+  production-trace:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,11 +50,9 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
-      - name: Static performance budgets
-        run: npm run test:performance
-      - name: Production trace
+      - name: Run production trace
         run: npm run performance:production
-      - name: Upload performance report
+      - name: Upload production trace
         if: always()
         uses: actions/upload-artifact@v4
         with:
