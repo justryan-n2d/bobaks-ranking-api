@@ -190,10 +190,13 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
   });
   const activeVisitors = numberOrZero(returning.active_visitors);
   const returningVisitors = numberOrZero(returning.returning_visitors);
-  const hasMultiDayTrend = dailyTrend.length >= 2;
-  const hasObservedRetentionBeyondBaseline = retentionCohorts.some(cohort =>
-    cohort.days.some(day => day.dayOffset > 0)
+  const observedDays = dailyTrend.length;
+  const hasMultiDayTrend = observedDays >= 2;
+  const maxObservedRetentionDay = retentionCohorts.reduce(
+    (max, cohort) => Math.max(max, ...cohort.days.map(day => day.dayOffset)),
+    0
   );
+  const hasObservedRetentionBeyondBaseline = maxObservedRetentionDay > 0;
 
   return {
     generatedAt,
@@ -202,6 +205,16 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
     interpretation: {
       trendStatus: hasMultiDayTrend ? "multi_day" : "single_day",
       retentionStatus: hasObservedRetentionBeyondBaseline ? "observed_beyond_baseline" : "baseline_only",
+      observedDays,
+      oldestObservedDay: dailyTrend[0]?.day || null,
+      newestObservedDay: dailyTrend[dailyTrend.length - 1]?.day || null,
+      maxObservedRetentionDay,
+      retentionMaturity:
+        maxObservedRetentionDay >= 7
+          ? "7_day"
+          : maxObservedRetentionDay > 0
+            ? "emerging"
+            : "baseline_only",
     },
     metrics: {
       weightedEvents: numberOrZero(summary.events),
