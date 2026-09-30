@@ -57,6 +57,31 @@ export function querySet(hours) {
       "FROM " + TABLE +
       " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
       "AND blob6 != '' AND blob7 != '' GROUP BY session_id)",
+    dailyTrend:
+      "SELECT toStartOfDay(timestamp) AS day, " +
+      "SUM(_sample_interval * double1) AS events, " +
+      "count(DISTINCT blob6) AS visitors, " +
+      "count(DISTINCT blob7) AS sessions " +
+      "FROM " + TABLE +
+      " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "AND blob6 != '' GROUP BY day ORDER BY day ASC",
+    retentionCohorts:
+      "WITH first_seen AS (" +
+      "SELECT blob6 AS visitor_id, toStartOfDay(min(timestamp)) AS cohort_day " +
+      "FROM " + TABLE +
+      " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "AND blob6 != '' GROUP BY visitor_id) " +
+      "SELECT first_seen.cohort_day AS cohort_day, " +
+      "intDiv(toUnixTimestamp(toStartOfDay(events.timestamp)) - " +
+      "toUnixTimestamp(first_seen.cohort_day), 86400) AS day_offset, " +
+      "count(DISTINCT events.blob6) AS visitors " +
+      "FROM " + TABLE + " AS events " +
+      "INNER JOIN first_seen ON events.blob6 = first_seen.visitor_id " +
+      "WHERE events.timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "AND events.blob6 != '' " +
+      "GROUP BY cohort_day, day_offset " +
+      "HAVING day_offset BETWEEN 0 AND 7 " +
+      "ORDER BY cohort_day ASC, day_offset ASC LIMIT 500",
     returning:
       "SELECT " +
       "countIf(last_seen >= NOW() - INTERVAL '" + hours + "' HOUR) AS active_visitors, " +
@@ -105,6 +130,37 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
   const summary = rows.summary?.[0] || {};
   const session = rows.sessions?.[0] || {};
   const returning = rows.returning?.[0] || {};
+  const dailyTrend = (rows.dailyTrend || []).map(row => ({
+    day: row.day,
+    weightedEvents: numberOrZero(row.events),
+    observedVisitors: numberOrZero(row.visitors),
+    observedSessions: numberOrZero(row.sessions)
+  }));
+  const cohortGroups = new Map();
+  for (const row of rows.retentionCohorts || []) {
+    const cohortDay = String(row.cohort_day || "");
+    if (!cohortDay) continue;
+    if (!cohortGroups.has(cohortDay)) cohortGroups.set(cohortDay, []);
+    cohortGroups.get(cohortDay).push({
+      dayOffset: numberOrZero(row.day_offset),
+      observedVisitors: numberOrZero(row.visitors)
+    });
+  }
+  const retentionCohorts = [...cohortGroups.entries()].map(([cohortDay, points]) => {
+    const dayZero = points.find(point => point.dayOffset === 0);
+    const cohortSize = dayZero?.observedVisitors || 0;
+    return {
+      cohortDay,
+      cohortSize,
+      days: points.map(point => ({
+        dayOffset: point.dayOffset,
+        observedVisitors: point.observedVisitors,
+        retentionRatePercent: cohortSize > 0
+          ? Number(((point.observedVisitors / cohortSize) * 100).toFixed(2))
+          : 0
+      }))
+    };
+  });
   const activeVisitors = numberOrZero(returning.active_visitors);
   const returningVisitors = numberOrZero(returning.returning_visitors);
 
@@ -127,10 +183,13 @@ export function buildReport(rows, generatedAt = new Date().toISOString(), hours 
     },
     eventBreakdown: rows.events || [],
     pageBreakdown: rows.routes || [],
+    dailyTrend,
+    retentionCohorts,
     notes: [
       "Weighted event totals use _sample_interval so event counts remain statistically correct when Analytics Engine sampling occurs.",
-      "Visitor and session counts are observed distinct identifiers and can be affected by Analytics Engine sampling.",
+      "Visitor and session counts, including retention cohorts, are observed distinct identifiers and can be affected by Analytics Engine sampling.",
       "Returning visitor rate uses a 30-day lookback before the selected report window.",
+      "Retention cohorts use the first observed day inside the selected report window as cohort day and report observed return rates through day 7 where data exists.",
       "Visitor identifiers are random first-party identifiers, expire after 30 days, and are not linked to Roblox account identities."
     ]
   };
