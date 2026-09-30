@@ -609,6 +609,7 @@ async function getRankings(
     },
     fetchImpl
   );
+  // Keep ranking and active-game metadata reads concurrent to minimize API TTFB.
   const activeGamesPromise = getActiveGamesForRanking(env, fetchImpl);
 
   const rankings = await rankingsPromise;
