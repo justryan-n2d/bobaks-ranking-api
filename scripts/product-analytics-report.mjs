@@ -28,25 +28,26 @@ export function querySet(hours) {
   return {
     summary:
       "SELECT SUM(_sample_interval * double1) AS events, " +
-      "count(DISTINCT if(blob6 = '', '', blob6)) - if(countIf(blob6 = '') > 0, 1, 0) AS visitors, " +
+      "count(DISTINCT blob6) AS visitors, " +
       "count(DISTINCT blob7) AS sessions, " +
       "max(_sample_interval) AS max_sample_interval " +
       "FROM " + TABLE +
-      " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR",
+      " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
+      "AND blob6 != ''",
     events:
       "SELECT blob1 AS event, " +
       "SUM(_sample_interval * double1) AS events, " +
       "count(DISTINCT blob6) AS visitors " +
       "FROM " + TABLE +
       " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
-      "GROUP BY event ORDER BY events DESC LIMIT 50",
+      "AND blob6 != '' GROUP BY event ORDER BY events DESC LIMIT 50",
     routes:
       "SELECT blob2 AS route, " +
       "SUM(_sample_interval * double1) AS views, " +
       "count(DISTINCT blob6) AS visitors " +
       "FROM " + TABLE +
       " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
-      "AND blob1 = 'page_view' GROUP BY route ORDER BY views DESC LIMIT 50",
+      "AND blob6 != '' AND blob1 = 'page_view' GROUP BY route ORDER BY views DESC LIMIT 50",
     sessions:
       "SELECT count() AS sessions, " +
       "avg(event_count) AS avg_events_per_session, " +
@@ -55,7 +56,7 @@ export function querySet(hours) {
       "SUM(_sample_interval * double1) AS event_count " +
       "FROM " + TABLE +
       " WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
-      "AND blob7 != '' GROUP BY session_id)",
+      "AND blob6 != '' AND blob7 != '' GROUP BY session_id)",
     returning:
       "SELECT " +
       "countIf(last_seen >= NOW() - INTERVAL '" + hours + "' HOUR) AS active_visitors, " +
