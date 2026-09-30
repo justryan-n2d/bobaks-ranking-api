@@ -62,7 +62,6 @@ These items should be implemented as separate, evidence-backed follow-up work:
 - richer return-loop surfaces for daily/weekly movers and new peaks
 - human-facing analytics dashboard for retention/session depth and trend exploration
 - infrastructure/storage/cost reporting dashboards
-- performance measurement with real production traces and budgets
 - abuse controls if public analytics traffic becomes noisy
 
 
@@ -122,3 +121,8 @@ Publishing behavior:
 - Webhook failures fail the publishing step rather than being silently treated as a successful post
 
 The publisher enforces Discord's 2,000-character message limit by splitting oversized content into separate messages. Discord documents webhooks as an automation mechanism for sending messages to a selected server channel. 
+
+
+## Phase 6.6 performance
+
+The Phase 6 performance follow-up is implemented in [docs/performance.md](performance.md). It adds real production trace collection and explicit latency/response-size budgets while preserving the existing ranking freshness policy.
