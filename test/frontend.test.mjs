@@ -193,7 +193,7 @@ test("frontend references the Bobaks logo as its favicon and brand mark", () => 
 });
 
 test("data-driven rank card generator is wired for dynamic rank tiers and export", () => {
-  const html = fs.readFileSync(frontendPath, "utf8");
+  const html = readFrontend();
 
   assert.match(html, /function cardTier\(rank\)/);
   assert.match(html, /LEGENDARY/);
