@@ -1392,7 +1392,7 @@ async function handleApi(
       return json(
         await getRankingResponse(env, period, fetchImpl),
         200,
-        { "cache-control": "no-store, no-cache, must-revalidate" }
+        {\n          "cache-control": "no-store",\n          "cloudflare-cdn-cache-control": "public, max-age=5, stale-while-revalidate=30, stale-if-error=60"\n        }
       );
     } catch (error) {
       console.error("GET /api/rankings failed:", error);
