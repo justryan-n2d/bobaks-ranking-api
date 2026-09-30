@@ -42,13 +42,13 @@ jobs:
           CF_ACCESS_AUD: ${{ secrets.CF_ACCESS_AUD }}
         run: |
           set -euo pipefail
-          printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | npx wrangler secret put CLOUDFLARE_ACCOUNT_ID --config wrangler.jsonc
-          printf '%s' "$CLOUDFLARE_ANALYTICS_API_TOKEN" | npx wrangler secret put CLOUDFLARE_ANALYTICS_API_TOKEN --config wrangler.jsonc
+          printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | npx wrangler versions secret put CLOUDFLARE_ACCOUNT_ID --config wrangler.jsonc
+          printf '%s' "$CLOUDFLARE_ANALYTICS_API_TOKEN" | npx wrangler versions secret put CLOUDFLARE_ANALYTICS_API_TOKEN --config wrangler.jsonc
           if [ -n "$CF_ACCESS_TEAM_DOMAIN" ]; then
-            printf '%s' "$CF_ACCESS_TEAM_DOMAIN" | npx wrangler secret put CF_ACCESS_TEAM_DOMAIN --config wrangler.jsonc
+            printf '%s' "$CF_ACCESS_TEAM_DOMAIN" | npx wrangler versions secret put CF_ACCESS_TEAM_DOMAIN --config wrangler.jsonc
           fi
           if [ -n "$CF_ACCESS_AUD" ]; then
-            printf '%s' "$CF_ACCESS_AUD" | npx wrangler secret put CF_ACCESS_AUD --config wrangler.jsonc
+            printf '%s' "$CF_ACCESS_AUD" | npx wrangler versions secret put CF_ACCESS_AUD --config wrangler.jsonc
           fi
 
       - name: Version frontend assets
