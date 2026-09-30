@@ -170,7 +170,9 @@ async function apiFetch(
     return env.API.fetch(request);
   }
 
-  return fetchImpl(request);
+  return fetchImpl(base + path, {
+    headers: { accept: "application/json" }
+  });
 }
 
 function replaceTagById(html: string, id: string, tag: string): string {
