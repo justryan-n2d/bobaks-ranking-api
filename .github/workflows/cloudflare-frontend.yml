@@ -81,7 +81,7 @@ jobs:
           echo "$app_js" | grep -F "__BOBAKS_RANKING_SNAPSHOT__"
           ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
           echo "$html" | grep -F "<title>Bobaks Ranking |"
-          echo "$html" | grep -F "id="app""
+          echo "$html" | grep -F 'id="app"'
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true' >/dev/null
