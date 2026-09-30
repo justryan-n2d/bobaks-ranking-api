@@ -14,7 +14,6 @@ on:
   workflow_run:
     workflows:
       - "Deploy Cloudflare Frontend"
-      - "Deploy Cloudflare API"
     types: [completed]
   workflow_dispatch:
   schedule:
