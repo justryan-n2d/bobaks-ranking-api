@@ -94,7 +94,7 @@ test("game routes prefer the Cloudflare API service binding when available", asy
   env.API = {
     async fetch(request: Request) {
       const url = new URL(request.url);
-      assert.equal(url.pathname, "/api/games/42");
+      paths.push(url.pathname);
       return response({
         data: {
           id: 42,
@@ -123,6 +123,7 @@ test("game routes prefer the Cloudflare API service binding when available", asy
 
   assert.equal(result.status, 200);
   assert.match(await result.text(), /Service Binding Experience/);
+  assert.deepEqual(paths.sort(), ["/api/games/42", "/api/games/42/peak"]);
 });
 
 test("sitemap prefers the Cloudflare API service binding when available", async () => {
@@ -488,6 +489,7 @@ test("frontend worker proxies same-origin API requests through the API service b
     API: { fetch(request: Request): Promise<Response> };
   };
   const calls: string[] = [];
+  const paths: string[] = [];
   env.API = {
     async fetch(request: Request) {
       calls.push(request.url);
