@@ -1,0 +1,50 @@
+name: Production Performance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "src/frontend-worker.ts"
+      - "src/api-worker.ts"
+      - "scripts/production-performance-trace.mjs"
+      - "test/performance-budget.test.mjs"
+      - "package.json"
+      - "wrangler.jsonc"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "src/frontend-worker.ts"
+      - "src/api-worker.ts"
+      - "scripts/production-performance-trace.mjs"
+      - "test/performance-budget.test.mjs"
+      - "package.json"
+      - "wrangler.jsonc"
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * *"
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Static performance budgets
+        run: npm run test:performance
+      - name: Production trace
+        run: npm run performance:production
+      - name: Upload performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bobaks-production-performance
+          path: performance-output/
+          retention-days: 30
