@@ -68,7 +68,7 @@ test("frontend analytics uses anonymous visitor/session context without sending 
 test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   const html = readFrontend();
   assert.match(html, /<title>Bobaks Ranking \| Live Rankings & Historical Trends<\/title>/);
-  assert.match(html, /const API='https:\/\/bobaks-ranking-api-service\.ryan-oledan0\.workers\.dev';/);
+  assert.match(html, /const API='\/api';window\.__BOBAKS_API__=API;/);
   for (const period of ["live", "week", "month", "year"]) {
     assert.ok(html.includes("'" + period + "'") || html.includes('"' + period + '"'));
   }
@@ -85,11 +85,9 @@ test("frontend entrypoint exists and exposes Phase 5 gamer surfaces", () => {
   assert.doesNotMatch(html, /bobaks-api-production\.up\.railway\.app/);
 });
 
-test("frontend script parses as valid JavaScript", () => {
-  const html = readFrontend();
-  const match = html.match(/<script>([\s\S]*?)<\/script>/);
-  assert.ok(match, "frontend must contain an inline script");
-  assert.doesNotThrow(() => new Function(match[1]));
+test("frontend application bundle parses as valid JavaScript", () => {
+  const app = readApp();
+  assert.doesNotThrow(() => new Function(app));
 });
 
 test("frontend exposes a social ranking share flow for every ranking period", () => {
