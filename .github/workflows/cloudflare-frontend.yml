@@ -77,7 +77,25 @@ jobs:
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
 
+          games=$(curl -fsS "$API/api/games")
+          game_id=$(echo "$games" | jq -r '.data[0].id')
+          test -n "$game_id"
+          test "$game_id" != "null"
+
           rankings=$(curl -fsS "$API/api/rankings?period=live")
           echo "$rankings" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+
+          weekly=$(curl -fsS "$FRONTEND/rankings/weekly")
+          echo "$weekly" | grep -F "This Week's Roblox Game Rankings | Bobaks Ranking"
+          echo "$weekly" | grep -F 'rel="canonical" href="https://bobaks-ranking-api.ryan-oledan0.workers.dev/rankings/weekly"'
+
+          game_html=$(curl -fsS "$FRONTEND/game/$game_id")
+          echo "$game_html" | grep -F "| Bobaks Ranking"
+          ! echo "$game_html" | grep -F "Game not found"
+
+          sitemap=$(curl -fsS "$FRONTEND/sitemap.xml?smoke=1")
+          sitemap_urls=$(echo "$sitemap" | grep -o "<loc>" | wc -l)
+          test "$sitemap_urls" -gt 5
+          echo "$sitemap" | grep -F "$FRONTEND/game/$game_id"
 
           echo "Published frontend and Cloudflare API smoke test passed."

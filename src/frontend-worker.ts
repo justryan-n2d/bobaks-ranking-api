@@ -3,6 +3,10 @@ interface AssetBinding {
   fetch(request: Request): Promise<Response>;
 }
 
+interface ServiceBinding {
+  fetch(request: Request): Promise<Response>;
+}
+
 interface AnalyticsBinding {
   writeDataPoint(data: {
     blobs?: string[];
@@ -14,6 +18,7 @@ interface AnalyticsBinding {
 interface Env {
   ASSETS: AssetBinding;
   API_ORIGIN: string;
+  API?: ServiceBinding;
   DISCORD_INVITE_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_ANALYTICS_API_TOKEN?: string;
@@ -151,6 +156,25 @@ async function assetShell(env: Env, request: Request): Promise<Response> {
   );
 }
 
+async function apiFetch(
+  env: Env,
+  path: string,
+  fetchImpl: FetchLike
+): Promise<Response> {
+  const base = env.API_ORIGIN.replace(/\/$/, "");
+  const request = new Request(base + path, {
+    headers: { accept: "application/json" }
+  });
+
+  if (env.API) {
+    return env.API.fetch(request);
+  }
+
+  return fetchImpl(base + path, {
+    headers: { accept: "application/json" }
+  });
+}
+
 function replaceTagById(html: string, id: string, tag: string): string {
   const escapedId = id.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(
@@ -172,14 +196,9 @@ async function fetchGame(
   gameId: string,
   fetchImpl: FetchLike
 ): Promise<{ game: Json; peak: Json | null } | null> {
-  const base = env.API_ORIGIN.replace(/\/$/, "");
   const [gameResponse, peakResponse] = await Promise.all([
-    fetchImpl(base + "/api/games/" + encodeURIComponent(gameId), {
-      headers: { accept: "application/json" }
-    }),
-    fetchImpl(base + "/api/games/" + encodeURIComponent(gameId) + "/peak", {
-      headers: { accept: "application/json" }
-    })
+    apiFetch(env, "/api/games/" + encodeURIComponent(gameId), fetchImpl),
+    apiFetch(env, "/api/games/" + encodeURIComponent(gameId) + "/peak", fetchImpl)
   ]);
 
   if (gameResponse.status === 404) return null;
@@ -368,10 +387,11 @@ async function renderRankingPage(
   period: string,
   fetchImpl: FetchLike
 ): Promise<Response> {
-  const base = env.API_ORIGIN.replace(/\/$/, "");
-  const response = await fetchImpl(base + "/api/rankings?period=" + encodeURIComponent(period), {
-    headers: { accept: "application/json" }
-  });
+  const response = await apiFetch(
+    env,
+    "/api/rankings?period=" + encodeURIComponent(period),
+    fetchImpl
+  );
 
   if (!response.ok) {
     return new Response("Ranking page unavailable", {
@@ -482,14 +502,10 @@ async function renderSitemap(
   let offset = 0;
 
   while (true) {
-    const gamesUrl = new URL(base + "/api/games");
-    gamesUrl.searchParams.set("limit", String(GAME_PAGE_SIZE));
-    gamesUrl.searchParams.set("offset", String(offset));
+    const gamesUrl = "/api/games?limit=" + GAME_PAGE_SIZE + "&offset=" + offset;
 
     try {
-      const response = await fetchImpl(gamesUrl.toString(), {
-        headers: { accept: "application/json" }
-      });
+      const response = await apiFetch(env, gamesUrl, fetchImpl);
 
       if (!response.ok) {
         console.warn("Sitemap game list unavailable:", response.status);
