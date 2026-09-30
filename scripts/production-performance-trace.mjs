@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 
 const FRONTEND_ORIGIN=(process.env.BOBAKS_FRONTEND_ORIGIN||"https://bobaks-ranking-api.ryan-oledan0.workers.dev").replace(/\/$/,"");
 const API_ORIGIN=(process.env.BOBAKS_API_ORIGIN||"https://bobaks-ranking-api-service.ryan-oledan0.workers.dev").replace(/\/$/,"");
-const SAMPLES=Math.max(3,Math.min(9,Number(process.env.BOBAKS_PERF_SAMPLES||5)));
+const SAMPLES=Math.max(20,Math.min(30,Number(process.env.BOBAKS_PERF_SAMPLES||20)));
 const BUDGETS={htmlBytes:70000,appJsBytes:80000,qrcodeBytes:60000,p95TtfbMs:1500,p95TotalMs:3000};
 
 async function fetchTrace(url){
@@ -30,6 +30,8 @@ async function trace(label,origin,path){
     p95TtfbMs:percentile(samples.map(x=>x.ttfbMs),95),
     p50TotalMs:percentile(samples.map(x=>x.totalMs),50),
     p95TotalMs:percentile(samples.map(x=>x.totalMs),95),
+    maxTtfbMs:Math.max(...samples.map(x=>x.ttfbMs)),
+    maxTotalMs:Math.max(...samples.map(x=>x.totalMs)),
     maxBodyBytes:Math.max(...samples.map(x=>x.bodyBytes)),
     cacheStatuses:[...new Set(samples.map(x=>x.cacheStatus).filter(Boolean))]
   }};
@@ -77,9 +79,9 @@ async function main(){
     "API origin: "+API_ORIGIN,
     "Samples per target: "+SAMPLES,
     "",
-    "| Target | p50 TTFB | p95 TTFB | p50 total | p95 total | Max body | Cache |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | --- |",
-    ...traces.map(t=>"| "+t.label+" | "+t.summary.p50TtfbMs+" ms | "+t.summary.p95TtfbMs+" ms | "+t.summary.p50TotalMs+" ms | "+t.summary.p95TotalMs+" ms | "+t.summary.maxBodyBytes+" B | "+(t.summary.cacheStatuses.join(", ")||"-")+" |")
+    "| Target | p50 TTFB | p95 TTFB | Max TTFB | p50 total | p95 total | Max total | Max body | Cache |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    ...traces.map(t=>"| "+t.label+" | "+t.summary.p50TtfbMs+" ms | "+t.summary.p95TtfbMs+" ms | "+t.summary.maxTtfbMs+" ms | "+t.summary.p50TotalMs+" ms | "+t.summary.p95TotalMs+" ms | "+t.summary.maxTotalMs+" ms | "+t.summary.maxBodyBytes+" B | "+(t.summary.cacheStatuses.join(", ")||"-")+" |")
   ].join("\n")+"\n";
   await fs.writeFile("performance-output/production-performance.md",md);
   console.log(md);
