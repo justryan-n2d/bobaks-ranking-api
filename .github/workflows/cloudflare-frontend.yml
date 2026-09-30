@@ -65,7 +65,7 @@ jobs:
           API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
 
           html=$(curl -fsS "$FRONTEND")
-          echo "$html" | grep -F "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          echo "$html" | grep -F "const API=\'/api\'"
           ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
           echo "$html" | grep -F "Live Rankings & Historical Trends"
           echo "$html" | grep -F "How Bobaks Rankings Work"
