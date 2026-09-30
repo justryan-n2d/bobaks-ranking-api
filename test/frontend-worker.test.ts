@@ -90,7 +90,7 @@ test("sitemap lists the homepage and active game URLs", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) {
+    if (new URL(url).pathname === "/api/games") {
       return response({
         data: [
           { id: 42, updatedAt: "2026-09-29T00:00:00.000Z" },
@@ -114,6 +114,40 @@ test("sitemap lists the homepage and active game URLs", async () => {
   assert.ok(xml.includes("https://bobaks.example/game/42"));
   assert.ok(xml.includes("https://bobaks.example/game/99"));
   assert.ok(xml.includes("<lastmod>2026-09-29T00:00:00.000Z</lastmod>"));
+});
+
+
+test("sitemap paginates the active game catalog beyond the first 100 games", async () => {
+  const env = makeEnv([]);
+  const firstPage = Array.from({ length: 100 }, (_, index) => ({
+    id: index + 1,
+    updatedAt: "2026-09-29T00:00:00.000Z"
+  }));
+  const secondPage = [{ id: 101, updatedAt: "2026-09-30T00:00:00.000Z" }];
+
+  const fakeFetch: typeof fetch = async input => {
+    const url = new URL(String(input));
+    if (url.origin === "https://api.example" && url.pathname === "/api/games") {
+      const limit = url.searchParams.get("limit");
+      const offset = url.searchParams.get("offset");
+      if (limit === "100" && offset === "0") return response({ data: firstPage });
+      if (limit === "100" && offset === "100") return response({ data: secondPage });
+      if (limit === null && offset === null) return response({ data: firstPage });
+    }
+    throw new Error("Unexpected API request: " + url.toString());
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/sitemap.xml"),
+    env,
+    fakeFetch
+  );
+  const xml = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.ok(xml.includes("https://bobaks.example/game/100"));
+  assert.ok(xml.includes("https://bobaks.example/game/101"));
+  assert.ok(xml.includes("<lastmod>2026-09-30T00:00:00.000Z</lastmod>"));
 });
 
 test("ranking period routes return indexable landing pages", async () => {
@@ -161,7 +195,7 @@ test("sitemap includes crawlable ranking period URLs", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) {
+    if (new URL(url).pathname === "/api/games") {
       return response({ data: [] });
     }
     throw new Error("Unexpected API request: " + url);
@@ -310,7 +344,7 @@ test("sitemap includes the public community hub", async () => {
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) return response({ data: [] });
+    if (new URL(url).pathname === "/api/games") return response({ data: [] });
     throw new Error("Unexpected API request: " + url);
   };
   const result = await handleFrontendRequest(
@@ -328,7 +362,7 @@ test("sitemap stays crawlable when the game-list API has a temporary server erro
   const env = makeEnv([]);
   const fakeFetch: typeof fetch = async input => {
     const url = String(input);
-    if (url.endsWith("/api/games")) {
+    if (new URL(url).pathname === "/api/games") {
       return response({ error: "Database unavailable" }, 503);
     }
     throw new Error("Unexpected API request: " + url);

@@ -477,21 +477,37 @@ async function renderSitemap(
   fetchImpl: FetchLike
 ): Promise<Response> {
   const base = env.API_ORIGIN.replace(/\/$/, "");
-  let body: { data?: Json[] } = {};
+  const GAME_PAGE_SIZE = 100;
+  const gameRows: Json[] = [];
+  let offset = 0;
 
-  try {
-    const response = await fetchImpl(base + "/api/games", {
-      headers: { accept: "application/json" }
-    });
+  while (true) {
+    const gamesUrl = new URL(base + "/api/games");
+    gamesUrl.searchParams.set("limit", String(GAME_PAGE_SIZE));
+    gamesUrl.searchParams.set("offset", String(offset));
 
-    if (response.ok) {
-      body = await response.json() as { data?: Json[] };
-    } else {
-      console.warn("Sitemap game list unavailable:", response.status);
+    try {
+      const response = await fetchImpl(gamesUrl.toString(), {
+        headers: { accept: "application/json" }
+      });
+
+      if (!response.ok) {
+        console.warn("Sitemap game list unavailable:", response.status);
+        break;
+      }
+
+      const body = await response.json() as { data?: Json[] };
+      const page = Array.isArray(body.data) ? body.data : [];
+      gameRows.push(...page);
+
+      if (page.length < GAME_PAGE_SIZE) break;
+      offset += GAME_PAGE_SIZE;
+    } catch (error) {
+      console.warn("Sitemap game list request failed:", error);
+      break;
     }
-  } catch (error) {
-    console.warn("Sitemap game list request failed:", error);
   }
+
   const origin = new URL(request.url).origin;
   const urls = [
     "<url><loc>" + escapeXml(origin + "/") + "</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>",
@@ -501,7 +517,7 @@ async function renderSitemap(
     "<url><loc>" + escapeXml(origin + "/community") + "</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>"
   ];
 
-  for (const game of body.data ?? []) {
+  for (const game of gameRows) {
     const id = String(game.id ?? "");
     if (!/^\d+$/.test(id)) continue;
 
@@ -528,7 +544,6 @@ async function renderSitemap(
     }
   });
 }
-
 async function renderAdminAnalyticsPage(request: Request, env: Env): Promise<Response> {
   const authorization = await authorizeAdminAnalytics(request, env);
   if (authorization instanceof Response) return authorization;

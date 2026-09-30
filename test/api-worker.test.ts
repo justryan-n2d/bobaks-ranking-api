@@ -141,6 +141,67 @@ function makeFetch(calls: { url: string; headers: Headers }[]): typeof fetch {
 }
 
 
+
+test("GET /api/games supports bounded pagination while keeping the 100-row default", async () => {
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    calls.push(url);
+    const parsed = new URL(url);
+    assert.equal(new Headers(init?.headers).get("apikey"), "sb_secret_test");
+
+    if (parsed.pathname === "/rest/v1/Game") {
+      const limit = parsed.searchParams.get("limit");
+      const offset = parsed.searchParams.get("offset");
+      if (limit === "2" && offset === "100") {
+        return response([
+          { id: "101", name: "Game 101", isActive: true },
+          { id: "102", name: "Game 102", isActive: true }
+        ]);
+      }
+      if (limit === "100" && offset === "0") {
+        return response([]);
+      }
+      return response([]);
+    }
+
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  const paged = await handleApi(
+    new Request("https://api.example/api/games?limit=2&offset=100"),
+    env,
+    fetchImpl
+  );
+  assert.equal(paged.status, 200);
+  assert.deepEqual((await paged.json()).data.map((row: { id: string }) => row.id), ["101", "102"]);
+  assert.match(calls[0], /[?&]limit=2(&|$)/);
+  assert.match(calls[0], /[?&]offset=100(&|$)/);
+
+  const defaultPage = await handleApi(
+    new Request("https://api.example/api/games"),
+    env,
+    fetchImpl
+  );
+  assert.equal(defaultPage.status, 200);
+  assert.match(calls[1], /[?&]limit=100(&|$)/);
+  assert.match(calls[1], /[?&]offset=0(&|$)/);
+
+  const invalidLimit = await handleApi(
+    new Request("https://api.example/api/games?limit=101"),
+    env,
+    fetchImpl
+  );
+  assert.equal(invalidLimit.status, 400);
+
+  const invalidOffset = await handleApi(
+    new Request("https://api.example/api/games?offset=-1"),
+    env,
+    fetchImpl
+  );
+  assert.equal(invalidOffset.status, 400);
+});
+
 test("health checks Supabase and returns connected", async () => {
   const calls: { url: string; headers: Headers }[] = [];
   const result = await handleApi(new Request("https://api.example/api/health"), env, makeFetch(calls));
