@@ -16,11 +16,13 @@ test("product analytics query set uses a bounded lookback and safe dataset name"
   assert.ok(queries.summary.includes("count(DISTINCT blob7)"));
   assert.ok(queries.dailyTrend.includes("toStartOfDay(timestamp)"));
   assert.ok(queries.dailyTrend.includes("GROUP BY day"));
-  assert.ok(queries.retentionCohorts.includes("toUnixTimestamp"));
-  assert.ok(queries.retentionCohorts.includes("day_offset"));
-  assert.ok(queries.retentionCohorts.includes("INTERVAL '888' HOUR"));
-  assert.ok(queries.retentionCohorts.includes("first_seen_at"));
-  assert.ok(!queries.retentionCohorts.includes(" AS events"));
+  assert.ok(queries.retentionFirstSeen.includes("min(timestamp) AS first_seen_at"));
+  assert.ok(queries.retentionFirstSeen.includes("INTERVAL '888' HOUR"));
+  assert.ok(queries.retentionFirstSeen.includes("LIMIT ALL"));
+  assert.ok(queries.retentionActivity.includes("toStartOfDay(timestamp) AS activity_day"));
+  assert.ok(queries.retentionActivity.includes("GROUP BY visitor_id, activity_day"));
+  assert.ok(queries.retentionActivity.includes("LIMIT ALL"));
+  assert.ok(!queries.retentionActivity.includes("JOIN"));
 });
 
 test("product analytics report calculates return rate and preserves sampling notes", async () => {
@@ -34,10 +36,39 @@ test("product analytics report calculates return rate and preserves sampling not
     dailyTrend: [
       { day: "2026-09-29 00:00:00", events: "80", visitors: "9", sessions: "7" }
     ],
-    retentionCohorts: [
-      { cohort_day: "2026-09-24 00:00:00", day_offset: "0", visitors: "10" },
-      { cohort_day: "2026-09-24 00:00:00", day_offset: "1", visitors: "6" },
-      { cohort_day: "2026-09-24 00:00:00", day_offset: "7", visitors: "4" }
+    retentionFirstSeen: [
+      { visitor_id: "v1", first_seen_at: "2026-09-24 01:00:00" },
+      { visitor_id: "v2", first_seen_at: "2026-09-24 02:00:00" },
+      { visitor_id: "v3", first_seen_at: "2026-09-24 03:00:00" },
+      { visitor_id: "v4", first_seen_at: "2026-09-24 04:00:00" },
+      { visitor_id: "v5", first_seen_at: "2026-09-24 05:00:00" },
+      { visitor_id: "v6", first_seen_at: "2026-09-24 06:00:00" },
+      { visitor_id: "v7", first_seen_at: "2026-09-24 07:00:00" },
+      { visitor_id: "v8", first_seen_at: "2026-09-24 08:00:00" },
+      { visitor_id: "v9", first_seen_at: "2026-09-24 09:00:00" },
+      { visitor_id: "v10", first_seen_at: "2026-09-24 10:00:00" }
+    ],
+    retentionActivity: [
+      { visitor_id: "v1", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v2", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v3", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v4", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v5", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v6", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v7", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v8", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v9", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v10", activity_day: "2026-09-24 00:00:00" },
+      { visitor_id: "v1", activity_day: "2026-09-25 00:00:00" },
+      { visitor_id: "v2", activity_day: "2026-09-25 00:00:00" },
+      { visitor_id: "v3", activity_day: "2026-09-25 00:00:00" },
+      { visitor_id: "v4", activity_day: "2026-09-25 00:00:00" },
+      { visitor_id: "v5", activity_day: "2026-09-25 00:00:00" },
+      { visitor_id: "v6", activity_day: "2026-09-25 00:00:00" },
+      { visitor_id: "v1", activity_day: "2026-10-01 00:00:00" },
+      { visitor_id: "v2", activity_day: "2026-10-01 00:00:00" },
+      { visitor_id: "v3", activity_day: "2026-10-01 00:00:00" },
+      { visitor_id: "v4", activity_day: "2026-10-01 00:00:00" }
     ]
   }, "2026-09-30T00:00:00.000Z", 168);
 
