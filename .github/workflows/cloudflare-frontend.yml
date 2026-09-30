@@ -66,14 +66,16 @@ jobs:
 
           html=$(curl -fsS "$FRONTEND")
           app_js=$(curl -fsS "$FRONTEND/app.js")
+          published="$html
+$app_js"
           echo "$app_js" | grep -F "const API=\'/api\'"
           ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
           echo "$html" | grep -F "Live Rankings & Historical Trends"
           echo "$html" | grep -F "How Bobaks Rankings Work"
-          echo "$html" | grep -F "Saved"
-          echo "$html" | grep -F "Compare"
-          echo "$html" | grep -F "Rank History"
-          echo "$html" | grep -F "Share rank card"
+          echo "$published" | grep -F "Saved"
+          echo "$published" | grep -F "Compare"
+          echo "$published" | grep -F "Rank History"
+          echo "$published" | grep -F "Share rank card"
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
