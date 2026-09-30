@@ -190,6 +190,7 @@ test("robots.txt exposes the sitemap and excludes API paths", async () => {
   assert.equal(result.status, 200);
   assert.ok(body.includes("Allow: /"));
   assert.ok(body.includes("Disallow: /api/"));
+  assert.ok(body.includes("Disallow: /admin/"));
   assert.ok(body.includes("Sitemap: https://bobaks.example/sitemap.xml"));
 });
 
@@ -347,4 +348,31 @@ test("sitemap stays crawlable when the game-list API has a temporary server erro
   assert.ok(xml.includes("https://bobaks.example/rankings/monthly"));
   assert.ok(xml.includes("https://bobaks.example/rankings/yearly"));
   assert.ok(xml.includes("https://bobaks.example/community"));
+});
+
+
+test("private admin analytics page fails closed when Access configuration is missing", async () => {
+  const env = makeEnv([]);
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/admin/analytics"),
+    env
+  );
+  assert.equal(result.status, 503);
+  assert.match(await result.text(), /Private analytics access is not configured/);
+});
+
+test("private admin analytics API fails closed without a Cloudflare Access assertion", async () => {
+  const env = {
+    ...makeEnv([]),
+    CF_ACCESS_TEAM_DOMAIN: "https://example.cloudflareaccess.com",
+    CF_ACCESS_AUD: "test-audience"
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/admin/api/analytics?start=2026-09-30T00:00:00.000Z&end=2026-09-30T01:00:00.000Z"),
+    env
+  );
+
+  assert.equal(result.status, 401);
+  assert.match(await result.text(), /Authentication required/);
 });
