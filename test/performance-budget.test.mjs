@@ -31,8 +31,9 @@ test("same-origin API proxy and response caching are implemented",()=>{
 
 test("games endpoint remains bounded and paginated",()=>{
   const api=fs.readFileSync(path.join(root,"src/api-worker.ts"),"utf8");
-  assert.match(api,/limit<1 \|\| limit>100/);
-  assert.match(api,/offset<0/);
+  assert.match(api,/limit < 1/);
+  assert.match(api,/limit > 100/);
+  assert.match(api,/offset < 0/);
   assert.match(api,/limit: String\(pagination\.limit\)/);
   assert.match(api,/offset: String\(pagination\.offset\)/);
 });
