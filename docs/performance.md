@@ -44,3 +44,18 @@ These are release guardrails, not claims about current production latency.
 The GitHub Actions workflow runs static budgets on pull requests and runs production traces after successful frontend or API deployments, on scheduled daily runs, and on manual dispatch. Production traces use 20 samples per target by default, which avoids treating one cold-cache request as the entire p95 sample while still recording the maximum observed TTFB separately. It uploads the JSON and Markdown report as a 30-day artifact.
 
 Production measurements are intentionally kept separate from the static code budgets. A code change can pass size checks while a live edge/database path still violates latency budgets.
+
+## Latest production trace
+
+Captured 2026-09-30 at 23:24 UTC from the deployed production frontend and API using 20 samples per target.
+
+| Target | p95 TTFB | p95 total | Max TTFB | Max body |
+| --- | ---: | ---: | ---: | ---: |
+| Homepage | 55.48 ms | 56.84 ms | 125.15 ms | 44,654 B |
+| Weekly page | 185.88 ms | 186.57 ms | 1,329.54 ms | 48,602 B |
+| Live ranking API | 1,061.18 ms | 1,063.03 ms | 1,320.59 ms | 106,206 B |
+| Game page | 30.68 ms | 31.40 ms | 1,052.79 ms | 46,412 B |
+| app.js | 64.51 ms | 65.24 ms | 65.48 ms | 73,312 B |
+| qrcode-generator.js | 62.11 ms | 62.68 ms | 69.75 ms | 56,694 B |
+
+All measured p95 latency budgets passed. The live ranking API is below the 1.5 s p95 budget after the production optimization and edge-cache changes. Maximum latency is recorded separately so occasional cold-cache events remain visible without distorting p95.
