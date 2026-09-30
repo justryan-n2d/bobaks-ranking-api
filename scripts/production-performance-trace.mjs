@@ -53,9 +53,9 @@ async function main(){
   traces.push(await trace("homepage",FRONTEND_ORIGIN,"/"));
   traces.push(await trace("weekly-page",FRONTEND_ORIGIN,"/rankings/weekly"));
   traces.push(await trace("live-ranking-api",API_ORIGIN,"/api/rankings?period=live"));
-  traces.push(await trace("game-page","/game/"+encodeURIComponent(gameId)));
+  traces.push(await trace("game-page",FRONTEND_ORIGIN,"/game/"+encodeURIComponent(gameId)));
   const appPath=await discoverAppPath();
-  traces.push(await trace("app-js",FRONTEND_ORIGIN,appPath);
+  traces.push(await trace("app-js",FRONTEND_ORIGIN,appPath));
   traces.push(await trace("qr-js",FRONTEND_ORIGIN,"/qrcode-generator.js"));
   const violations=[];
   for(const t of traces){
