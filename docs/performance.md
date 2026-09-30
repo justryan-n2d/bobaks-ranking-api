@@ -41,6 +41,6 @@ These are release guardrails, not claims about current production latency.
 - Cache-Control
 - Server-Timing when present
 
-The GitHub Actions workflow runs the static budgets plus production trace on pull requests, main pushes, scheduled daily runs, and manual dispatch. It uploads the JSON and Markdown report as a 30-day artifact.
+The GitHub Actions workflow runs static budgets on pull requests and runs production traces after successful frontend deployments, on scheduled daily runs, and on manual dispatch. It uploads the JSON and Markdown report as a 30-day artifact.
 
 Production measurements are intentionally kept separate from the static code budgets. A code change can pass size checks while a live edge/database path still violates latency budgets.
