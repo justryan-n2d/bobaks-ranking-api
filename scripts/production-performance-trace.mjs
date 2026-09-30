@@ -35,6 +35,14 @@ async function trace(label,origin,path){
   }};
 }
 
+async function discoverAppPath() {
+  const response = await fetch(FRONTEND_ORIGIN + "/");
+  if (!response.ok) throw new Error("Production homepage discovery failed with HTTP " + response.status);
+  const html = await response.text();
+  const match = html.match(/<script src="([^"]*app\.js[^"]*)"><\/script>/);
+  if (!match) throw new Error("Could not discover deployed app.js URL");
+  return match[1];
+}
 async function main(){
   const gameListResponse=await fetch(API_ORIGIN+"/api/games?limit=1&offset=0");
   if(!gameListResponse.ok) throw new Error("Production API discovery failed with HTTP "+gameListResponse.status);
@@ -45,8 +53,9 @@ async function main(){
   traces.push(await trace("homepage",FRONTEND_ORIGIN,"/"));
   traces.push(await trace("weekly-page",FRONTEND_ORIGIN,"/rankings/weekly"));
   traces.push(await trace("live-ranking-api",API_ORIGIN,"/api/rankings?period=live"));
-  traces.push(await trace("game-page","/game/"+encodeURIComponent(gameId)));
-  traces.push(await trace("app-js",FRONTEND_ORIGIN,"/app.js"));
+  traces.push(await trace("game-page",FRONTEND_ORIGIN,"/game/"+encodeURIComponent(gameId)));
+  const appPath=await discoverAppPath();
+  traces.push(await trace("app-js",FRONTEND_ORIGIN,appPath));
   traces.push(await trace("qr-js",FRONTEND_ORIGIN,"/qrcode-generator.js"));
   const violations=[];
   for(const t of traces){
