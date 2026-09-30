@@ -1120,3 +1120,4 @@ if(location.pathname==='/community'){state.view='community';setCommunityMeta();r
 const initialGame=location.pathname.match(GAME_ROUTE);
 if(initialGame){openGame(initialGame[1],{push:false});track('page_view',{gameId:initialGame[1],period:state.period});}
 else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
+setTimeout(()=>import('/return-loops.js').catch(()=>{}),800);
