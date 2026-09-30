@@ -38,6 +38,9 @@
   }
 
   function visitorId(now){
+    if(memoryVisitor&&Number(memoryVisitor.expiresAt)>now&&typeof memoryVisitor.id==='string'){
+      return memoryVisitor.id;
+    }
     const saved=read(window.localStorage,VISITOR_KEY);
     if(saved&&typeof saved.id==='string'&&/^[a-f0-9]{32}$/i.test(saved.id)&&Number(saved.expiresAt)>now){
       return saved.id;
@@ -50,6 +53,10 @@
   }
 
   function sessionId(now){
+    if(memorySession&&Number(memorySession.lastSeenAt)>0&&now-Number(memorySession.lastSeenAt)<=SESSION_IDLE_MS){
+      memorySession.lastSeenAt=now;
+      return memorySession.id;
+    }
     const saved=read(window.sessionStorage,SESSION_KEY);
     if(saved&&typeof saved.id==='string'&&/^[a-f0-9]{32}$/i.test(saved.id)&&Number(saved.lastSeenAt)>0&&now-Number(saved.lastSeenAt)<=SESSION_IDLE_MS){
       saved.lastSeenAt=now;
