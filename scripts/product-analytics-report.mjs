@@ -73,9 +73,9 @@ export function querySet(hours) {
       " WHERE timestamp >= NOW() - INTERVAL '" + lookbackHours + "' HOUR " +
       "AND blob6 != '' GROUP BY visitor_id) " +
       "SELECT first_seen.cohort_day AS cohort_day, " +
-      "intDiv(toUnixTimestamp(toStartOfDay(events.timestamp)) - " +
+      "intDiv(toUnixTimestamp(toStartOfDay(timestamp)) - " +
       "toUnixTimestamp(first_seen.cohort_day), 86400) AS day_offset, " +
-      "count(DISTINCT events.blob6) AS visitors " +
+      "count(DISTINCT blob6) AS visitors " +
       "FROM " + TABLE + " " +
       "INNER JOIN first_seen ON blob6 = first_seen.visitor_id " +
       "WHERE timestamp >= NOW() - INTERVAL '" + hours + "' HOUR " +
