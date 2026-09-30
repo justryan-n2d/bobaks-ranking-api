@@ -1397,14 +1397,23 @@ async function handleApi(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const startedAt = performance.now();
     const response = request.method === "OPTIONS"
       ? new Response(null, { status: 204, headers: { ...corsHeaders() } })
       : request.method !== "GET"
         ? json({ error: "Method not allowed" }, 405, { allow: "GET, OPTIONS" })
         : await handleApi(request, env);
 
-    recordApiAnalytics(env, request, response);
-    return withCors(response);
+    const headers = new Headers(response.headers);
+    headers.set("server-timing", "api;dur=" + (performance.now() - startedAt).toFixed(1));
+    const timedResponse = new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+
+    recordApiAnalytics(env, request, timedResponse);
+    return withCors(timedResponse);
   }
 };
 
