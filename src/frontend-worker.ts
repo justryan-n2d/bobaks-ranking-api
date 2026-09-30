@@ -1,3 +1,4 @@
+import { authorizeAdminAnalytics, fetchAdminAnalytics, parseAnalyticsRange } from "./admin-analytics";
 interface AssetBinding {
   fetch(request: Request): Promise<Response>;
 }
@@ -14,6 +15,10 @@ interface Env {
   ASSETS: AssetBinding;
   API_ORIGIN: string;
   DISCORD_INVITE_URL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_ANALYTICS_API_TOKEN?: string;
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
   ANALYTICS?: AnalyticsBinding;
 }
 
@@ -524,6 +529,90 @@ async function renderSitemap(
   });
 }
 
+async function renderAdminAnalyticsPage(request: Request, env: Env): Promise<Response> {
+  const authorization = await authorizeAdminAnalytics(request, env);
+  if (authorization instanceof Response) return authorization;
+
+  const shell = await assetShell(env, request);
+  if (!shell.ok) return shell;
+
+  const output = await shell.text();
+  const html = output.replace(
+    /<title>[\s\S]*?<\/title>/i,
+    "<title>Bobaks Admin Analytics</title>"
+  ).replace(
+    /<main id="app" class="wrap"><\/main>/i,
+    '<main id="app" class="wrap"><section class="admin-analytics-shell">' +
+      '<div class="admin-analytics-header">' +
+        '<div><div class="eyebrow">BOBAKS ADMIN</div><h1>Analytics Dashboard</h1>' +
+        '<p>Private product usage analytics for authorized Bobaks administrators.</p></div>' +
+        '<a class="btn" href="/">Back to Bobaks</a>' +
+      '</div>' +
+      '<div id="analyticsApp"></div>' +
+    '</section></main>'
+  ).replace(
+    /<\/head>/i,
+    '<meta name="robots" content="noindex, nofollow">' +
+    '<meta name="referrer" content="no-referrer">' +
+    '<link rel="stylesheet" href="/admin-analytics.css">' +
+    '<script type="module" src="/admin-analytics.js"></script></head>'
+  );
+
+  const headers = new Headers(shell.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "private, no-store");
+  headers.set("x-robots-tag", "noindex, nofollow");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("referrer-policy", "no-referrer");
+  headers.set(
+    "content-security-policy",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'"
+  );
+
+  return new Response(html, { status: 200, headers });
+}
+
+async function handleAdminAnalyticsApi(request: Request, env: Env): Promise<Response> {
+  if (request.method !== "GET") {
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: { allow: "GET", "cache-control": "no-store" }
+    });
+  }
+
+  const authorization = await authorizeAdminAnalytics(request, env);
+  if (authorization instanceof Response) return authorization;
+
+  const parsedRange = parseAnalyticsRange(new URL(request.url));
+  if (parsedRange instanceof Response) return parsedRange;
+
+  try {
+    const report = await fetchAdminAnalytics(
+      parsedRange,
+      env,
+      fetch
+    );
+
+    return new Response(JSON.stringify(report), {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff"
+      }
+    });
+  } catch (error) {
+    console.error("Admin analytics query failed:", error);
+    return new Response("Analytics data is temporarily unavailable.", {
+      status: 502,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store"
+      }
+    });
+  }
+}
+
 async function handleAnalytics(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST") {
     return new Response("Method not allowed", {
@@ -574,13 +663,17 @@ export async function handleFrontendRequest(
     return handleAnalytics(request, env);
   }
 
+  if (url.pathname === "/admin/api/analytics") {
+    return handleAdminAnalyticsApi(request, env);
+  }
+
   if (request.method !== "GET") {
     return env.ASSETS.fetch(request);
   }
 
   if (url.pathname === "/robots.txt") {
     return new Response(
-      "User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + url.origin + "/sitemap.xml\n",
+      "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nSitemap: " + url.origin + "/sitemap.xml\n",
       {
         status: 200,
         headers: {
@@ -597,6 +690,10 @@ export async function handleFrontendRequest(
 
   if (url.pathname === "/community") {
     return renderCommunityPage(request, env);
+  }
+
+  if (url.pathname === "/admin/analytics") {
+    return renderAdminAnalyticsPage(request, env);
   }
 
   const rankingPeriod = rankingPeriodForPath(url.pathname);
