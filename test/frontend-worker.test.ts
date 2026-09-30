@@ -87,6 +87,7 @@ test("game routes return an indexable SEO page with canonical metadata and JSON-
 });
 
 test("game routes prefer the Cloudflare API service binding when available", async () => {
+  const paths: string[] = [];
   const env = makeEnv([]) as ReturnType<typeof makeEnv> & {
     API: { fetch(request: Request): Promise<Response> };
   };
