@@ -555,7 +555,7 @@ test("ranking views use delegated global account actions with a cache-busted app
   assert.match(app, /document\.addEventListener\('click',event=>\{/);
   assert.match(app, /#continueGuest,#accountSignout,#accountSignOut/);
   for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
-    assert.match(account, new RegExp("#" + id));
+    assert.match(account, new RegExp('id="' + id + '"'));
   }
   assert.ok(html.includes('/app.js?v=20261001-account-8'));
 });
