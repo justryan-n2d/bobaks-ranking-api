@@ -190,10 +190,10 @@ function nav(){
   renderAccountArea();
 }
 function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
-let accountModulePromise,accountModuleAttempt=0;
+let accountModulePromise;
 function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
-  const url='/account.js?v=20261001-auth-5-'+(++accountModuleAttempt);
+  const url='/account.js?v=20261001-auth-6';
   accountModulePromise=import(url).catch(error=>{
     accountModulePromise=null;
     if(location.pathname==='/account'){
@@ -207,7 +207,7 @@ function ensureAccountModule(){
 function authClient(){return accountUI()?.client?.()||null}
 function isSignedIn(){return !!accountUI()?.isSignedIn?.()}
 function renderAccountArea(){accountUI()?.renderAccountArea?.()}
-const ACCOUNT_LOADING='<div class="account-loading-screen"><span class="account-spinner"></span><b>Loading account</b></div>';
+const ACCOUNT_LOADING='<div class=account-loading-screen><span class=account-spinner></span><b>Loading account</b></div>';
 function authPage(){return accountUI()?.authPage?.()||ACCOUNT_LOADING}
 function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve(ACCOUNT_LOADING)}
 function goAuth(mode='signin',opts={}){return accountUI()?.goAuth?.(mode,opts)}
