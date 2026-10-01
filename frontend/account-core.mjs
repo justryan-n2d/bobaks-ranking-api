@@ -420,13 +420,15 @@ export function createAuthClient({
     }
   }
 
-  async function resendSignupConfirmation(email) {
+  async function resendSignupConfirmation(email, emailRedirectTo) {
+    const body = {
+      type: "signup",
+      email: normalizeEmail(email)
+    };
+    if (emailRedirectTo) body.redirect_to = String(emailRedirectTo);
     await authRequest("/auth/v1/resend", {
       method: "POST",
-      body: {
-        type: "signup",
-        email: normalizeEmail(email)
-      }
+      body
     });
   }
 
