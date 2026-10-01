@@ -227,17 +227,6 @@ document.addEventListener('click',event=>{
 });
 function fallbackNext(){const n=Date.now(),step=600000;return new Date((Math.floor(n/step)+1)*step+15000).toISOString()}
 function schedule(){if(state.timer)clearTimeout(state.timer);if(state.next)state.timer=setTimeout(loadRankings,Math.max(1000,new Date(state.next).getTime()-Date.now()))}
-const RANKING_SHARE_LABELS={live:'Top 10 Roblox games right now',week:"Top 10 Roblox games this week",month:"Top 10 Roblox games this month",year:"Top 10 Roblox games this year"};
-function rankingShareText(period,games){
-  const title=RANKING_SHARE_LABELS[period]||RANKING_SHARE_LABELS.live;
-  const lines=(games||[]).slice(0,10).map((g,index)=>{
-    const rank=Number(g.rank||index+1);
-    const players=fmt(g.playing);
-    return rank+'. '+String(g.name||'Unknown game')+' | '+players+' players';
-  });
-  const url=new URL(rankingPath(period),location.origin).toString();
-  return [title,'',...lines,'','Visit Bobaks Ranking:',url].join('\n');
-}
 async function shareSocialPost(kind){
   const status=$('socialStatus');
   const setStatus=message=>{if(status){status.textContent=message;status.classList.add('show')}};
