@@ -190,23 +190,17 @@ function nav(){
   renderAccountArea();
 }
 function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
-let accountModulePromise;
-let accountModuleAttempt=0;
-function accountModuleErrorPage(){
-  const message=String(window.__BOBAKS_ACCOUNT_MODULE_ERROR__||"The account module could not be loaded.");
-  return '<section class="info account-module-error"><div class="eyebrow">ACCOUNT</div><h1>Account could not load</h1><p>Bobaks opened the account page, but the account module failed to initialize.</p><div class="banner error" role="alert">'+esc(message)+'</div><button class="btn primary" id="retryAccountModule" type="button">Retry account</button><p><small>If this keeps happening, refresh the page once after the deployment finishes.</small></p></section>';
-}
+let accountModulePromise,accountModuleAttempt=0;
 function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
-  accountModuleAttempt+=1;
-  const attempt=accountModuleAttempt;
-  const url='/account.js?v=20261001-auth-5-'+attempt;
+  const url='/account.js?v=20261001-auth-5-'+(++accountModuleAttempt);
   accountModulePromise=import(url).catch(error=>{
-    const message=String(error?.message||error||"Unknown module load error");
-    window.__BOBAKS_ACCOUNT_MODULE_ERROR__=message;
     console.error('Bobaks account module failed:',error);
-    window.dispatchEvent(new CustomEvent('bobaks:account-module-error',{detail:{message}}));
     accountModulePromise=null;
+    if(location.pathname==='/account'){
+      $('app').innerHTML='<div class="banner error" role="alert">Account failed to load. <button class="btn primary" id="retryAccountModule" type="button">Retry</button></div>';
+      $('retryAccountModule')?.addEventListener('click',()=>location.reload(),{once:true});
+    }
     return null;
   });
   return accountModulePromise;
@@ -214,8 +208,8 @@ function ensureAccountModule(){
 function authClient(){return accountUI()?.client?.()||null}
 function isSignedIn(){return !!accountUI()?.isSignedIn?.()}
 function renderAccountArea(){accountUI()?.renderAccountArea?.()}
-function authPage(){return accountUI()?.authPage?.()||accountModuleErrorPage()}
-function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve(accountModuleErrorPage())}
+function authPage(){return accountUI()?.authPage?.()||'<div class="banner">Loading account...</div>'}
+function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve('<div class="banner">Loading account...</div>')}
 function goAuth(mode='signin',opts={}){return accountUI()?.goAuth?.(mode,opts)}
 function goAccount(opts={}){return accountUI()?.goAccount?.(opts)}
 function submitAuth(){return accountUI()?.submitAuth?.()}
@@ -408,7 +402,6 @@ function bind(){
   const accountSignout=$('accountSignout');if(accountSignout)accountSignout.onclick=signOutAccount;
   const accountSignOut=$('accountSignOut');if(accountSignOut)accountSignOut.onclick=signOutAccount;
   const accountBrowse=$('accountBrowse');if(accountBrowse)accountBrowse.onclick=()=>goHome({push:true});
-  const retryAccountModule=$('retryAccountModule');if(retryAccountModule)retryAccountModule.onclick=()=>{window.__BOBAKS_ACCOUNT_MODULE_ERROR__="";render();ensureAccountModule()};
   const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAuth()};
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
   const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
@@ -1259,12 +1252,6 @@ window.addEventListener('bobaks:account-ready',()=>{
   if(location.pathname==='/account'){
     if(isSignedIn()){state.view='account';setAccountMeta()}
     else {state.view='auth';authMeta(accountState()?.mode||'signin')}
-    render();
-  }
-});
-window.addEventListener('bobaks:account-module-error',()=>{
-  if(location.pathname==='/account'){
-    state.view='auth';
     render();
   }
 });
