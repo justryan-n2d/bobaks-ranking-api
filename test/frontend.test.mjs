@@ -484,3 +484,5 @@ test("homepage uses an explicit app bundle version", () => {
   const html = readHtml();
   assert.match(html, /<script src="\/app\.js\?v=\d{8}-[a-z0-9-]+"><\/script>/);
 });
+
+// Keep CI coverage attached to the bounded live-ranking regression.
