@@ -7,8 +7,8 @@ const COMMUNITY_META={title:'Bobaks Ranking Community | Discord, Feedback & Game
 const DISCORD_INVITE_URL=window.__BOBAKS_COMMUNITY__?.discordInviteUrl||'';
 const COMMUNITY_DISCORD_URL=DISCORD_INVITE_URL;
 const RANKING_META={
-  live:{title:'Live Roblox Game Rankings | Bobaks Ranking',description:'See the latest live Roblox experience rankings, player counts, and rank movement collected by Bobaks Ranking.'},
-  week:{title:"This Week's Roblox Game Rankings | Bobaks Ranking",description:"See this week's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."},
+ live:{title:'Live Roblox Game Rankings | Bobaks Ranking',description:'See the latest live Roblox experience rankings, player counts, and rank movement collected by Bobaks Ranking.'},
+ week:{title:"This Week's Roblox Game Rankings | Bobaks Ranking",description:"See this week's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."},
   month:{title:"This Month's Roblox Game Rankings | Bobaks Ranking",description:"See this month's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."},
   year:{title:"This Year's Roblox Game Rankings | Bobaks Ranking",description:"See this year's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."}
 };
