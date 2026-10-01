@@ -528,11 +528,17 @@ export function createAuthClient({
 
   async function saveComparison(gameIdA, gameIdB) {
     const user = await getUser();
-    const a = normalizeGameId(gameIdA);
-    const b = normalizeGameId(gameIdB);
-    if (a === b) throw new Error("A comparison needs two different games.");
+    const rawA = normalizeGameId(gameIdA);
+    const rawB = normalizeGameId(gameIdB);
+    if (rawA === rawB) throw new Error("A comparison needs two different games.");
 
-    const result = await authenticatedFetch("/saved_comparisons", {
+    const [a, b] = BigInt(rawA) < BigInt(rawB)
+      ? [rawA, rawB]
+      : [rawB, rawA];
+
+    const result = await authenticatedFetch(
+      "/saved_comparisons?on_conflict=user_id%2Cgame_id_a%2Cgame_id_b",
+      {
       method: "POST",
       headers: {
         prefer: "resolution=merge-duplicates,return=representation"
