@@ -30,11 +30,22 @@ if (hasConfig) {
 
 window.__BOBAKS_AUTH__ = auth;
 
-window.dispatchEvent(new CustomEvent("bobaks:auth-ready", {
-  detail: {
-    available: Boolean(auth)
-  }
-}));
+const authReady = auth
+  ? auth.recoverSessionFromUrl().catch(error => {
+      console.error("Bobaks authentication callback failed:", error);
+      return null;
+    })
+  : Promise.resolve(null);
+
+window.__BOBAKS_AUTH_READY__ = authReady;
+
+authReady.finally(() => {
+  window.dispatchEvent(new CustomEvent("bobaks:auth-ready", {
+    detail: {
+      available: Boolean(auth)
+    }
+  }));
+});
 
 export function getBobaksAuth() {
   return window.__BOBAKS_AUTH__ ?? null;
