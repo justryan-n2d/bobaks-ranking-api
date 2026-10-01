@@ -248,14 +248,14 @@ export function createAuthClient({
       };
     }
 
-    if (emailRedirectTo) body.email_redirect_to = String(emailRedirectTo);
+    if (emailRedirectTo) body.redirect_to = String(emailRedirectTo);
 
     const payload = await authRequest("/auth/v1/signup", {
       method: "POST",
       body
     });
 
-    const session = writeSession(payload?.session);
+    const session = writeSession(payload?.session ?? (payload?.access_token ? payload : null));
     emit(session ? "SIGNED_IN" : "SIGNED_UP", session);
 
     return {
