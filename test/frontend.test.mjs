@@ -484,3 +484,8 @@ test("homepage uses an explicit app bundle version", () => {
   const html = readHtml();
   assert.match(html, /<script src="\/app\.js\?v=\d{8}-[a-z0-9-]+"><\/script>/);
 });
+test("frontend API helper avoids duplicating the /api prefix", () => {
+  const app = readApp();
+  assert.match(app, /const requestPath=key\.startsWith\(API\+'\\/'\)\?key\.slice\(API\.length\):key;/);
+  assert.match(app, /fetch\(API\+requestPath,/);
+});
