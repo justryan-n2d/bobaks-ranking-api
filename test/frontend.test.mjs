@@ -534,6 +534,14 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
   assert.match(core, /rest\/v1/);
 });
 
+test("account module failures surface a visible retry path instead of infinite loading", () => {
+  const app = readApp();
+  assert.match(app, /function accountModuleErrorPage\(\)/);
+  assert.match(app, /id="retryAccountModule"/);
+  assert.match(app, /bobaks:account-module-error/);
+  assert.match(app, /window\.__BOBAKS_ACCOUNT_MODULE_ERROR__/);
+});
+
 test("Cloudflare frontend exposes only public Supabase auth configuration", () => {
   const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
   assert.match(config, /"SUPABASE_URL"\s*:/);
