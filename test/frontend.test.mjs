@@ -535,6 +535,12 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
   assert.match(core, /rest\/v1/);
 });
 
+test("Cloudflare Previews inherit the API routing configuration needed by game and ranking routes", () => {
+  const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
+  assert.match(config, /"previews"\s*:\s*\{[\s\S]*"vars"\s*:\s*\{[\s\S]*"API_ORIGIN"\s*:\s*"https:\/\/bobaks-ranking-api-service\.ryan-oledan0\.workers\.dev"/);
+  assert.match(config, /"previews"\s*:\s*\{[\s\S]*"services"\s*:\s*\[[\s\S]*"binding"\s*:\s*"API"[\s\S]*"service"\s*:\s*"bobaks-ranking-api-service"/);
+});
+
 test("account loading state is centered and animated", () => {
   const html = readHtml();
   const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
