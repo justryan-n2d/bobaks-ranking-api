@@ -486,6 +486,14 @@ test("homepage uses an explicit app bundle version", () => {
   const html = readHtml();
   assert.match(html, /<script src="\/app\.js\?v=\d{8}-[a-z0-9-]+"><\/script>/);
 });
+
+test("watchlist logout isolation cache-busts account and return-loop modules", () => {
+  const app = readApp();
+  const html = readHtml();
+  assert.match(html, /<script src="\/app\.js\?v=20261001-account-9"><\/script>/);
+  assert.match(app, /\/account\.js\?v=20261001-auth-7/);
+  assert.match(app, /\/return-loops\.js\?v=20261001-watchlist-1/);
+});
 test("frontend API helper avoids duplicating the /api prefix", () => {
   const app = readApp();
   assert.ok(app.includes("const requestPath=key.startsWith(API+'/')?key.slice(API.length):key;"));
@@ -563,7 +571,7 @@ test("ranking views use delegated global account actions with a cache-busted app
   for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
     assert.match(account, new RegExp('id="' + id + '"'));
   }
-  assert.ok(html.includes('/app.js?v=20261001-account-8'));
+  assert.ok(html.includes('/app.js?v=20261001-account-9'));
 });
 
 test("successful log in redirects to the Bobaks homepage", () => {
@@ -665,12 +673,23 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
   assert.match(html, /class="top" id="siteSidebar"/);
 });
 
-test("guest and account watchlist states are explicitly separated", () => {
+test("guest and account watchlist states stay isolated across logout", () => {
   const app = readApp();
   const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const returnLoops = readReturnLoops();
+
   assert.match(app, /Saved only on this device\. Log in to sync across devices/);
   assert.match(account, /Synced to your Bobaks account across devices/);
   assert.match(account, /migrateGuest/);
+  assert.match(app, /function clearSaved\(\)\{state\.saved=\[\];try\{localStorage\.removeItem\(WATCHLIST_KEY\)\}catch\{\}\}/);
+  assert.match(app, /clearSaved:\(\)=>\{clearSaved\(\);render\(\)\}/);
+  assert.match(app, /event\.detail\?\.event==='SIGNED_OUT'[\\s\\S]*?clearSaved\(\)/);
+  assert.match(app, /if\(!accountUI\(\)\?\.isSignedIn\?\.\(\)\)saveSaved\(\)/);
+  assert.match(account, /app\(\)\.clearSaved\?\.\(\)/);
+  assert.doesNotMatch(account, /persistSaved\(ids\)/);
+  assert.doesNotMatch(account, /persistSaved\(merged\)/);
+  assert.match(returnLoops, /account\?\.isSignedIn\?\.\(\)/);
+  assert.match(returnLoops, /__BOBAKS_ACCOUNT_APP__\?\.getSaved\?\.\(\)/);
 });
 
 test("account alert settings feed the existing return-loop alert checks", () => {
