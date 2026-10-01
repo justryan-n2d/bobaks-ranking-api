@@ -1092,3 +1092,82 @@ test("operational observability omits invalid durations instead of inventing lat
   assert.equal(body.collectionDurationSeconds.p95, null);
   assert.equal(body.latest.durationSeconds, null);
 });
+
+test("ranking endpoint returns only compact game metadata needed by ranking cards", async () => {
+  const calls: { url: string; headers: Headers }[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers);
+    calls.push({ url, headers });
+    const parsed = new URL(url);
+
+    if (parsed.pathname === "/rest/v1/Ranking") {
+      return response([{
+        id: "10",
+        gameId: "1",
+        period: "weekly",
+        rank: 1,
+        score: 123.5,
+        calculatedAt: "2026-09-27T01:20:00.000Z"
+      }]);
+    }
+
+    if (parsed.pathname === "/rest/v1/Game") {
+      const select = parsed.searchParams.get("select");
+      if (select === "id,universeId,placeId,name,creatorName,iconUrl,isActive") {
+        return response([{
+          id: "1",
+          universeId: "1001",
+          placeId: "2001",
+          name: "Test Game",
+          creatorName: "Creator",
+          iconUrl: "https://cdn.example/test.png",
+          isActive: true
+        }]);
+      }
+      return response([{
+        id: "1",
+        universeId: "1001",
+        placeId: "2001",
+        name: "Test Game",
+        creatorName: "Creator",
+        creatorId: "3001",
+        iconUrl: "https://cdn.example/test.png",
+        description: "A very long description that ranking cards do not need.",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-09-27T00:00:00.000Z",
+        isActive: true
+      }]);
+    }
+
+    if (parsed.pathname === "/rest/v1/DataCollectionLog") {
+      return response([{ startedAt: new Date(Date.now() - 600_000).toISOString() }]);
+    }
+
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/rankings?period=week"),
+    env,
+    fetchImpl
+  );
+  const body = await result.json() as Record<string, any>;
+  const game = body.data[0].game;
+
+  assert.equal(result.status, 200);
+  assert.equal(game.name, "Test Game");
+  assert.equal(game.creatorName, "Creator");
+  assert.equal(game.iconUrl, "https://cdn.example/test.png");
+  assert.equal(game.placeId, "2001");
+  assert.equal(game.description, undefined);
+  assert.equal(game.createdAt, undefined);
+  assert.equal(game.updatedAt, undefined);
+
+  const gameCall = calls.find(call => call.url.includes("/rest/v1/Game?"));
+  assert.ok(gameCall);
+  assert.equal(
+    new URL(gameCall.url).searchParams.get("select"),
+    "id,universeId,placeId,name,creatorName,iconUrl,isActive"
+  );
+});
