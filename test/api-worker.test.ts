@@ -510,7 +510,7 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.ok(calls.some(call => call.url.includes("/rest/v1/DataCollectionLog?")));
   assert.equal((body.data as unknown[]).length, 1);
   assert.ok(calls.some(call => /period=eq\.weekly/.test(call.url)));
-  assert.ok(calls.some(call => new URL(call.url).searchParams.get("isActive") === "eq.true"));
+  assert.ok(calls.some(call => /id=in\.\(/.test(call.url)));
 });
 
 test("social feed returns ranking, trending, and peak posts from existing Bobaks data", async () => {
