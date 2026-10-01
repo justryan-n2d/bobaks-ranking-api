@@ -548,6 +548,16 @@ test("account loading state is centered and animated", () => {
   assert.match(app, /ACCOUNT_LOADING/);
 });
 
+test("account-ready rebinding wires asynchronously rendered sidebar account controls", () => {
+  const app = readApp();
+  assert.match(
+    app,
+    /bobaks:account-ready[\s\S]*renderAccountArea\(\);[\s\S]*if\(location\.pathname!==['"]\/account['"]\)bind\(\)/
+  );
+  assert.match(app, /const accountSignIn=\$\('accountSignIn'\);if\(accountSignIn\)accountSignIn\.onclick/);
+  assert.match(app, /const accountSignUp=\$\('accountSignUp'\);if\(accountSignUp\)accountSignUp\.onclick/);
+});
+
 test("account module failures surface a visible retry path instead of infinite loading", () => {
   const app = readApp();
   assert.match(app, /Account:\s*'/);
