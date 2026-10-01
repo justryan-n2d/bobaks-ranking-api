@@ -167,6 +167,75 @@ test("signOut always clears the local session even when remote logout fails", as
   assert.equal(storage.getItem("bobaks.auth.session.v1"), null);
 });
 
+test("addWatchlistGame sends a composite-key upsert and returns the saved row", async () => {
+  const calls = [];
+  const storage = createMemoryStorage({
+    "bobaks.auth.session.v1": JSON.stringify(baseSession())
+  });
+  const client = createAuthClient({
+    supabaseUrl: "https://example.supabase.co",
+    publishableKey: "sb_publishable_test",
+    storage,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      if (url.endsWith("/auth/v1/user")) return jsonResponse(baseSession().user);
+      return jsonResponse([{ user_id: "user-1", game_id: 42, created_at: "2026-10-01T00:00:00Z" }]);
+    }
+  });
+
+  const saved = await client.addWatchlistGame("42");
+
+  assert.deepEqual(saved, {
+    user_id: "user-1",
+    game_id: 42,
+    created_at: "2026-10-01T00:00:00Z"
+  });
+  const request = calls.find(call => call.url.includes("/rest/v1/user_watchlist"));
+  assert.ok(request);
+  assert.equal(
+    request.url,
+    "https://example.supabase.co/rest/v1/user_watchlist?on_conflict=user_id%2Cgame_id"
+  );
+  assert.equal(request.init.method, "POST");
+  assert.equal(
+    request.init.headers.get("prefer"),
+    "resolution=merge-duplicates,return=representation"
+  );
+  assert.deepEqual(JSON.parse(request.init.body), {
+    user_id: "user-1",
+    game_id: "42"
+  });
+});
+
+test("removeWatchlistGame targets the signed-in user's game and returns removed rows", async () => {
+  const calls = [];
+  const storage = createMemoryStorage({
+    "bobaks.auth.session.v1": JSON.stringify(baseSession())
+  });
+  const client = createAuthClient({
+    supabaseUrl: "https://example.supabase.co",
+    publishableKey: "sb_publishable_test",
+    storage,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      if (url.endsWith("/auth/v1/user")) return jsonResponse(baseSession().user);
+      return jsonResponse([{ user_id: "user-1", game_id: 42 }]);
+    }
+  });
+
+  const removed = await client.removeWatchlistGame("42");
+
+  assert.deepEqual(removed, [{ user_id: "user-1", game_id: 42 }]);
+  const request = calls.find(call => call.url.includes("/rest/v1/user_watchlist"));
+  assert.ok(request);
+  assert.equal(
+    request.url,
+    "https://example.supabase.co/rest/v1/user_watchlist?user_id=eq.user-1&game_id=eq.42"
+  );
+  assert.equal(request.init.method, "DELETE");
+  assert.equal(request.init.headers.get("prefer"), "return=representation");
+});
+
 test("authenticatedFetch includes the session bearer token and Supabase publishable key", async () => {
   const storage = createMemoryStorage({
     "bobaks.auth.session.v1": JSON.stringify(baseSession())
