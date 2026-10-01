@@ -94,6 +94,9 @@ jobs:
           rankings=$(curl -fsS "$API/api/rankings?period=live")
           echo "$rankings" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
 
+          proxied_rankings=$(curl -fsS "$FRONTEND/api/rankings?period=live")
+          echo "$proxied_rankings" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+
           weekly=$(curl -fsS "$FRONTEND/rankings/weekly")
           echo "$weekly" | grep -F "This Week's Roblox Game Rankings | Bobaks Ranking"
           echo "$weekly" | grep -F 'rel="canonical" href="https://bobaks-ranking-api.ryan-oledan0.workers.dev/rankings/weekly"'
