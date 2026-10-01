@@ -95,7 +95,6 @@ async function retryGuestMigration(){
     const remoteIds=[...new Set((remote||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
     const merged=[...new Set([...remoteIds,...failed])].slice(0,25);
     setSaved(merged);
-    persistSaved(merged);
     state.error=failed.length?"Some saved games are still waiting to sync.":"All saved games are synced.";
   }finally{
     state.busy=false;
@@ -154,7 +153,6 @@ async function hydrate({migrateGuest=true,rerender=true}={}){
   const remoteIds=[...new Set((watchlist||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
   const ids=[...new Set([...remoteIds,...failed])].slice(0,25);
   setSaved(ids);
-  persistSaved(ids);
   if(!migrateGuest&&!state.migration.failed.length)state.migration={status:"idle",sourceCount:0,syncedCount:0,failed:[]};
   window.__BOBAKS_ACCOUNT_ALERT_PREFS__=alerts||null;
   if(rerender)render();
@@ -419,8 +417,7 @@ async function signOut(){
   state.verification={emailConfirmed:null,lastCheckedAt:null};
   state.robloxIdentity=null;
   window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
-  const local=getSaved();
-  if(local.length===0){const fallback=loadGuestSaved();if(fallback.length)setSaved(fallback)}
+  app().clearSaved?.();
   goHome();
 }
 
@@ -433,7 +430,7 @@ client.onAuthStateChange((event,session)=>{
     state.verification={emailConfirmed:null,lastCheckedAt:null};
     state.robloxIdentity=null;
     window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
-    const fallback=loadGuestSaved();if(fallback.length)setSaved(fallback);
+    app().clearSaved?.();
     render();
   }else if(event==="SIGNED_IN"||event==="SIGNED_UP"||event==="TOKEN_REFRESHED"){
     hydrate({migrateGuest:event!=="TOKEN_REFRESHED",rerender:true}).catch(()=>{});
