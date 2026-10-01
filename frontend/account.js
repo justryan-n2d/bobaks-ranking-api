@@ -184,7 +184,11 @@ function renderAccountArea(){
     '<button class="btn account-cta" id="accountSignUp" type="button">Create account</button>';
 }
 
+function accountLoadingPage(){
+  return '<section class="account-loading-screen" aria-live="polite"><div class="account-loading-box"><span class="account-spinner" aria-hidden="true"></span><div class="account-loading-title">Loading account</div><div class="account-loading-copy">Checking your account and preparing your Bobaks session.</div></div></section>';
+}
 function authPage(){
+  if(state.status==="loading")return accountLoadingPage();
   if(state.confirmation.pending){
     const message=state.confirmation.message?'<div class="account-form-note">'+esc(state.confirmation.message)+'</div>':"";
     return '<section class="account-page auth-page">'+
