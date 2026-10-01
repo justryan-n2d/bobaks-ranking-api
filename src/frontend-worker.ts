@@ -152,11 +152,13 @@ function recordAnalytics(env: Env, event: string, data: {
   }
 }
 
+const PUBLIC_SUPABASE_URL = "https://zhrfozouzvxhpkylmpwh.supabase.co";
+const PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_m5sYdsVZpWMOVRxyMSwblw_dIesP93F";
+
 function authConfigScript(env: Env): string {
-  const config = {
-    supabaseUrl: String(env.SUPABASE_URL ?? "").trim(),
-    publishableKey: String(env.SUPABASE_PUBLISHABLE_KEY ?? "").trim()
-  };
+  const supabaseUrl = String(env.SUPABASE_URL ?? "").trim() || PUBLIC_SUPABASE_URL;
+  const publishableKey = String(env.SUPABASE_PUBLISHABLE_KEY ?? "").trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const config = { supabaseUrl, publishableKey };
 
   return "<script>window.__BOBAKS_AUTH_CONFIG__=" +
     safeJsonLd(config) +
