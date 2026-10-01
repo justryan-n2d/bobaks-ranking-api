@@ -548,12 +548,14 @@ test("account loading state is centered and animated", () => {
   assert.match(app, /ACCOUNT_LOADING/);
 });
 
-test("ranking views use delegated account controls with a cache-busted app bundle", () => {
+test("ranking views use delegated global account actions with a cache-busted app bundle", () => {
   const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
   const html = fs.readFileSync(path.resolve("frontend/index.html"), "utf8");
   assert.match(app, /document\.addEventListener\('click',event=>\{/);
+  assert.match(app, /#continueGuest,#accountSignout,#accountSignOut/);
   for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
-    assert.match(app, new RegExp("#" + id));
+    assert.match(account, new RegExp("#" + id));
   }
   assert.ok(html.includes('/app.js?v=20261001-account-8'));
 });
@@ -568,12 +570,13 @@ test("successful log in redirects to the Bobaks homepage", () => {
 
 test("account-ready rebinding wires asynchronously rendered sidebar account controls", () => {
   const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
   assert.match(
     app,
     /bobaks:account-ready[\s\S]*renderAccountArea\(\);[\s\S]*if\(location\.pathname!==['"]\/account['"]\)bind\(\)/
   );
   for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
-    assert.match(app, new RegExp("#" + id));
+    assert.match(account, new RegExp("#?" + id));
   }
 });
 
