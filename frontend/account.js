@@ -169,11 +169,11 @@ function renderAccountArea(){
   }
   if(isSignedIn()){
     host.innerHTML=
-      '<button class="account-card" id="accountOpen" type="button" aria-label="Open account settings">'+
+      '<a class="account-card" id="accountOpen" href="/account" aria-label="Open account profile">'+
         '<span class="account-avatar">'+esc(initials())+'</span>'+
         '<span class="account-copy"><b>'+esc(displayName())+'</b><small>'+esc(state.user.email||"Signed in")+'</small></span>'+
         '<span class="account-chevron">›</span>'+
-      '</button>'+
+      '</a>'+
       '<button class="account-signout" id="accountSignout" type="button">Log out</button>';
     return;
   }
