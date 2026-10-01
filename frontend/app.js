@@ -220,9 +220,13 @@ function accountBusy(){return !!accountUI()?.isBusy?.()}
 function accountState(){return accountUI()?.state||null}
 
 document.addEventListener('click',event=>{
-  const button=event.target?.closest?.('#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
+  const button=event.target?.closest?.('#accountGuest,#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
   if(!button)return;
-  if(button.id==='accountSignIn'){
+  if(button.id==='accountGuest'){
+    event.preventDefault();
+    document.body.classList.remove('sidebar-open');
+    goHome();
+  }else if(button.id==='accountSignIn'){
     event.preventDefault();
     document.body.classList.remove('sidebar-open');
     goAuth('signin');
