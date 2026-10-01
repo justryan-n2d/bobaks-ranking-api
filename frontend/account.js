@@ -15,7 +15,11 @@ const state={
   alerts:null,
   error:"",
   mode:"signin",
-  busy:false
+  busy:false,
+  confirmation:{pending:false,email:"",message:""},
+  verification:{emailConfirmed:null,lastCheckedAt:null},
+  migration:{status:"idle",sourceCount:0,syncedCount:0,failed:[]},
+  robloxIdentity:null
 };
 
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
