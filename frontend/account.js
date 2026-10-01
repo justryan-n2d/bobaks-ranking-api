@@ -259,7 +259,7 @@ async function accountPage(){
           '<label>Email<input value="'+email+'" disabled aria-disabled="true"></label>'+
           '<label>Display name<input id="profileDisplayName" maxlength="80" value="'+esc(profile.display_name||"")+'" placeholder="Your Bobaks display name"></label>'+
           '<label class="account-check"><input id="profilePublic" type="checkbox" '+(profile.is_public?"checked":"")+'> Allow your profile to be shown publicly later</label>'+
-          '<div class="account-save-row"><button class="btn primary" id="profileSubmit" type="submit">Save profile</button><span class="account-save-ok " + (state.saved.profile?"visible":"") + "" id="profileSaved" aria-live="polite" aria-label="Profile saved">" + (state.saved.profile?"✓":"") + "</span></div>'+
+          '<div class="account-save-row"><button class="btn primary" id="profileSubmit" type="submit">Save profile</button><span class="account-save-ok '+(state.saved.profile?"visible":"")+'" id="profileSaved" aria-live="polite" aria-label="Profile saved">'+(state.saved.profile?"✓":"")+'</span></div>'+
         '</form>'+
       '</section>'+
       '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ALERTS</div><h2>Persistent alerts</h2><p>These settings follow your account across devices. Alert checks still happen when you revisit Bobaks.</p></div></div>'+
@@ -269,7 +269,7 @@ async function accountPage(){
           '<label class="setting-row"><span><b>New peak</b><small>Saved game reaches a new recorded peak</small></span><input id="newPeakEnabled" type="checkbox" '+(alerts.new_peak_enabled?"checked":"")+'></label>'+
           '<label class="setting-row"><span><b>Rank jump</b><small>Saved game jumps by the threshold below</small></span><input id="rankJumpEnabled" type="checkbox" '+(alerts.rank_jump_enabled?"checked":"")+'></label>'+
           '<label>Jump threshold<input id="rankJumpThreshold" type="number" min="1" max="100" value="'+(Number(alerts.rank_jump_threshold)||5)+'"></label>'+
-          '<div class="account-save-row"><button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button><span class="account-save-ok " + (state.saved.alerts?"visible":"") + "" id="alertsSaved" aria-live="polite" aria-label="Alert settings saved">" + (state.saved.alerts?"✓":"") + "</span></div>'+
+          '<div class="account-save-row"><button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button><span class="account-save-ok '+(state.saved.alerts?"visible":"")+'" id="alertsSaved" aria-live="polite" aria-label="Alert settings saved">'+(state.saved.alerts?"✓":"")+'</span></div>'+
         '</form>'+
       '</section>'+
     '</div>'+
