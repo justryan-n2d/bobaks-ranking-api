@@ -646,6 +646,7 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
   assert.match(account, /account-save-ok/);
   assert.match(account, /state\.saved\.alerts=true/);
   assert.match(account, /Alert settings save was not confirmed/);
+  assert.match(account, /document\.addEventListener\("input",event=>/);
   assert.match(account, /Persistent alerts/);
   assert.match(account, /Synced to your Bobaks account/);
   assert.match(account, /Log in/);
