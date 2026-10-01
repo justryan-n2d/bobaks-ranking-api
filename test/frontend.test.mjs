@@ -528,7 +528,7 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
   assert.match(account, /function accountPage\(\)/);
   assert.match(account, /async function hydrate\(\{migrateGuest=true,rerender=true\}=\{\}\)/);
   assert.match(account, /client\.addWatchlistGame\(id\)/);
-  assert.match(account, /client\.removeWatchlistGame\(id\)/);
+  assert.match(app, /client\.removeWatchlistGame\(id\)/);
   assert.match(account, /function submitProfile\(\)/);
   assert.match(account, /async function submitAlerts\(\)/);
   assert.match(account, /id="profileForm"/);
