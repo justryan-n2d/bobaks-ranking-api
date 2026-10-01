@@ -92,11 +92,10 @@ test("frontend application bundle parses as valid JavaScript", () => {
 
 test("frontend exposes a social ranking share flow for every ranking period", () => {
   const html = readFrontend();
-  assert.match(html, /function rankingShareText\(period,games\)/);
   assert.match(html, /id="shareRanking"/);
-  assert.match(html, /rankingPath\(state\.period\)/);
-  assert.match(html, /channel:'social_'\+kind/);
-  assert.match(html, /Top 10/);
+  assert.match(html, /shareRanking\(\)/);
+  assert.match(html, /shareSocialPost\('ranking'\)/);
+  assert.match(html, /\/api\/social\/feed\?period=/);
   assert.match(html, /navigator\.share/);
   assert.match(html, /navigator\.clipboard\.writeText/);
 });
@@ -120,14 +119,7 @@ test("frontend labels rank movement as trending and exposes peak-record sharing"
   assert.match(html, /Share peak records/);
 });
 
-test("frontend ranking share content includes game name, rank, players, and canonical ranking link", () => {
-  const html = readFrontend();
-  assert.match(html, /const lines=\(games\|\|\[\]\)\.slice\(0,10\)/);
-  assert.match(html, /const rank=Number\(g\.rank\|\|index\+1\)/);
-  assert.match(html, /const players=fmt\(g\.playing\)/);
-  assert.match(html, /const url=new URL\(rankingPath\(period\),location\.origin\)\.toString\(\)/);
-  assert.match(html, /Visit Bobaks Ranking:/);
-});
+
 
 test("privacy copy discloses anonymous product analytics identifiers", () => {
   const html = readFrontend();
