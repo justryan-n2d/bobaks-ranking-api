@@ -542,6 +542,16 @@ test("account module failures surface a visible retry path instead of infinite l
   assert.match(app, /location\.reload\(\)/);
 });
 
+test("Cloudflare asset routing sends auth-sensitive SPA routes through the Worker shell", () => {
+  const config = JSON.parse(fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8"));
+  const assetRoutes = config.assets?.run_worker_first || [];
+  const workerRoutes = config.run_worker_first || [];
+  for (const route of ["/", "/saved", "/compare", "/account"]) {
+    assert.ok(assetRoutes.includes(route), "missing asset worker-first route: " + route);
+    assert.ok(workerRoutes.includes(route), "missing worker-first route: " + route);
+  }
+});
+
 test("Cloudflare frontend exposes only public Supabase auth configuration", () => {
   const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
   assert.match(config, /"SUPABASE_URL"\s*:/);
