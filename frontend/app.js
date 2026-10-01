@@ -19,6 +19,14 @@ const state={
 };
 const $=id=>document.getElementById(id);
 const GAME_ROUTE=/^\/game\/(\d+)$/;
+const AUTH_ROUTES={signin:"/sign-in",signup:"/create-account"};
+function authModeFromLocation(){
+  if(location.pathname===AUTH_ROUTES.signup)return "signup";
+  return "signin";
+}
+function isAuthRoute(pathname=location.pathname){
+  return pathname===AUTH_ROUTES.signin||pathname===AUTH_ROUTES.signup||pathname==="/account";
+}
 const gameUrl=id=>new URL('/game/'+encodeURIComponent(String(id)),location.origin).toString();
 const rankingPath=period=>RANKING_PATHS[period]||'/';
 function periodFromLocation(){
@@ -220,12 +228,10 @@ function accountBusy(){return !!accountUI()?.isBusy?.()}
 function accountState(){return accountUI()?.state||null}
 
 document.addEventListener('click',event=>{
-  const b=event.target?.closest?.('#accountGuest,#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
+  const b=event.target?.closest?.('#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
   if(!b)return;
   document.body.classList.remove('sidebar-open');
-  if(b.id==='accountGuest'||b.id==='continueGuest')goHome();
-  else if(b.id==='accountSignIn')goAuth('signin');
-  else if(b.id==='accountSignUp')goAuth('signup');
+  if(b.id==='continueGuest')goHome();
   else if(b.id==='accountOpen')goAccount();
   else signOutAccount();
 });
@@ -1271,14 +1277,21 @@ window.addEventListener('bobaks:auth-state',event=>{
 });
 window.addEventListener('popstate',()=>{
   if(location.pathname==='/community'){state.view='community';state.selected=null;setCommunityMeta();render();track('page_view',{route:'/community'});return}
-  if(location.pathname==='/account'){
+  if(isAuthRoute()){
     state.selected=null;
-    state.view=isSignedIn()?'account':'auth';
-    if(isSignedIn()){setAccountMeta()}else{authMeta(accountState()?.mode||'signin')}
+    const mode=authModeFromLocation();
+    state.view=isSignedIn()&&location.pathname==='/account'?'account':'auth';
+    if(isSignedIn()&&location.pathname==='/account')setAccountMeta();
+    else authMeta(mode);
     render();
     ensureAccountModule().then(()=>{
-      state.view=isSignedIn()?'account':'auth';
-      if(isSignedIn()){setAccountMeta()}else{authMeta(accountState()?.mode||'signin')}
+      if(isSignedIn()&&location.pathname==='/account'){
+        state.view='account';setAccountMeta();
+      }else{
+        state.view='auth';
+        accountUI()?.goAuth?.(mode,{push:false});
+        authMeta(mode);
+      }
       render();
     });
     return;
@@ -1291,14 +1304,20 @@ loadTheme();loadSaved();
 ensureAccountModule();
 state.period=periodFromLocation();
 if(location.pathname==='/community'){state.view='community';setCommunityMeta();render();track('page_view',{route:'/community'});}
-else if(location.pathname==='/account'){
-  state.view=isSignedIn()?'account':'auth';
-  if(isSignedIn()){setAccountMeta()}
-  else {authMeta(accountState()?.mode||'signin')}
+else if(isAuthRoute()){
+  const mode=authModeFromLocation();
+  state.view=isSignedIn()&&location.pathname==='/account'?'account':'auth';
+  if(isSignedIn()&&location.pathname==='/account')setAccountMeta();
+  else authMeta(mode);
   render();
   ensureAccountModule().then(()=>{
-    if(isSignedIn()){state.view='account';setAccountMeta()}
-    else {state.view='auth';authMeta(accountState()?.mode||'signin')}
+    if(isSignedIn()&&location.pathname==='/account'){
+      state.view='account';setAccountMeta();
+    }else{
+      state.view='auth';
+      accountUI()?.goAuth?.(mode,{push:false});
+      authMeta(mode);
+    }
     render();
   });
 }
