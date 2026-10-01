@@ -364,7 +364,10 @@ async function savedPage(){
   for(const id of state.saved){
     try{const r=await api('/api/games/'+encodeURIComponent(id));if(r.data)cards.push(r.data)}catch{}
   }
-  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>'+(isSignedIn()?'Synced to your Bobaks account across devices.':'Saved only on this device. Sign in to sync across devices.')+'</p></div></section><section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
+  const guestSync=(!isSignedIn()&&state.saved.length)
+    ?'<div class="banner">You have '+fmt(state.saved.length)+' saved game'+(state.saved.length===1?'':'s')+' on this device. <button class="btn primary" id="savedAccountCta" type="button">Sign in to sync</button></div>'
+    :"";
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>'+(isSignedIn()?'Synced to your Bobaks account across devices.':'Saved only on this device. Sign in to sync across devices.')+'</p></div></section>'+guestSync+'<section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
 }
 async function comparePage(){
   if(!state.compare.length)return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Choose Compare on ranking rows to add games.</p></div></section>'+footer();
@@ -413,6 +416,11 @@ function bind(){
   const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAuth()};
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
   const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
+  const resendConfirmation=$('resendConfirmation');if(resendConfirmation)resendConfirmation.onclick=()=>accountUI()?.resendConfirmation?.();
+  const backToSignIn=$('backToSignIn');if(backToSignIn)backToSignIn.onclick=()=>{const ui=accountUI();if(ui?.state)ui.state.confirmation={pending:false,email:"",message:""};ui?.goAuth?.('signin',{push:false})};
+  const refreshVerification=$('refreshVerification');if(refreshVerification)refreshVerification.onclick=()=>accountUI()?.refreshVerification?.();
+  const retryGuestMigration=$('retryGuestMigration');if(retryGuestMigration)retryGuestMigration.onclick=()=>accountUI()?.retryGuestMigration?.();
+  const savedAccountCta=$('savedAccountCta');if(savedAccountCta)savedAccountCta.onclick=()=>goAuth('signin');
   const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitProfile()};
   const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAlertSettings()};
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
