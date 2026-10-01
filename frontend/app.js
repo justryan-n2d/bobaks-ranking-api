@@ -203,7 +203,7 @@ function icon(url){return url?'<img src="'+esc(url)+'" alt="" loading="lazy" dec
 async function loadRankings(force=false){
   state.loading=true;state.error='';render();
   try{
-    const p=await api('/api/rankings?period='+encodeURIComponent(state.period),{cache:!force});
+    const p=await api('/api/rankings?period='+encodeURIComponent(state.period),{cache:false});
     window.__BOBAKS_RANKING_SNAPSHOT__={period:state.period,data:p.data||[],updatedAt:p.updatedAt||null};
     const previous=new Map(state.games.map(g=>[g.gameId,g]));
     state.games=(p.data||[]).map(x=>{
