@@ -160,15 +160,14 @@ async function api(path,{cache=true}={}){
 window.__BOBAKS_API_REQUEST__=api;
 function loadTheme(){try{const saved=localStorage.getItem('bobaks.theme');state.theme=saved==='light'?'light':'dark'}catch{state.theme='dark'}document.documentElement.setAttribute('data-theme',state.theme)}
 function setTheme(theme){state.theme=theme==='light'?'light':'dark';document.documentElement.setAttribute('data-theme',state.theme);try{localStorage.setItem('bobaks.theme',state.theme)}catch{};nav()}
-const WATCHLIST_KEY='bobaks.watchlist';
-function loadSaved(){try{const v=JSON.parse(localStorage.getItem(WATCHLIST_KEY)||'[]');if(Array.isArray(v))state.saved=[...new Set(v.map(String))].slice(0,25)}catch{state.saved=[]}}
-function saveSaved(){try{localStorage.setItem(WATCHLIST_KEY,JSON.stringify(state.saved))}catch{}}
-function clearSaved(){state.saved=[];try{localStorage.removeItem(WATCHLIST_KEY)}catch{}}
+function loadSaved(){try{const v=JSON.parse(localStorage.getItem('bobaks.watchlist')||'[]');if(Array.isArray(v))state.saved=[...new Set(v.map(String))].slice(0,25)}catch{state.saved=[]}}
+function saveSaved(){if(isSignedIn())return;try{localStorage.setItem('bobaks.watchlist',JSON.stringify(state.saved))}catch{}}
+function clearSaved(){state.saved=[];saveSaved()}
 window.__BOBAKS_ACCOUNT_APP__={
   getSaved:()=>state.saved.slice(),
   setSaved:ids=>{
     state.saved=[...new Set((ids||[]).map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25);
-    if(!accountUI()?.isSignedIn?.())saveSaved();
+    saveSaved();
     render();
   },
   clearSaved:()=>{clearSaved();render()},
@@ -418,7 +417,7 @@ function bind(){
         else if(state.saved.length<25){if(!await client.addWatchlistGame(id))throw new Error('Watchlist save failed.')}
         else throw new Error('Watchlist limit is 25 games.');
       }else if(!had&&state.saved.length>=25)throw new Error('Watchlist limit is 25 games.');
-      state.error='';state.saved=had?state.saved.filter(x=>x!==id):[...state.saved,id];if(!isSignedIn())saveSaved();track(had?'watchlist_remove':'watchlist_add',{gameId:id});render();
+      state.error='';state.saved=had?state.saved.filter(x=>x!==id):[...state.saved,id];saveSaved();track(had?'watchlist_remove':'watchlist_add',{gameId:id});render();
     }catch(error){b.textContent=had?'Remove failed':'Save failed';console.error('Watchlist update failed:',error)}
   });
   document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{
