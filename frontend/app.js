@@ -190,11 +190,21 @@ function nav(){
   renderAccountArea();
 }
 function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
+let accountModulePromise=null;
+function ensureAccountModule(){
+  if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
+  if(!accountModulePromise){
+    accountModulePromise=import('/account.js?v=20261001-auth-4')
+      .then(()=>window.__BOBAKS_ACCOUNT_UI__||null)
+      .catch(error=>{console.error('Bobaks account module failed to load:',error);accountModulePromise=null;return null});
+  }
+  return accountModulePromise;
+}
 function authClient(){return accountUI()?.client?.()||null}
 function isSignedIn(){return !!accountUI()?.isSignedIn?.()}
 function renderAccountArea(){accountUI()?.renderAccountArea?.()}
-function authPage(){return accountUI()?.authPage?.()||'<div class="banner">Account UI unavailable.</div>'}
-function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve('<div class="banner">Account UI unavailable.</div>')}
+function authPage(){return accountUI()?.authPage?.()||'<section class="account-page auth-page"><section class="account-form-card"><div class="eyebrow">BOBAKS ACCOUNT</div><h1>Loading <em>Account</em></h1><p>Please wait while the account tools load.</p></section></section>'}
+function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve('<section class="account-page"><section class="account-form-card"><div class="eyebrow">BOBAKS ACCOUNT</div><h1>Loading <em>Account</em></h1><p>Please wait while the account tools load.</p></section></section>')}
 function goAuth(mode='signin',opts={}){return accountUI()?.goAuth?.(mode,opts)}
 function goAccount(opts={}){return accountUI()?.goAccount?.(opts)}
 function submitAuth(){return accountUI()?.submitAuth?.()}
@@ -1252,8 +1262,14 @@ window.addEventListener('popstate',()=>{
   if(location.pathname==='/community'){state.view='community';state.selected=null;setCommunityMeta();render();track('page_view',{route:'/community'});return}
   if(location.pathname==='/account'){
     state.selected=null;
-    if(isSignedIn()){state.view='account';setAccountMeta();render()}
-    else {state.view='auth';authMeta(accountState()?.mode||'signin');render()}
+    state.view=isSignedIn()?'account':'auth';
+    if(isSignedIn()){setAccountMeta()}else{authMeta(accountState()?.mode||'signin')}
+    render();
+    ensureAccountModule().then(()=>{
+      state.view=isSignedIn()?'account':'auth';
+      if(isSignedIn()){setAccountMeta()}else{authMeta(accountState()?.mode||'signin')}
+      render();
+    });
     return;
   }
   const gameMatch=location.pathname.match(GAME_ROUTE);
@@ -1261,11 +1277,19 @@ window.addEventListener('popstate',()=>{
   state.period=periodFromLocation();state.view='home';state.selected=null;setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();
 });
 loadTheme();loadSaved();
+ensureAccountModule();
 state.period=periodFromLocation();
 if(location.pathname==='/community'){state.view='community';setCommunityMeta();render();track('page_view',{route:'/community'});}
 else if(location.pathname==='/account'){
-  if(isSignedIn()){state.view='account';setAccountMeta();render()}
-  else {state.view='auth';authMeta(accountState()?.mode||'signin');render()}
+  state.view=isSignedIn()?'account':'auth';
+  if(isSignedIn()){setAccountMeta()}
+  else {authMeta(accountState()?.mode||'signin')}
+  render();
+  ensureAccountModule().then(()=>{
+    if(isSignedIn()){state.view='account';setAccountMeta()}
+    else {state.view='auth';authMeta(accountState()?.mode||'signin')}
+    render();
+  });
 }
 else {
   const initialGame=location.pathname.match(GAME_ROUTE);
