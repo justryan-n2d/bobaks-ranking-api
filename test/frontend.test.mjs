@@ -496,7 +496,7 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
   const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
   const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
 
-  assert.match(html, /<script type="module" src="\/account\.js\?v=20261001-auth"><\/script>/);
+  assert.match(html, /<script type="module" src="\/account\.js\?v=20261001-auth-2"><\/script>/);
   assert.match(account, /createAuthClient/);
   assert.match(account, /window\.__BOBAKS_AUTH__/);
   assert.match(account, /bobaks:auth-ready/);
@@ -532,10 +532,10 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
   assert.match(app, /function submitAlertSettings()/);
   assert.match(app, /id="profileForm"/);
   assert.match(app, /id="alertForm"/);
-  assert.match(app, /Persistent alerts/);
-  assert.match(app, /Synced to your Bobaks account/);
-  assert.match(app, /Sign in/);
-  assert.match(app, /Create account/);
+  assert.match(account, /Persistent alerts/);
+  assert.match(account, /Synced to your Bobaks account/);
+  assert.match(account, /Sign in/);
+  assert.match(account, /Create account/);
   assert.match(core, /recoverSessionFromUrl/);
   assert.match(returnLoops, /window\.__BOBAKS_ACCOUNT_ALERT_PREFS__/);
   assert.match(html, /responsive session-aware sidebar account UI/);
