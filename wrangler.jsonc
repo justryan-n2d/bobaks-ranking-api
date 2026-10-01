@@ -21,7 +21,9 @@
       "/",
       "/saved",
       "/compare",
-      "/account"
+      "/account",
+      "/sign-in",
+      "/create-account"
     ]
   },
   "vars": {
@@ -53,6 +55,8 @@
     "/",
     "/saved",
     "/compare",
-    "/account"
+    "/account",
+    "/sign-in",
+    "/create-account"
   ]
 }
