@@ -1164,6 +1164,9 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 .account-signout:hover{border-color:var(--line-strong);background:rgba(255,255,255,.075)}
 .account-signout:disabled{opacity:.55;cursor:default}
 .account-cta{width:100%;min-height:38px}
+.account-save-row{display:grid;grid-template-columns:minmax(0,1fr) 28px;align-items:center;gap:8px}
+.account-save-ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#59d98b;font-size:17px;font-weight:900;opacity:0;transform:scale(.75);transition:opacity .18s ease,transform .18s ease}
+.account-save-ok.visible{opacity:1;transform:scale(1)}
 .account-loading{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding:4px}
 .account-loading-screen{min-height:52vh;display:grid;place-items:center;text-align:center;gap:12px;padding:36px 16px}
 .account-loading-screen b{font-size:15px}
