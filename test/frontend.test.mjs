@@ -517,21 +517,22 @@ test("Cloudflare frontend exposes only public Supabase auth configuration", () =
 test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area, profile, alerts, and synced watchlist surfaces", () => {
   const html = readFrontend();
   const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
   const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
   const returnLoops = fs.readFileSync(path.resolve("frontend/return-loops.js"), "utf8");
 
   assert.match(html, /id="siteSidebar"/);
   assert.match(html, /id="accountArea"/);
   assert.match(html, /id="mobileMenu"/);
-  assert.match(app, /function authPage()/);
-  assert.match(app, /function accountPage()/);
-  assert.match(app, /function hydrateAccount({migrateGuest=true,rerender=true}={})/);
-  assert.match(app, /client.addWatchlistGame(id)/);
-  assert.match(app, /client.removeWatchlistGame(id)/);
-  assert.match(app, /function submitProfile()/);
-  assert.match(app, /function submitAlertSettings()/);
-  assert.match(app, /id="profileForm"/);
-  assert.match(app, /id="alertForm"/);
+  assert.match(account, /function authPage\(\)/);
+  assert.match(account, /function accountPage\(\)/);
+  assert.match(account, /async function hydrate\(\{migrateGuest=true,rerender=true\}=\{\}\)/);
+  assert.match(account, /client\.addWatchlistGame\(id\)/);
+  assert.match(account, /client\.removeWatchlistGame\(id\)/);
+  assert.match(account, /function submitProfile\(\)/);
+  assert.match(account, /async function submitAlerts\(\)/);
+  assert.match(account, /id="profileForm"/);
+  assert.match(account, /id="alertForm"/);
   assert.match(account, /Persistent alerts/);
   assert.match(account, /Synced to your Bobaks account/);
   assert.match(account, /Sign in/);
