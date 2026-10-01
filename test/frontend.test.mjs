@@ -461,3 +461,13 @@ test("frontend API cache deduplicates identical requests and bypasses cache on m
   assert.match(app, /cache:cache\?'default':'no-store'/);
   assert.match(app, /window\.__BOBAKS_API_REQUEST__=api/);
 });
+
+test("Cloudflare frontend routes API requests to the Worker before SPA fallback", () => {
+  const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
+  const assets = config.match(/"assets"\s*:\s*\{([\s\S]*?)\n\s*\}\s*,\n\s*"vars"/);
+  assert.ok(assets, "assets configuration must be present");
+  assert.match(
+    assets[1],
+    /"run_worker_first"\s*:\s*\[[\s\S]*"\/api\/\*"/
+  );
+});
