@@ -161,6 +161,18 @@ async function assetResponse(env: Env, request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (
     response.ok &&
+    pathname === "/"
+  ) {
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", "no-store");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+  }
+  if (
+    response.ok &&
     pathname !== "/" &&
     /\.(?:js|mjs|css|png|jpe?g|webp|svg|ico|woff2?)$/i.test(pathname)
   ) {
