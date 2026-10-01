@@ -548,6 +548,16 @@ test("account loading state is centered and animated", () => {
   assert.match(app, /ACCOUNT_LOADING/);
 });
 
+test("ranking views use delegated account controls with a cache-busted app bundle", () => {
+  const app = readApp();
+  const html = fs.readFileSync(path.resolve("frontend/index.html"), "utf8");
+  assert.match(app, /document\.addEventListener\('click',event=>\{/);
+  for (const id of ["accountSignIn", "accountSignUp", "continueGuest", "accountOpen", "accountSignout", "accountSignOut"]) {
+    assert.match(app, new RegExp("#" + id));
+  }
+  assert.ok(html.includes('/app.js?v=20261001-account-8'));
+});
+
 test("account-ready rebinding wires asynchronously rendered sidebar account controls", () => {
   const app = readApp();
   assert.match(
