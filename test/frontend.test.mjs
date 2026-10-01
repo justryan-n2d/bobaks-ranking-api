@@ -675,7 +675,7 @@ test("guest and account watchlist states stay isolated across logout", () => {
   assert.match(account, /migrateGuest/);
   assert.match(app, /function clearSaved\(\)\{state\.saved=\[\];saveSaved\(\)\}/);
   assert.match(app, /clearSaved:\(\)=>\{clearSaved\(\);render\(\)\}/);
-  assert.match(app, /event\.detail\?\.event==='SIGNED_OUT'[\\s\\S]*?clearSaved\(\)/);
+  assert.match(app, /event\.detail\?\.event==='SIGNED_OUT'[\s\S]*?clearSaved\(\)/);
   assert.match(app, /function saveSaved\(\)\{if\(isSignedIn\(\)\)return;/);
   assert.match(account, /app\(\)\.clearSaved\?\.\(\)/);
   assert.doesNotMatch(account, /persistSaved\(ids\)/);
