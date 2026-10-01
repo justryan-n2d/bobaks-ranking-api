@@ -1243,5 +1243,9 @@ else if(location.pathname==='/account'){
   if(isSignedIn()){state.view='account';setAccountMeta();render()}
   else {state.view='auth';authMeta(accountState()?.mode||'signin');render()}
 }
-else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
+else {
+  const initialGame=location.pathname.match(GAME_ROUTE);
+  if(initialGame){openGame(initialGame[1],{push:false});track('page_view',{gameId:initialGame[1],period:state.period});}
+  else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
+}
 setTimeout(()=>import('/return-loops.js').catch(()=>{}),800);
