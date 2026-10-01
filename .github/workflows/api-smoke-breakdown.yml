@@ -1,0 +1,33 @@
+name: API Smoke Breakdown
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/api-smoke-breakdown.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe endpoints individually
+        shell: bash
+        run: |
+          set -u
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          check() {
+            local name="$1" url="$2" query="$3"
+            echo "=== $name ==="
+            body=$(curl -fsS --max-time 30 "$url") || { echo "curl_failed"; return 1; }
+            printf '%s\n' "$body" | jq "$query" || { echo "jq_failed"; printf '%s\n' "$body" | head -c 4000; echo; return 1; }
+          }
+
+          check health "$API/api/health" '.ok == true and .database == "connected"' || true
+          check games "$API/api/games" '.data | length > 0' || true
+          check live "$API/api/rankings?period=live" '.period == "live" and (.data | length > 0)' || true
+          check methodology "$API/api/rankings/methodology" '.methodologyVersion == "2026-09-28"' || true
+          check audit "$API/api/rankings/audit" '.auditStatus == "passed" and .rankings.live.rows == 100' || true
