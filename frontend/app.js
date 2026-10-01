@@ -390,11 +390,6 @@ function bind(){
   const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAuth()};
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
   const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
-  const resendConfirmation=$('resendConfirmation');if(resendConfirmation)resendConfirmation.onclick=()=>accountUI()?.resendConfirmation?.();
-  const backToSignIn=$('backToSignIn');if(backToSignIn)backToSignIn.onclick=()=>{const ui=accountUI();if(ui?.state)ui.state.confirmation={pending:false,email:"",message:""};ui?.goAuth?.('signin',{push:false})};
-  const refreshVerification=$('refreshVerification');if(refreshVerification)refreshVerification.onclick=()=>accountUI()?.refreshVerification?.();
-  const retryGuestMigration=$('retryGuestMigration');if(retryGuestMigration)retryGuestMigration.onclick=()=>accountUI()?.retryGuestMigration?.();
-  const savedAccountCta=$('savedAccountCta');if(savedAccountCta)savedAccountCta.onclick=()=>goAuth('signin');
   const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitProfile()};
   const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAlertSettings()};
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
