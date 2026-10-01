@@ -1,5 +1,5 @@
-import { createAuthClient } from "./account-core.mjs";
-import { buildRobloxAuthorizeUrl, createPkceChallenge, randomUrlSafeToken } from "./roblox-identity-core.mjs";
+import { createAuthClient } from "./account-core.mjs?v=20261001-auth-core-2";
+import { buildRobloxAuthorizeUrl, createPkceChallenge, randomUrlSafeToken } from "./roblox-identity-core.mjs?v=20261001-identity-2";
 window.__BOBAKS_ROBLOX_OAUTH__={buildRobloxAuthorizeUrl,createPkceChallenge,randomUrlSafeToken};
 
 const config=window.__BOBAKS_AUTH_CONFIG__||{};
