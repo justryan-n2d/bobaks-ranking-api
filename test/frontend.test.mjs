@@ -516,6 +516,14 @@ test("Cloudflare frontend exposes only public Supabase auth configuration", () =
 });
 
 
+test("Account module has an explicit SPA state bridge for persistent watchlists and account rendering", () => {
+  const app = readApp();
+  assert.match(app, /window\.\__BOBAKS_ACCOUNT_APP__=\{/);
+  for (const key of ["getSaved:", "setSaved:", "render:", "goHome:", "footer,", "icon,", "api,", "setAccountMeta,", "authMeta,"]) {
+    assert.ok(app.includes(key), "missing account bridge key: " + key);
+  }
+});
+
 test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area, profile, alerts, and synced watchlist surfaces", () => {
   const html = readFrontend();
   const app = readApp();
