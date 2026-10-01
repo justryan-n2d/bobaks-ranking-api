@@ -5,6 +5,7 @@ const client=createAuthClient({
   supabaseUrl:config.supabaseUrl,
   publishableKey:config.publishableKey
 });
+window.__BOBAKS_AUTH__=client;
 
 const state={
   status:"loading",
@@ -298,5 +299,6 @@ async function authReadyBootstrap(){
   });
   window.__BOBAKS_AUTH_READY_RESOLVED__=true;
   renderAccountArea();
+  window.dispatchEvent(new CustomEvent("bobaks:auth-ready",{detail:{available:true,signedIn:isSignedIn()}}));
   window.dispatchEvent(new CustomEvent("bobaks:account-ready",{detail:{available:true,signedIn:isSignedIn()}}));
 }
