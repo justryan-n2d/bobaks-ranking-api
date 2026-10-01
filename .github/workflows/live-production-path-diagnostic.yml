@@ -42,5 +42,5 @@ jobs:
           grep -F "const API='/api'" /tmp/app.js
           grep -F "function loadRankings" /tmp/app.js
 
-          echo "=== DIAGNOSTIC RESULT ==="
+          echo "=== POST-FIX DIAGNOSTIC ==="
           echo "Same-origin frontend API returned ranking rows successfully.";
