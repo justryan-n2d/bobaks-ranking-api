@@ -195,10 +195,10 @@ function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
   const url='/account.js?v=20261001-auth-5-'+(++accountModuleAttempt);
   accountModulePromise=import(url).catch(error=>{
-    console.error('Bobaks account module failed:',error);
+    console.error('Account module failed',error);
     accountModulePromise=null;
     if(location.pathname==='/account'){
-      $('app').innerHTML='<div class="banner error" role="alert">Account failed to load. <button class="btn primary" id="retryAccountModule" type="button">Retry</button></div>';
+      $('app').innerHTML='<div class="banner error">Account failed to load. <button id="retryAccountModule">Retry</button></div>';
       $('retryAccountModule')?.addEventListener('click',()=>location.reload(),{once:true});
     }
     return null;
