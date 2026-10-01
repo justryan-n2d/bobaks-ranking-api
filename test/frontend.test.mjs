@@ -564,9 +564,11 @@ test("account-ready rebinding wires asynchronously rendered sidebar account cont
     app,
     /bobaks:account-ready[\s\S]*renderAccountArea\(\);[\s\S]*if\(location\.pathname!==['"]\/account['"]\)bind\(\)/
   );
-  assert.match(app, /const accountSignIn=\$\('accountSignIn'\);if\(accountSignIn\)accountSignIn\.onclick/);
-  assert.match(app, /const accountSignUp=\$\('accountSignUp'\);if\(accountSignUp\)accountSignUp\.onclick/);
+  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountOpen", "accountSignout", "accountSignOut"]) {
+    assert.match(app, new RegExp("#" + id));
+  }
 });
+
 
 test("account module failures surface a visible retry path instead of infinite loading", () => {
   const app = readApp();
