@@ -222,7 +222,6 @@ function accountState(){return accountUI()?.state||null}
 document.addEventListener('click',event=>{
   const b=event.target?.closest?.('#accountGuest,#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
   if(!b)return;
-  event.preventDefault();
   document.body.classList.remove('sidebar-open');
   if(b.id==='accountGuest'||b.id==='continueGuest')goHome();
   else if(b.id==='accountSignIn')goAuth('signin');
