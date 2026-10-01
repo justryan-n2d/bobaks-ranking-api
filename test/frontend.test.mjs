@@ -535,6 +535,19 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
   assert.match(core, /rest\/v1/);
 });
 
+test("account loading state is centered and animated", () => {
+  const html = readHtml();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const app = readApp();
+  assert.match(html, /account-loading-screen/);
+  assert.match(html, /account-spinner/);
+  assert.match(html, /bobaks-account-spin/);
+  assert.match(html, /animation:bobaks-account-spin/);
+  assert.match(account, /state\.status==="loading"/);
+  assert.match(account, /ACCOUNT_LOADING/);
+  assert.match(app, /ACCOUNT_LOADING/);
+});
+
 test("account module failures surface a visible retry path instead of infinite loading", () => {
   const app = readApp();
   assert.match(app, /Account:\s*'/);
