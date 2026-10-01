@@ -347,7 +347,8 @@ function detail(){
   const live=g.rankings?.live;
   const current=Number(g.currentPlayers||live?.score||0);
   const rank=live?.rank;
-  return '<button class="btn ghost" id="back"><- Back to rankings</button><section class="detail-head" style="margin-top:12px"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt="" loading="lazy" decoding="async"><div><div class="eyebrow">GAME DETAILS</div><h1>'+esc(g.name||'Unknown game')+'</h1><p>by '+esc(g.creatorName||'Unknown creator')+'</p><div class="actions-wide"><a class="btn primary" target="_blank" rel="noreferrer" href="https://www.roblox.com/games/'+encodeURIComponent(g.placeId||0)+'">Open on Roblox -></a><button class="btn" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save game')+'</button><button class="btn" data-share="'+g.gameId+'">Share rank card</button><button class="btn" data-compare="'+g.gameId+'">Compare</button></div></div></section><section class="stats"><div class="stat"><span>Current Players</span><strong>'+fmt(current)+'</strong><small>latest qualifying snapshot</small></div><div class="stat"><span>Current Rank</span><strong>'+(rank?'#'+rank:'Not ranked')+'</strong><small>Live</small></div><div class="stat"><span>Recorded Peak</span><strong>'+fmt(g.peak)+'</strong><small>'+String(g.peakAt||'').slice(0,10)+'</small></div><div class="stat"><span>History</span><strong>'+fmt((g.history||[]).length)+'</strong><small>collected points</small></div></section><section class="panel"><h2>Player Count</h2><p>Collected history. Missing periods are not invented.</p>'+chart(g.history,false)+'</section><section class="panel"><h2>Rank History</h2><p>Daily rank from Bobaks collected history.</p>'+chart(g.rankHistory,true)+'</section><section class="panel"><h2>Game information</h2><div class="meta"><div><small>Universe ID</small><b>'+esc(g.universeId||'Not available')+'</b></div><div><small>Place ID</small><b>'+esc(g.placeId||'Not available')+'</b></div><div><small>Creator</small><b>'+esc(g.creatorName||'Unknown')+'</b></div><div><small>Recorded Peak</small><b>Highest count Bobaks has recorded</b></div></div></section>'+footer();
+  const error=state.error?'<div class="banner error" role="alert">'+esc(state.error)+'</div>':'';
+  return error+'<button class="btn ghost" id="back"><- Back to rankings</button><section class="detail-head" style="margin-top:12px"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt="" loading="lazy" decoding="async"><div><div class="eyebrow">GAME DETAILS</div><h1>'+esc(g.name||'Unknown game')+'</h1><p>by '+esc(g.creatorName||'Unknown creator')+'</p><div class="actions-wide"><a class="btn primary" target="_blank" rel="noreferrer" href="https://www.roblox.com/games/'+encodeURIComponent(g.placeId||0)+'">Open on Roblox -></a><button class="btn" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save game')+'</button><button class="btn" data-share="'+g.gameId+'">Share rank card</button><button class="btn" data-compare="'+g.gameId+'">Compare</button></div></div></section><section class="stats"><div class="stat"><span>Current Players</span><strong>'+fmt(current)+'</strong><small>latest qualifying snapshot</small></div><div class="stat"><span>Current Rank</span><strong>'+(rank?'#'+rank:'Not ranked')+'</strong><small>Live</small></div><div class="stat"><span>Recorded Peak</span><strong>'+fmt(g.peak)+'</strong><small>'+String(g.peakAt||'').slice(0,10)+'</small></div><div class="stat"><span>History</span><strong>'+fmt((g.history||[]).length)+'</strong><small>collected points</small></div></section><section class="panel"><h2>Player Count</h2><p>Collected history. Missing periods are not invented.</p>'+chart(g.history,false)+'</section><section class="panel"><h2>Rank History</h2><p>Daily rank from Bobaks collected history.</p>'+chart(g.rankHistory,true)+'</section><section class="panel"><h2>Game information</h2><div class="meta"><div><small>Universe ID</small><b>'+esc(g.universeId||'Not available')+'</b></div><div><small>Place ID</small><b>'+esc(g.placeId||'Not available')+'</b></div><div><small>Creator</small><b>'+esc(g.creatorName||'Unknown')+'</b></div><div><small>Recorded Peak</small><b>Highest count Bobaks has recorded</b></div></div></section>'+footer();
 }
 async function savedPage(){
   const cards=[];
@@ -406,20 +407,34 @@ function bind(){
   document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});
   document.querySelectorAll('[data-save]').forEach(b=>b.onclick=async e=>{
     e.stopPropagation();
-    const id=String(b.dataset.save),had=state.saved.includes(id),client=accountUI()?.client?.();
+    const id=String(b.dataset.save);
     try{
-      if(isSignedIn()&&client){
-        if(had)await client.removeWatchlistGame(id);
-        else if(state.saved.length<25)await client.addWatchlistGame(id);
-        else throw new Error('Your watchlist is limited to 25 games for now.');
-      }else if(!had&&state.saved.length>=25)throw new Error('Your watchlist is limited to 25 games for now.');
+      if(!accountUI()){
+        await ensureAccountModule();
+      }
+      const client=accountUI()?.client?.();
+      const signedIn=isSignedIn();
+      const had=state.saved.includes(id);
+      if(signedIn&&client){
+        if(had){
+          const removed=await client.removeWatchlistGame(id);
+          if(!Array.isArray(removed))throw new Error('Watchlist removal was not confirmed.');
+        }else if(state.saved.length<25){
+          const saved=await client.addWatchlistGame(id);
+          if(!saved)throw new Error('Watchlist save was not confirmed.');
+        }else{
+          throw new Error('Your watchlist is limited to 25 games for now.');
+        }
+      }else if(!had&&state.saved.length>=25){
+        throw new Error('Your watchlist is limited to 25 games for now.');
+      }
+      state.error='';
       state.saved=had?state.saved.filter(x=>x!==id):[...state.saved,id];
       saveSaved();
       track(had?'watchlist_remove':'watchlist_add',{gameId:id});
       render();
     }catch(error){
-      const ui=accountUI();
-      if(ui?.state)ui.state.error=String(error?.message||'Could not update your watchlist.');
+      state.error=String(error?.message||'Could not update your watchlist.');
       render();
     }
   });
