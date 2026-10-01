@@ -552,7 +552,7 @@ test("ranking views use delegated account controls with a cache-busted app bundl
   const app = readApp();
   const html = fs.readFileSync(path.resolve("frontend/index.html"), "utf8");
   assert.match(app, /document\.addEventListener\('click',event=>\{/);
-  for (const id of ["accountSignIn", "accountSignUp", "continueGuest", "accountOpen", "accountSignout", "accountSignOut"]) {
+  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountOpen", "accountSignout", "accountSignOut"]) {
     assert.match(app, new RegExp("#" + id));
   }
   assert.ok(html.includes('/app.js?v=20261001-account-8'));
