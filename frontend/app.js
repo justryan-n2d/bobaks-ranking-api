@@ -207,9 +207,9 @@ function ensureAccountModule(){
 function authClient(){return accountUI()?.client?.()||null}
 function isSignedIn(){return !!accountUI()?.isSignedIn?.()}
 function renderAccountArea(){accountUI()?.renderAccountArea?.()}
-function accountLoadingPage(){return '<div class="account-loading-screen"><span class="account-spinner"></span><b>Loading account...</b></div>'}
-function authPage(){return accountUI()?.authPage?.()||accountLoadingPage()}
-function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve(accountLoadingPage())}
+const ACCOUNT_LOADING='<div class="account-loading-screen"><span class="account-spinner"></span><b>Loading account</b></div>';
+function authPage(){return accountUI()?.authPage?.()||ACCOUNT_LOADING}
+function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve(ACCOUNT_LOADING)}
 function goAuth(mode='signin',opts={}){return accountUI()?.goAuth?.(mode,opts)}
 function goAccount(opts={}){return accountUI()?.goAccount?.(opts)}
 function submitAuth(){return accountUI()?.submitAuth?.()}
