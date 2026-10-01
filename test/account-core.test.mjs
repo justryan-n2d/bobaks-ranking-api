@@ -265,3 +265,56 @@ test("recoverSessionFromUrl consumes implicit-flow tokens, loads the user, and c
   assert.equal(replaced, true);
   assert.equal(JSON.parse(storage.getItem("bobaks.auth.session.v1")).user.id, "user-3");
 });
+
+test("resendSignupConfirmation calls the Supabase signup resend endpoint", async () => {
+  const calls = [];
+  const client = createAuthClient({
+    supabaseUrl: "https://example.supabase.co",
+    publishableKey: "sb_publishable_test",
+    storage: createMemoryStorage(),
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      return jsonResponse({});
+    }
+  });
+
+  await client.resendSignupConfirmation("player@example.com");
+
+  assert.equal(calls[0].url, "https://example.supabase.co/auth/v1/resend");
+  assert.equal(calls[0].init.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    type: "signup",
+    email: "player@example.com"
+  });
+});
+
+test("getRobloxIdentity reads only the authenticated user's identity row", async () => {
+  const calls = [];
+  const client = createAuthClient({
+    supabaseUrl: "https://example.supabase.co",
+    publishableKey: "sb_publishable_test",
+    storage: createMemoryStorage({
+      "bobaks.auth.session.v1": JSON.stringify(baseSession())
+    }),
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      if (url.endsWith("/auth/v1/user")) return jsonResponse(baseSession().user);
+      return jsonResponse([{
+        roblox_user_id: 12345,
+        provider_subject: "12345",
+        username: "Builder",
+        display_name: "Builder",
+        status: "connected"
+      }]);
+    }
+  });
+
+  const identity = await client.getRobloxIdentity();
+
+  assert.equal(identity.roblox_user_id, 12345);
+  const identityCall = calls.find(call => call.url.includes("/rest/v1/roblox_identities"));
+  assert.ok(identityCall);
+  assert.match(identityCall.url, /select=roblox_user_id/);
+  assert.equal(identityCall.init.headers.get("authorization"), "Bearer access-token");
+});
+
