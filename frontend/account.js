@@ -391,6 +391,9 @@ async function signOut(){
   state.session=state.user=state.profile=state.alerts=null;
   state.error=error;
   state.busy=false;
+  state.confirmation={pending:false,email:"",message:""};
+  state.verification={emailConfirmed:null,lastCheckedAt:null};
+  state.robloxIdentity=null;
   window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
   const local=getSaved();
   if(local.length===0){const fallback=loadGuestSaved();if(fallback.length)setSaved(fallback)}
@@ -402,6 +405,9 @@ client.onAuthStateChange((event,session)=>{
     state.status="signed_out";
     state.session=state.user=state.profile=state.alerts=null;
     state.error="";
+    state.confirmation={pending:false,email:"",message:""};
+    state.verification={emailConfirmed:null,lastCheckedAt:null};
+    state.robloxIdentity=null;
     window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
     const fallback=loadGuestSaved();if(fallback.length)setSaved(fallback);
     render();
@@ -412,6 +418,8 @@ client.onAuthStateChange((event,session)=>{
 
 window.__BOBAKS_ACCOUNT_UI__={
   client:()=>client,
+  resendConfirmation,
+  refreshVerification,
   isSignedIn,
   isBusy:()=>state.busy,
   state,
