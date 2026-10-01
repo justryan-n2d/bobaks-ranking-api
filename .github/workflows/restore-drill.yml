@@ -19,10 +19,10 @@ jobs:
 
     env:
       AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}
-      B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
-      B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
-      B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
-      B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
+      BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
+      BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+      BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
+      BOBAKS_B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
       BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
       RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
 
@@ -55,10 +55,10 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${OBJECT_KEY}"
-          test -n "${B2_ENDPOINT}" || { echo "Missing BOBAKS_B2_ENDPOINT"; exit 1; }
-          test -n "${B2_BUCKET}" || { echo "Missing BOBAKS_B2_BUCKET"; exit 1; }
-          test -n "${B2_ACCESS_KEY_ID}" || { echo "Missing BOBAKS_B2_ACCESS_KEY_ID"; exit 1; }
-          test -n "${B2_SECRET_ACCESS_KEY}" || { echo "Missing BOBAKS_B2_SECRET_ACCESS_KEY"; exit 1; }
+          test -n "${BOBAKS_B2_ENDPOINT}" || { echo "Missing BOBAKS_B2_ENDPOINT"; exit 1; }
+          test -n "${BOBAKS_B2_BUCKET}" || { echo "Missing BOBAKS_B2_BUCKET"; exit 1; }
+          test -n "${BOBAKS_B2_ACCESS_KEY_ID}" || { echo "Missing BOBAKS_B2_ACCESS_KEY_ID"; exit 1; }
+          test -n "${BOBAKS_B2_SECRET_ACCESS_KEY}" || { echo "Missing BOBAKS_B2_SECRET_ACCESS_KEY"; exit 1; }
           test -n "${BACKUP_ENCRYPTION_KEY}" || { echo "Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
           test -n "${RESTORE_DB_URL}" || { echo "Missing restore-test environment secret: RESTORE_DB_URL"; exit 1; }
 
