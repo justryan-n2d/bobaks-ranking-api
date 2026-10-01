@@ -310,6 +310,10 @@ function gameSelect(): string {
   return "id,universeId,placeId,name,creatorName,creatorId,iconUrl,description,createdAt,updatedAt,isActive";
 }
 
+function rankingGameSelect(): string {
+  return "id,universeId,placeId,name,creatorName,iconUrl,isActive";
+}
+
 function parseGamesPagination(url: URL): { limit: number; offset: number } {
   const rawLimit = url.searchParams.get("limit");
   const rawOffset = url.searchParams.get("offset");
@@ -575,7 +579,7 @@ async function getActiveGamesForRanking(env: Env, fetchImpl: FetchLike): Promise
     env,
     "Game",
     {
-      select: gameSelect(),
+      select: rankingGameSelect(),
       isActive: "eq.true",
       order: "id.asc",
       limit: "500"
