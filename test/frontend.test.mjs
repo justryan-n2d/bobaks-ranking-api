@@ -471,3 +471,11 @@ test("Cloudflare frontend routes API requests to the Worker before SPA fallback"
     /"run_worker_first"\s*:\s*\[[\s\S]*"\/api\/\*"/
   );
 });
+
+test("ranking data requests bypass browser cache to avoid stale SPA fallback responses", () => {
+  const app = readApp();
+  assert.match(
+    app,
+    /const p=await api\('\/api\/rankings\?period='\+encodeURIComponent\(state\.period\),\{cache:false\}\)/
+  );
+});
