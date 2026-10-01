@@ -457,7 +457,8 @@ window.__BOBAKS_ACCOUNT_UI__={
   submitAuth,
   submitProfile,
   submitAlerts,
-  signOut
+  signOut,
+  ready:()=>authReady
 };
 
 document.addEventListener("click",event=>{
