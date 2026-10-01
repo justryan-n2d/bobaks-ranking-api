@@ -45,6 +45,60 @@ function initials(){
   const parts=name.split(/\s+/).filter(Boolean);
   return (parts.length>=2?parts[0][0]+parts.at(-1)[0]:name.slice(0,2)||"BR").toUpperCase();
 }
+function isEmailVerified(user=state.user){
+  return Boolean(user?.email_confirmed_at||user?.confirmed_at);
+}
+function maskEmail(email){
+  const value=String(email||"").trim();
+  const at=value.indexOf("@");
+  if(at<1)return value;
+  const local=value.slice(0,at);
+  const domain=value.slice(at+1);
+  return local.slice(0,2)+(local.length>2?"•••":"")+"@"+domain;
+}
+function guestSavedCount(){return getSaved().length}
+function migrationMessage(){
+  const m=state.migration;
+  if(m.status==="syncing")return "Syncing "+fmt(m.sourceCount)+" saved game"+(m.sourceCount===1?"":"s")+" to your account…";
+  if(m.failed.length)return fmt(m.syncedCount)+" synced. "+fmt(m.failed.length)+" still on this device.";
+  if(m.sourceCount)return fmt(m.syncedCount)+" saved game"+(m.syncedCount===1?"":"s")+" synced to your account.";
+  return "";
+}
+async function migrateGuestGames(ids){
+  const source=[...new Set((ids||[]).map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+  if(!source.length){state.migration={status:"idle",sourceCount:0,syncedCount:0,failed:[]};return []}
+  state.migration={status:"syncing",sourceCount:source.length,syncedCount:0,failed:[]};
+  renderAccountArea();
+  const results=await Promise.all(source.map(async id=>{
+    try{await client.addWatchlistGame(id);return {id,ok:true}}catch{return {id,ok:false}}
+  }));
+  const failed=results.filter(x=>!x.ok).map(x=>x.id);
+  state.migration={status:failed.length?"partial":"complete",sourceCount:source.length,syncedCount:source.length-failed.length,failed};
+  return failed;
+}
+async function retryGuestMigration(){
+  if(!isSignedIn()||state.busy||!state.migration.failed.length)return;
+  state.busy=true;
+  const pending=state.migration.failed.slice();
+  try{
+    const results=await Promise.all(pending.map(async id=>{
+      try{await client.addWatchlistGame(id);return {id,ok:true}}catch{return {id,ok:false}}
+    }));
+    const failed=results.filter(x=>!x.ok).map(x=>x.id);
+    state.migration.failed=failed;
+    state.migration.status=failed.length?"partial":"complete";
+    state.migration.syncedCount=state.migration.sourceCount-failed.length;
+    const remote=await client.listWatchlist().catch(()=>[]);
+    const remoteIds=[...new Set((remote||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+    const merged=[...new Set([...remoteIds,...failed])].slice(0,25);
+    setSaved(merged);
+    persistSaved(merged);
+    state.error=failed.length?"Some saved games are still waiting to sync.":"All saved games are synced.";
+  }finally{
+    state.busy=false;
+    render();
+  }
+}
 function loadGuestSaved(){
   try{
     const value=JSON.parse(localStorage.getItem("bobaks.watchlist")||"[]");
