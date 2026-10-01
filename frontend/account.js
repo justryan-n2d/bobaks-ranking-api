@@ -420,6 +420,7 @@ window.__BOBAKS_ACCOUNT_UI__={
   client:()=>client,
   resendConfirmation,
   refreshVerification,
+  retryGuestMigration,
   isSignedIn,
   isBusy:()=>state.busy,
   state,
