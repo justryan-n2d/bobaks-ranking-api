@@ -207,9 +207,7 @@ function ensureAccountModule(){
 function authClient(){return accountUI()?.client?.()||null}
 function isSignedIn(){return !!accountUI()?.isSignedIn?.()}
 function renderAccountArea(){accountUI()?.renderAccountArea?.()}
-function accountLoadingPage(){
-  return '<section class="account-loading-screen" aria-live="polite"><div class="account-loading-box"><span class="account-spinner" aria-hidden="true"></span><div class="account-loading-title">Loading account</div><div class="account-loading-copy">Checking your account and preparing your Bobaks session.</div></div></section>';
-}
+function accountLoadingPage(){return '<div class="account-loading-screen" aria-busy="true"><div class="account-loading-box"><span class="account-spinner" aria-hidden="true"></span><b>Loading account...</b></div></div>'}
 function authPage(){return accountUI()?.authPage?.()||accountLoadingPage()}
 function accountPage(){return accountUI()?.accountPage?.()||Promise.resolve(accountLoadingPage())}
 function goAuth(mode='signin',opts={}){return accountUI()?.goAuth?.(mode,opts)}
