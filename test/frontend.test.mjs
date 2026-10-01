@@ -525,7 +525,7 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
 
   assert.doesNotMatch(html, /<script type="module" src="\/account\.js/);
   assert.match(readApp(), /import\(url\)/);
-  assert.match(readApp(), /\/account\.js\?v=20261001-auth-5-/);
+  assert.match(readApp(), /\/account\.js\?v=20261001-auth-6/);
   assert.match(account, /createAuthClient/);
   assert.match(account, /window\.__BOBAKS_AUTH__/);
   assert.match(account, /bobaks:auth-ready/);
