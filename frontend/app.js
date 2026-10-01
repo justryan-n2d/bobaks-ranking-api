@@ -186,7 +186,7 @@ function nav(){
   $('communityNav')?.classList.toggle('active',state.view==='community');
   if($('savedCount'))$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';
   if($('compareNav')){$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')'}
-  const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'☾ Dark':'☀ Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}
+  const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'~ Dark':'* Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}
   renderAccountArea();
 }
 function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
@@ -238,7 +238,7 @@ function rankingShareText(period,games){
   const lines=(games||[]).slice(0,10).map((g,index)=>{
     const rank=Number(g.rank||index+1);
     const players=fmt(g.playing);
-    return rank+'. '+String(g.name||'Unknown game')+' · '+players+' players';
+    return rank+'. '+String(g.name||'Unknown game')+' | '+players+' players';
   });
   const url=new URL(rankingPath(period),location.origin).toString();
   return [title,'',...lines,'','Visit Bobaks Ranking:',url].join('\n');
@@ -273,7 +273,7 @@ async function shareSocialPost(kind){
 async function shareRanking(){
   await shareSocialPost('ranking');
 }
-function movement(g){if(g.previousRank==null)return '<span class="new movement-badge">NEW</span>';const d=Number(g.rankChange||0);if(d>0)return '<span class="up movement-badge">▲ '+d+' rank'+(d===1?'':'s')+'</span>';if(d<0)return '<span class="down movement-badge">▼ '+Math.abs(d)+' rank'+(Math.abs(d)===1?'':'s')+'</span>';return '<span class="movement-badge">• No change</span>'}
+function movement(g){if(g.previousRank==null)return '<span class="new movement-badge">NEW</span>';const d=Number(g.rankChange||0);if(d>0)return '<span class="up movement-badge">^ '+d+' rank'+(d===1?'':'s')+'</span>';if(d<0)return '<span class="down movement-badge">v '+Math.abs(d)+' rank'+(Math.abs(d)===1?'':'s')+'</span>';return '<span class="movement-badge">. No change</span>'}
 function icon(url){return url?'<img src="'+esc(url)+'" alt="" loading="lazy" decoding="async">':'<div class="cover"></div>'}
 async function loadRankings(force=false){
   state.loading=true;state.error='';render();
@@ -312,7 +312,7 @@ async function search(q){
     renderSearchResults();
   }
 }
-function footer(){return '<footer class="foot"><div>Bobaks Ranking · Independent fan-made analytics site · Not affiliated with Roblox Corporation.</div><div><button data-info="methodology">How Rankings Work</button> <button data-info="privacy">Privacy</button> <button data-info="terms">Terms</button> <button data-info="sources">Data Sources</button></div></footer>'}
+function footer(){return '<footer class="foot"><div>Bobaks Ranking | Independent fan-made analytics site | Not affiliated with Roblox Corporation.</div><div><button data-info="methodology">How Rankings Work</button> <button data-info="privacy">Privacy</button> <button data-info="terms">Terms</button> <button data-info="sources">Data Sources</button></div></footer>'}
 function home(){
   const tabs=periods.map(p=>'<button class="'+(state.period===p[0]?'active':'')+'" data-period="'+p[0]+'">'+p[1]+'</button>').join('');
   let rows='';
@@ -322,7 +322,7 @@ function home(){
     const visibleGames=state.period==='live'?state.games.slice(0,state.rankingLimit):state.games;
     rows=visibleGames.map((g,i)=>{
       const valueAnim=g.changed&&g.previousPlaying!=null?' data-from="'+g.previousPlaying+'" data-to="'+g.playing+'"':'';
-      return '<div class="row '+(g.changed?'value-changed ':'')+(i===0?'top-ranked':'')+'"><span class="rank">#'+g.rank+'</span><button class="game" data-game="'+g.gameId+'">'+icon(g.icon)+'<span><b>'+esc(g.name)+(g.rank===1?'<span class="top-badge">★ #1</span>':g.rank===2?'<span class="top-badge rank-2">★ #2</span>':g.rank===3?'<span class="top-badge rank-3">★ #3</span>':'')+'</b><small>'+esc(g.creator)+'</small><span class="game-tags"><span class="tag">'+(state.period==='live'?'<span class="live-pulse"></span>Live players':periods.find(p=>p[0]===state.period)[1])+'</span></span></span></button><span class="creator">'+esc(g.creator)+'</span><span class="players"><b class="live-value"'+valueAnim+'>'+fmt(g.playing)+'</b><small>'+(state.period==='live'?'players':'avg players')+'</small></span><span class="movement">'+movement(g)+'</span><span class="actions"><button class="mini" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save')+'</button><button class="mini" data-compare="'+g.gameId+'">'+(state.compare.includes(g.gameId)?'Compared':'Compare')+'</button></span></div>'
+      return '<div class="row '+(g.changed?'value-changed ':'')+(i===0?'top-ranked':'')+'"><span class="rank">#'+g.rank+'</span><button class="game" data-game="'+g.gameId+'">'+icon(g.icon)+'<span><b>'+esc(g.name)+(g.rank===1?'<span class="top-badge">* #1</span>':g.rank===2?'<span class="top-badge rank-2">* #2</span>':g.rank===3?'<span class="top-badge rank-3">* #3</span>':'')+'</b><small>'+esc(g.creator)+'</small><span class="game-tags"><span class="tag">'+(state.period==='live'?'<span class="live-pulse"></span>Live players':periods.find(p=>p[0]===state.period)[1])+'</span></span></span></button><span class="creator">'+esc(g.creator)+'</span><span class="players"><b class="live-value"'+valueAnim+'>'+fmt(g.playing)+'</b><small>'+(state.period==='live'?'players':'avg players')+'</small></span><span class="movement">'+movement(g)+'</span><span class="actions"><button class="mini" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save')+'</button><button class="mini" data-compare="'+g.gameId+'">'+(state.compare.includes(g.gameId)?'Compared':'Compare')+'</button></span></div>'
     }).join('');
   }
 
@@ -332,9 +332,9 @@ function home(){
   const movingHtml=visibleMovers.length?visibleMovers.map((g,i)=>{
     const change=Number(g.rankChange||0),positive=change>0,label=positive?(change>=5?'Strong rise':'Rising'):'Falling';
     const width=Math.max(8,Math.round((g.playing/moverMax)*100));
-    return '<button class="moving-card" data-game="'+g.gameId+'"><div class="moving-card-head">'+icon(g.icon)+'<span class="moving-info"><b>'+esc(g.name)+'</b><small>'+esc(g.creator)+'</small></span><span class="moving-rank">#'+g.rank+'</span></div><div class="moving-change"><span class="'+(positive?'up':'down')+'">'+(positive?'▲ ':'▼ ')+Math.abs(change)+' rank'+(Math.abs(change)===1?'':'s')+'</span><strong>'+label+'</strong></div><div class="moving-bar"><span style="width:'+width+'%"></span></div><span class="moving-label">'+fmt(g.playing)+' current players</span></button>'
+    return '<button class="moving-card" data-game="'+g.gameId+'"><div class="moving-card-head">'+icon(g.icon)+'<span class="moving-info"><b>'+esc(g.name)+'</b><small>'+esc(g.creator)+'</small></span><span class="moving-rank">#'+g.rank+'</span></div><div class="moving-change"><span class="'+(positive?'up':'down')+'">'+(positive?'^ ':'v ')+Math.abs(change)+' rank'+(Math.abs(change)===1?'':'s')+'</span><strong>'+label+'</strong></div><div class="moving-bar"><span style="width:'+width+'%"></span></div><span class="moving-label">'+fmt(g.playing)+' current players</span></button>'
   }).join(''):'<div class="empty">No major rank changes in the current ranking set.</div>';
-  const movingButton=movers.length>2?'<div class="load-more-wrap"><button class="load-more-btn" id="movingToggle">'+(state.movingLimit>2?'Show less':'Load more')+(state.movingLimit>2?' ↑':' ↓')+'</button></div>':'';
+  const movingButton=movers.length>2?'<div class="load-more-wrap"><button class="load-more-btn" id="movingToggle">'+(state.movingLimit>2?'Show less':'Load more')+(state.movingLimit>2?' ^':' v')+'</button></div>':'';
 
   const result=state.results.map(g=>'<button data-search-game="'+g.id+'"><b>'+esc(g.name)+'</b><br><small>'+esc(g.creator)+'</small></button>').join('');
   const latest=state.games[0]?.calculatedAt;
@@ -343,10 +343,10 @@ function home(){
   const rankingTitle=state.period==='live'?'Top Games Right Now':periods.find(p=>p[0]===state.period)[1]+' Rankings';
   const rankingTotal=state.games.length;
   const rankingButton=state.period==='live'&&rankingTotal>15
-    ?'<div class="load-more-wrap"><button class="load-more-btn" id="rankingLoadMore">'+(state.rankingLimit<50?'Load more ↓':state.rankingLimit<rankingTotal?'Load more ↓':'Show less ↑')+'</button></div>'
+    ?'<div class="load-more-wrap"><button class="load-more-btn" id="rankingLoadMore">'+(state.rankingLimit<50?'Load more v':state.rankingLimit<rankingTotal?'Load more v':'Show less ^')+'</button></div>'
     :'';
 
-  return '<section class="hero"><div class="hero-main"><div class="eyebrow">BOBAKS ANALYTICS</div><h1>Live <em>Rankings</em></h1><p>Live rankings and historical trends for Roblox experiences.</p></div><div class="hero-status"><span class="status-label">Latest ranking snapshot</span><strong>'+esc(updated)+'</strong><div style="margin-top:8px;display:flex;align-items:center;gap:8px;color:#C7D8EA;font-size:10px"><span class="status-dot"></span>Ranking data connected</div></div></section><div class="controls"><nav class="tabs">'+tabs+'</nav><div class="social-actions"><button class="btn" id="shareRanking">↗ Share ranking</button><button class="btn primary" id="refresh">↻ Refresh</button></div><div class="social-status" id="socialStatus" aria-live="polite"></div></div><div class="search"><div class="search-wrap"><span class="search-icon">⌕</span><input id="search" placeholder="Search games, creators, or developers" value="'+esc(state.query)+'"></div><div class="results">'+result+'</div></div>'+(state.error?'<div class="banner error">'+esc(state.error)+'</div>':'')+'<section class="moving-section"><div class="moving-head"><div><h2>Trending Games</h2><p>Games with the largest upward rank movement in the current '+esc(periods.find(p=>p[0]===state.period)?.[1]||'ranking')+' set.</p></div><button class="btn" id="shareTrending">↗ Share trending</button></div><div class="moving-grid">'+movingHtml+'</div>'+movingButton+'</section><section class="social-peaks panel"><div class="social-peaks-head"><div><div class="eyebrow">SOCIAL HIGHLIGHT</div><h2>Peak Records</h2><p>Ready-to-post highlights of the highest recorded peaks Bobaks has stored.</p></div><button class="btn" id="sharePeaks">↗ Share peak records</button></div></section><section class="dashboard"><section class="main-card"><div class="listhead"><div><h2>'+rankingTitle+'</h2><p>Ranked from Bobaks collected game-level data.</p></div><div style="display:flex;align-items:center;gap:8px"><div class="updated">'+(state.next?'Next refresh<br><strong style="color:#C9D9EA;font-size:10px">'+fmtTime(state.next)+'</strong>':'')+'</div><button class="rank-toggle '+(state.rankingExpanded?'':'collapsed')+'" id="rankingToggle" aria-expanded="'+state.rankingExpanded+'"><span class="rank-chevron">⌄</span>'+(state.rankingExpanded?'Hide':'Show')+'</button></div></div><div class="ranking-body '+(state.rankingExpanded?'':'collapsed')+'"><div class="table-head"><span>#</span><span>Game</span><span>Creator</span><span>Players</span><span>Change</span><span>Actions</span></div><section class="rows">'+rows+'</section>'+rankingButton+'</div></section><aside class="side-stack"><article class="side-card"><div class="side-top"><div class="side-icon">↻</div><div><h3>Update status</h3><p>Bobaks is serving the latest available ranking set.</p></div></div><div style="margin-top:13px;color:#C1D2E5;font-size:10px">Latest snapshot<br><strong style="display:inline-block;margin-top:4px;color:#fff">'+esc(updated)+'</strong></div></article><article class="side-card"><div class="side-top"><div class="side-icon">▦</div><div><h3>Data coverage</h3><p>Current ranking rows available to the frontend.</p></div></div><ul class="data-list"><li><span>Live rankings</span><strong>'+(state.period==='live'?coverage:'100/100')+'</strong></li><li><span>Weekly rankings</span><strong>'+(state.period==='week'?coverage:'100/100')+'</strong></li><li><span>Monthly rankings</span><strong>'+(state.period==='month'?coverage:'100/100')+'</strong></li><li><span>Yearly rankings</span><strong>'+(state.period==='year'?coverage:'100/100')+'</strong></li></ul><div class="health"><div class="health-row"><span class="status-dot"></span> Ranking endpoint online</div><small>Collector, database, and ranking engine status are reflected through successful ranking responses.</small></div></article><article class="side-card"><div class="side-top"><div class="side-icon">i</div><div><h3>About Bobaks Ranking</h3><p>An independent analytics platform for Roblox experiences.</p></div></div><p style="margin-top:12px">Explore live popularity, historical trends, and rank movement using Bobaks collected game-level data.</p><button class="about-link" data-info="methodology">How rankings work →</button></article></aside></section>'+footer();
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">BOBAKS ANALYTICS</div><h1>Live <em>Rankings</em></h1><p>Live rankings and historical trends for Roblox experiences.</p></div><div class="hero-status"><span class="status-label">Latest ranking snapshot</span><strong>'+esc(updated)+'</strong><div style="margin-top:8px;display:flex;align-items:center;gap:8px;color:#C7D8EA;font-size:10px"><span class="status-dot"></span>Ranking data connected</div></div></section><div class="controls"><nav class="tabs">'+tabs+'</nav><div class="social-actions"><button class="btn" id="shareRanking">-> Share ranking</button><button class="btn primary" id="refresh">@ Refresh</button></div><div class="social-status" id="socialStatus" aria-live="polite"></div></div><div class="search"><div class="search-wrap"><span class="search-icon">?</span><input id="search" placeholder="Search games, creators, or developers" value="'+esc(state.query)+'"></div><div class="results">'+result+'</div></div>'+(state.error?'<div class="banner error">'+esc(state.error)+'</div>':'')+'<section class="moving-section"><div class="moving-head"><div><h2>Trending Games</h2><p>Games with the largest upward rank movement in the current '+esc(periods.find(p=>p[0]===state.period)?.[1]||'ranking')+' set.</p></div><button class="btn" id="shareTrending">-> Share trending</button></div><div class="moving-grid">'+movingHtml+'</div>'+movingButton+'</section><section class="social-peaks panel"><div class="social-peaks-head"><div><div class="eyebrow">SOCIAL HIGHLIGHT</div><h2>Peak Records</h2><p>Ready-to-post highlights of the highest recorded peaks Bobaks has stored.</p></div><button class="btn" id="sharePeaks">-> Share peak records</button></div></section><section class="dashboard"><section class="main-card"><div class="listhead"><div><h2>'+rankingTitle+'</h2><p>Ranked from Bobaks collected game-level data.</p></div><div style="display:flex;align-items:center;gap:8px"><div class="updated">'+(state.next?'Next refresh<br><strong style="color:#C9D9EA;font-size:10px">'+fmtTime(state.next)+'</strong>':'')+'</div><button class="rank-toggle '+(state.rankingExpanded?'':'collapsed')+'" id="rankingToggle" aria-expanded="'+state.rankingExpanded+'"><span class="rank-chevron">v</span>'+(state.rankingExpanded?'Hide':'Show')+'</button></div></div><div class="ranking-body '+(state.rankingExpanded?'':'collapsed')+'"><div class="table-head"><span>#</span><span>Game</span><span>Creator</span><span>Players</span><span>Change</span><span>Actions</span></div><section class="rows">'+rows+'</section>'+rankingButton+'</div></section><aside class="side-stack"><article class="side-card"><div class="side-top"><div class="side-icon">@</div><div><h3>Update status</h3><p>Bobaks is serving the latest available ranking set.</p></div></div><div style="margin-top:13px;color:#C1D2E5;font-size:10px">Latest snapshot<br><strong style="display:inline-block;margin-top:4px;color:#fff">'+esc(updated)+'</strong></div></article><article class="side-card"><div class="side-top"><div class="side-icon">#</div><div><h3>Data coverage</h3><p>Current ranking rows available to the frontend.</p></div></div><ul class="data-list"><li><span>Live rankings</span><strong>'+(state.period==='live'?coverage:'100/100')+'</strong></li><li><span>Weekly rankings</span><strong>'+(state.period==='week'?coverage:'100/100')+'</strong></li><li><span>Monthly rankings</span><strong>'+(state.period==='month'?coverage:'100/100')+'</strong></li><li><span>Yearly rankings</span><strong>'+(state.period==='year'?coverage:'100/100')+'</strong></li></ul><div class="health"><div class="health-row"><span class="status-dot"></span> Ranking endpoint online</div><small>Collector, database, and ranking engine status are reflected through successful ranking responses.</small></div></article><article class="side-card"><div class="side-top"><div class="side-icon">i</div><div><h3>About Bobaks Ranking</h3><p>An independent analytics platform for Roblox experiences.</p></div></div><p style="margin-top:12px">Explore live popularity, historical trends, and rank movement using Bobaks collected game-level data.</p><button class="about-link" data-info="methodology">How rankings work -></button></article></aside></section>'+footer();
 }
 async function openGame(id,{push=true}={}){const gameId=String(id);if(push&&location.pathname!=='/game/'+encodeURIComponent(gameId))history.pushState({gameId},'',gameUrl(gameId));state.view='detail';state.selected={gameId,loading:true};window.__BOBAKS_SELECTED_GAME__=state.selected;state.error='';render();if(push)track('page_view',{gameId,period:state.period});try{const [g,h,p,rh]=await Promise.all([api('/api/games/'+encodeURIComponent(gameId)),api('/api/games/'+encodeURIComponent(gameId)+'/history?days=365'),api('/api/games/'+encodeURIComponent(gameId)+'/peak'),api('/api/games/'+encodeURIComponent(gameId)+'/rank-history?days=31')]);state.selected={...(g.data||{}),gameId,history:h.data||[],peak:Number(p.data?.peakPlayers||0),peakAt:p.data?.peakAt||null,rankHistory:rh.data||[],loading:false};window.__BOBAKS_SELECTED_GAME__=state.selected;setPageMeta(state.selected)}catch{state.selected={gameId,loading:false};window.__BOBAKS_SELECTED_GAME__=state.selected;state.error='That game could not be loaded.';setPageMeta(null)}render()}
 function daily(points){const m=new Map();for(const p of points||[]){const d=String(p.timestamp||p.date).slice(0,10);const v=Number(p.playerCount||p.averagePlayers||0);if(!m.has(d))m.set(d,[]);m.get(d).push(v)}return [...m].map(([date,a])=>({date,avg:a.reduce((x,y)=>x+y,0)/a.length})).sort((a,b)=>a.date.localeCompare(b.date))}
@@ -357,7 +357,7 @@ function detail(){
   const live=g.rankings?.live;
   const current=Number(g.currentPlayers||live?.score||0);
   const rank=live?.rank;
-  return '<button class="btn ghost" id="back">← Back to rankings</button><section class="detail-head" style="margin-top:12px"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt="" loading="lazy" decoding="async"><div><div class="eyebrow">GAME DETAILS</div><h1>'+esc(g.name||'Unknown game')+'</h1><p>by '+esc(g.creatorName||'Unknown creator')+'</p><div class="actions-wide"><a class="btn primary" target="_blank" rel="noreferrer" href="https://www.roblox.com/games/'+encodeURIComponent(g.placeId||0)+'">Open on Roblox ↗</a><button class="btn" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save game')+'</button><button class="btn" data-share="'+g.gameId+'">Share rank card</button><button class="btn" data-compare="'+g.gameId+'">Compare</button></div></div></section><section class="stats"><div class="stat"><span>Current Players</span><strong>'+fmt(current)+'</strong><small>latest qualifying snapshot</small></div><div class="stat"><span>Current Rank</span><strong>'+(rank?'#'+rank:'Not ranked')+'</strong><small>Live</small></div><div class="stat"><span>Recorded Peak</span><strong>'+fmt(g.peak)+'</strong><small>'+String(g.peakAt||'').slice(0,10)+'</small></div><div class="stat"><span>History</span><strong>'+fmt((g.history||[]).length)+'</strong><small>collected points</small></div></section><section class="panel"><h2>Player Count</h2><p>Collected history. Missing periods are not invented.</p>'+chart(g.history,false)+'</section><section class="panel"><h2>Rank History</h2><p>Daily rank from Bobaks collected history.</p>'+chart(g.rankHistory,true)+'</section><section class="panel"><h2>Game information</h2><div class="meta"><div><small>Universe ID</small><b>'+esc(g.universeId||'Not available')+'</b></div><div><small>Place ID</small><b>'+esc(g.placeId||'Not available')+'</b></div><div><small>Creator</small><b>'+esc(g.creatorName||'Unknown')+'</b></div><div><small>Recorded Peak</small><b>Highest count Bobaks has recorded</b></div></div></section>'+footer();
+  return '<button class="btn ghost" id="back"><- Back to rankings</button><section class="detail-head" style="margin-top:12px"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt="" loading="lazy" decoding="async"><div><div class="eyebrow">GAME DETAILS</div><h1>'+esc(g.name||'Unknown game')+'</h1><p>by '+esc(g.creatorName||'Unknown creator')+'</p><div class="actions-wide"><a class="btn primary" target="_blank" rel="noreferrer" href="https://www.roblox.com/games/'+encodeURIComponent(g.placeId||0)+'">Open on Roblox -></a><button class="btn" data-save="'+g.gameId+'">'+(state.saved.includes(g.gameId)?'Saved':'Save game')+'</button><button class="btn" data-share="'+g.gameId+'">Share rank card</button><button class="btn" data-compare="'+g.gameId+'">Compare</button></div></div></section><section class="stats"><div class="stat"><span>Current Players</span><strong>'+fmt(current)+'</strong><small>latest qualifying snapshot</small></div><div class="stat"><span>Current Rank</span><strong>'+(rank?'#'+rank:'Not ranked')+'</strong><small>Live</small></div><div class="stat"><span>Recorded Peak</span><strong>'+fmt(g.peak)+'</strong><small>'+String(g.peakAt||'').slice(0,10)+'</small></div><div class="stat"><span>History</span><strong>'+fmt((g.history||[]).length)+'</strong><small>collected points</small></div></section><section class="panel"><h2>Player Count</h2><p>Collected history. Missing periods are not invented.</p>'+chart(g.history,false)+'</section><section class="panel"><h2>Rank History</h2><p>Daily rank from Bobaks collected history.</p>'+chart(g.rankHistory,true)+'</section><section class="panel"><h2>Game information</h2><div class="meta"><div><small>Universe ID</small><b>'+esc(g.universeId||'Not available')+'</b></div><div><small>Place ID</small><b>'+esc(g.placeId||'Not available')+'</b></div><div><small>Creator</small><b>'+esc(g.creatorName||'Unknown')+'</b></div><div><small>Recorded Peak</small><b>Highest count Bobaks has recorded</b></div></div></section>'+footer();
 }
 async function savedPage(){
   const cards=[];
@@ -367,7 +367,7 @@ async function savedPage(){
   const guestSync=(!isSignedIn()&&state.saved.length)
     ?'<div class="banner">You have '+fmt(state.saved.length)+' saved game'+(state.saved.length===1?'':'s')+' on this device. <button class="btn primary" id="savedAccountCta" type="button">Sign in to sync</button></div>'
     :"";
-  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>'+(isSignedIn()?'Synced to your Bobaks account across devices.':'Saved only on this device. Sign in to sync across devices.')+'</p></div></section>'+guestSync+'<section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>'+(isSignedIn()?'Synced to your Bobaks account across devices.':'Saved only on this device. Sign in to sync across devices.')+'</p></div></section>'+guestSync+'<section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">.</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
 }
 async function comparePage(){
   if(!state.compare.length)return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Choose Compare on ranking rows to add games.</p></div></section>'+footer();
@@ -377,7 +377,7 @@ async function comparePage(){
   }
   return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Compare current popularity and live rank for selected games.</p></div></section><section class="compare">'+cards.map(g=>'<article class="panel"><div class="side-top"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt="" loading="lazy" decoding="async"><div><h2>'+esc(g.name)+'</h2><p>'+esc(g.creatorName||'Unknown creator')+'</p></div></div><div class="stats"><div class="stat"><span>Players</span><strong>'+fmt(g.currentPlayers)+'</strong></div><div class="stat"><span>Live Rank</span><strong>'+(g.rankings?.live?.rank?'#'+g.rankings.live.rank:'N/A')+'</strong></div></div><button class="btn primary" data-game="'+g.id+'">Open game</button></article>').join('')+'</section>'+footer();
 }
-function info(key){const data={privacy:['Privacy Policy','Bobaks Ranking focuses on game-level analytics. No player-level profiles are required for the public ranking experience. Anonymous first-party visitor and session identifiers may be used to measure product usage, return visits, and session depth. They are not Roblox account IDs, are not used to build player profiles, and do not include IP addresses or raw search text. Visitor identifiers expire after 30 days and session identifiers use a 30-minute idle window.'],terms:['Terms of Use','Bobaks Ranking is an independent third-party analytics site. Player counts and rankings may change, be delayed, or become unavailable.'],sources:['Data Sources','Bobaks Ranking uses permitted public Roblox game-level data and calculates rankings from collected snapshots.']};if(key==='methodology')return '<section class="info"><button class="btn" id="back">← Back</button><h1>How Bobaks Rankings Work</h1><p>Rankings use qualifying Bobaks collection data. Live rankings require a recent qualifying snapshot. Weekly and monthly rankings use qualifying samples and the existing 50% coverage rule. Rank movement compares the current persisted ranking with the previous ranking set.</p><p>Recorded Peak means the highest player count Bobaks has recorded, not Roblox-wide all-time history.</p><p>Historical coverage depends on what Bobaks has successfully collected.</p></section>';const d=data[key]||data.privacy;return '<section class="info"><button class="btn" id="back">← Back</button><h1>'+d[0]+'</h1><p>'+d[1]+'</p><p>Contact: bobaksranking@gmail.com</p></section>'}
+function info(key){const data={privacy:['Privacy Policy','Bobaks Ranking focuses on game-level analytics. No player-level profiles are required for the public ranking experience. Anonymous first-party visitor and session identifiers may be used to measure product usage, return visits, and session depth. They are not Roblox account IDs, are not used to build player profiles, and do not include IP addresses or raw search text. Visitor identifiers expire after 30 days and session identifiers use a 30-minute idle window.'],terms:['Terms of Use','Bobaks Ranking is an independent third-party analytics site. Player counts and rankings may change, be delayed, or become unavailable.'],sources:['Data Sources','Bobaks Ranking uses permitted public Roblox game-level data and calculates rankings from collected snapshots.']};if(key==='methodology')return '<section class="info"><button class="btn" id="back"><- Back</button><h1>How Bobaks Rankings Work</h1><p>Rankings use qualifying Bobaks collection data. Live rankings require a recent qualifying snapshot. Weekly and monthly rankings use qualifying samples and the existing 50% coverage rule. Rank movement compares the current persisted ranking with the previous ranking set.</p><p>Recorded Peak means the highest player count Bobaks has recorded, not Roblox-wide all-time history.</p><p>Historical coverage depends on what Bobaks has successfully collected.</p></section>';const d=data[key]||data.privacy;return '<section class="info"><button class="btn" id="back"><- Back</button><h1>'+d[0]+'</h1><p>'+d[1]+'</p><p>Contact: bobaksranking@gmail.com</p></section>'}
 function render(){
   nav();
   if(state.view==='auth'){
@@ -490,14 +490,14 @@ function cardTier(rank){
 function cardMessage(g,rank){
   const n=Number(rank);
   const change=g.rankings?.live?.rankChange;
-  if(n===1)return 'You are looking at the current #1 game on Bobaks. Keep your crown shining. 👑';
-  if(change!=null&&change>=10)return 'This game is flying up the leaderboard. 🚀 Keep watching the climb.';
-  if(change!=null&&change>=3)return 'This game is climbing the board. 🔥 One to keep your eye on.';
+  if(n===1)return 'You are looking at the current #1 game on Bobaks. Keep your crown shining. #';
+  if(change!=null&&change>=10)return 'This game is flying up the leaderboard. ! Keep watching the climb.';
+  if(change!=null&&change>=3)return 'This game is climbing the board. ! One to keep your eye on.';
   if(change!=null&&change<=-10)return 'The leaderboard moved. The next refresh could tell a different story.';
-  if(g.isNewEntry)return 'A fresh face just entered the Bobaks Top 100. Welcome to the board. ✨';
-  if(n&&n<=3)return 'A top-three game on Bobaks. That spot is worth showing off. ✨';
-  if(n&&n<=10)return 'You are looking at a top-ten game on Bobaks right now. 👀';
-  if(Number(g.currentPlayers||0)>=10000)return 'Thousands of players are showing up right now. 🔥';
+  if(g.isNewEntry)return 'A fresh face just entered the Bobaks Top 100. Welcome to the board. *';
+  if(n&&n<=3)return 'A top-three game on Bobaks. That spot is worth showing off. *';
+  if(n&&n<=10)return 'You are looking at a top-ten game on Bobaks right now. o';
+  if(Number(g.currentPlayers||0)>=10000)return 'Thousands of players are showing up right now. !';
   if(n&&n<=100)return 'A ranked game worth keeping on your watchlist.';
   return 'Discover where this game stands on Bobaks Ranking.';
 }
@@ -887,7 +887,7 @@ function drawFrame(time=0,preview=true){
 
     ctx.fillStyle=rankChange==null?tier.accent2:rankChange>0?'#37D6A2':rankChange<0?'#FF7586':tier.accent2;
     ctx.font='900 25px Inter,system-ui,sans-serif';
-    const movement=rankChange==null?(previousRank==null?'NEW ENTRY':'RANK'):(rankChange>0?'▲ '+rankChange+' RANK'+(rankChange===1?'':'S')+' UP':rankChange<0?'▼ '+Math.abs(rankChange)+' RANK'+(Math.abs(rankChange)===1?'':'S')+' DOWN':'NO RANK CHANGE');
+    const movement=rankChange==null?(previousRank==null?'NEW ENTRY':'RANK'):(rankChange>0?'^ '+rankChange+' RANK'+(rankChange===1?'':'S')+' UP':rankChange<0?'v '+Math.abs(rankChange)+' RANK'+(Math.abs(rankChange)===1?'':'S')+' DOWN':'NO RANK CHANGE');
     ctx.fillText(movement,100,1380);
 
     ctx.fillStyle='#EEF6FF';ctx.font='800 22px Inter,system-ui,sans-serif';
@@ -914,7 +914,7 @@ function drawFrame(time=0,preview=true){
   const gameLink=gameUrl(g.gameId||g.id);
   const shareMessage=cardMessage({...g,isNewEntry:previousRank==null},rank);
   const shareText=[
-    String(g.name||'Unknown game')+' · '+(rank?'#'+rank:'Unranked'),
+    String(g.name||'Unknown game')+' | '+(rank?'#'+rank:'Unranked'),
     '',
     shareMessage,
     '',
@@ -958,7 +958,7 @@ async function share(id){
 
     modal=document.createElement('div');
     modal.className='rank-card-modal';
-    modal.innerHTML='<div class="rank-card-dialog" role="dialog" aria-modal="true" aria-label="Your Bobaks Game Rank Card"><div class="rank-card-dialog-head"><div class="rank-card-dialog-copy"><h2 class="rank-card-dialog-title">Your Game Rank Card</h2><p class="rank-card-dialog-sub" data-rank-context>Preparing your card…</p><span class="rank-card-live"><span class="rank-card-live-dot"></span>Live Bobaks data</span></div><button class="rank-card-close" aria-label="Close">×</button></div><div class="rank-card-canvas-wrap"><div class="rank-card-generating"><span class="spinner"></span><span>Generating your card…</span></div></div></div>';
+    modal.innerHTML='<div class="rank-card-dialog" role="dialog" aria-modal="true" aria-label="Your Bobaks Game Rank Card"><div class="rank-card-dialog-head"><div class="rank-card-dialog-copy"><h2 class="rank-card-dialog-title">Your Game Rank Card</h2><p class="rank-card-dialog-sub" data-rank-context>Preparing your card…</p><span class="rank-card-live"><span class="rank-card-live-dot"></span>Live Bobaks data</span></div><button class="rank-card-close" aria-label="Close">x</button></div><div class="rank-card-canvas-wrap"><div class="rank-card-generating"><span class="spinner"></span><span>Generating your card…</span></div></div></div>';
     document.body.appendChild(modal);
 
     const result=await generateRankCard(g);
@@ -1010,19 +1010,19 @@ async function share(id){
     })();
 
     const rankContext=modal.querySelector('[data-rank-context]');
-    if(rankContext)rankContext.textContent=String(g.name||'Unknown game')+' · '+rankHeader;
+    if(rankContext)rankContext.textContent=String(g.name||'Unknown game')+' | '+rankHeader;
 
     wrap.dataset.tier=result.tier?.family||'blue';
     if(result.tier?.accent)wrap.style.setProperty('--rank-accent',result.tier.accent);
 
     const actions=document.createElement('div');
     actions.className='rank-card-actions';
-    actions.innerHTML='<button class="btn primary" data-download>↓ Download Card</button><button class="btn" data-share>↗ Share Card</button>';
+    actions.innerHTML='<button class="btn primary" data-download>v Download Card</button><button class="btn" data-share>-> Share Card</button>';
     wrap.parentElement.appendChild(actions);
 
     const toolsBox=document.createElement('div');
     toolsBox.className='rank-card-secondary';
-    toolsBox.innerHTML='<button type="button" data-copy-caption>Copy caption</button><span class="rank-card-secondary-sep" aria-hidden="true">·</span><button type="button" data-copy-link>Copy link</button>';
+    toolsBox.innerHTML='<button type="button" data-copy-caption>Copy caption</button><span class="rank-card-secondary-sep" aria-hidden="true">|</span><button type="button" data-copy-link>Copy link</button>';
     wrap.parentElement.appendChild(toolsBox);
 
     const sectionHead=document.createElement('div');
@@ -1074,7 +1074,7 @@ async function share(id){
 
         if(navigator.share&&canShareFiles){
           await navigator.share({
-            title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked')+' · Bobaks Ranking',
+            title:String(g.name||'Bobaks Game')+' | '+(result.rank?'#'+result.rank:'Unranked')+' | Bobaks Ranking',
             text:caption,
             url:link,
             files:[file]
@@ -1082,7 +1082,7 @@ async function share(id){
           setStatus('Share sheet used. If the selected app drops the caption, use Copy caption and paste it after sending the image.');
         }else if(navigator.share){
           await navigator.share({
-            title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked')+' · Bobaks Ranking',
+            title:String(g.name||'Bobaks Game')+' | '+(result.rank?'#'+result.rank:'Unranked')+' | Bobaks Ranking',
             text:caption,
             url:link
           });
@@ -1136,7 +1136,7 @@ async function share(id){
           if(canShareFiles){
             try{
               await navigator.share({
-                title:String(g.name||'Bobaks Game')+' · '+(result.rank?'#'+result.rank:'Unranked'),
+                title:String(g.name||'Bobaks Game')+' | '+(result.rank?'#'+result.rank:'Unranked'),
                 text:caption,
                 url:link,
                 files:[file]
@@ -1205,14 +1205,14 @@ async function share(id){
           try{
             if(navigator.canShare&&navigator.canShare({files:[file]})){
               await navigator.share({
-                title:String(g.name||'Bobaks Game')+' · Bobaks Ranking',
+                title:String(g.name||'Bobaks Game')+' | Bobaks Ranking',
                 text:caption,
                 url:link,
                 files:[file]
               });
             }else{
               await navigator.share({
-                title:String(g.name||'Bobaks Game')+' · Bobaks Ranking',
+                title:String(g.name||'Bobaks Game')+' | Bobaks Ranking',
                 text:caption,
                 url:link
               });
