@@ -297,6 +297,35 @@ function goAccount({push=true}={}){
   setAccountMeta();
   render();
 }
+async function resendConfirmation(){
+  const email=String(state.confirmation.email||"").trim();
+  if(!email||state.busy)return;
+  state.busy=true;
+  state.confirmation.message="";
+  state.error="";
+  render();
+  try{
+    await client.resendSignupConfirmation(email);
+    state.confirmation.message="A fresh confirmation email was requested.";
+  }catch(error){
+    state.confirmation.message=String(error?.message||"Could not resend the confirmation email yet.");
+  }finally{
+    state.busy=false;
+    render();
+  }
+}
+async function refreshVerification(){
+  if(!isSignedIn()||state.busy)return;
+  state.busy=true;
+  try{
+    const user=await client.getUser();
+    state.user=user;
+    state.verification={emailConfirmed:isEmailVerified(user),lastCheckedAt:new Date().toISOString()};
+    state.error="";
+  }catch(error){state.error=String(error?.message||"Could not refresh verification status.")}
+  finally{state.busy=false;render()}
+}
+
 async function submitAuth(){
   const form=document.getElementById("authForm");
   if(!form||state.busy)return;
@@ -306,14 +335,15 @@ async function submitAuth(){
   render();
   try{
     const result=state.mode==="signup"
-      ?await client.signUp({email:String(data.get("email")||"").trim(),password:String(data.get("password")||""),displayName:String(data.get("displayName")||"").trim()})
+      ?await client.signUp({email:String(data.get("email")||"").trim(),password:String(data.get("password")||""),displayName:String(data.get("displayName")||"").trim(),emailRedirectTo:new URL("/account",location.origin).toString()})
       :await client.signIn({email:String(data.get("email")||"").trim(),password:String(data.get("password")||"")});
     if(result.session){
       await hydrate({migrateGuest:true,rerender:false});
       state.error="";
       if(isSignedIn()){setAccountMeta()}
     }else{
-      state.error="Account created. Check your email to confirm the account, then sign in.";
+      state.confirmation={pending:true,email:String(data.get("email")||"").trim(),message:""};
+      state.error="";
     }
     if(result.session)history.replaceState({view:"account"},"","/account");
   }catch(error){
