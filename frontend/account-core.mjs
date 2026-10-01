@@ -418,6 +418,23 @@ export function createAuthClient({
     }
   }
 
+  async function resendSignupConfirmation(email) {
+    await authRequest("/auth/v1/resend", {
+      method: "POST",
+      body: {
+        type: "signup",
+        email: normalizeEmail(email)
+      }
+    });
+  }
+
+  async function getRobloxIdentity() {
+    const result = await authenticatedFetch(
+      "/roblox_identities?select=roblox_user_id,provider_subject,username,display_name,profile_url,avatar_url,status,connected_at,last_verified_at,updated_at&limit=1"
+    );
+    return Array.isArray(result.data) ? (result.data[0] ?? null) : null;
+  }
+
   async function resetPasswordForEmail(email, redirectTo) {
     const body = { email: normalizeEmail(email) };
     if (redirectTo) body.redirect_to = String(redirectTo);
@@ -638,6 +655,8 @@ export function createAuthClient({
     getUser,
     recoverSessionFromUrl,
     resetPasswordForEmail,
+    resendSignupConfirmation,
+    getRobloxIdentity,
     authenticatedFetch,
     getProfile,
     updateProfile,
