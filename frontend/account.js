@@ -312,7 +312,7 @@ async function resendConfirmation(){
   state.error="";
   render();
   try{
-    await client.resendSignupConfirmation(email);
+    await client.resendSignupConfirmation(email,new URL("/account",location.origin).toString());
     state.confirmation.message="A fresh confirmation email was requested.";
   }catch(error){
     state.confirmation.message=String(error?.message||"Could not resend the confirmation email yet.");
