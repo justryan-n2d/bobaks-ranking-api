@@ -363,11 +363,11 @@ function bind(){
   const accountSignout=$('accountSignout');if(accountSignout)accountSignout.onclick=signOutAccount;
   const accountSignOut=$('accountSignOut');if(accountSignOut)accountSignOut.onclick=signOutAccount;
   const accountBrowse=$('accountBrowse');if(accountBrowse)accountBrowse.onclick=()=>goHome({push:true});
-  const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitAuth()};
+  const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAuth()};
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
   const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
-  const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitProfile()};
-  const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitAlertSettings()};
+  const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitProfile()};
+  const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAlertSettings()};
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
   document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});
   document.querySelectorAll('[data-save]').forEach(b=>b.onclick=async e=>{
@@ -376,16 +376,18 @@ function bind(){
     try{
       if(isSignedIn()&&client){
         if(had)await client.removeWatchlistGame(id);
-        else {
-          if(state.saved.length>=25)throw new Error('Your watchlist is limited to 25 games for now.');
-          await client.addWatchlistGame(id);
-        }
-      }
+        else if(state.saved.length<25)await client.addWatchlistGame(id);
+        else throw new Error('Your watchlist is limited to 25 games for now.');
+      }else if(!had&&state.saved.length>=25)throw new Error('Your watchlist is limited to 25 games for now.');
       state.saved=had?state.saved.filter(x=>x!==id):[...state.saved,id];
       saveSaved();
       track(had?'watchlist_remove':'watchlist_add',{gameId:id});
       render();
-    }catch(error){state.auth.error=String(error?.message||'Could not update your watchlist.');render()}
+    }catch(error){
+      const ui=accountUI();
+      if(ui?.state)ui.state.error=String(error?.message||'Could not update your watchlist.');
+      render();
+    }
   });
   document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{
     e.stopPropagation();const id=String(b.dataset.compare);const had=state.compare.includes(id);state.compare=had?state.compare.filter(x=>x!==id):state.compare.length<2?[...state.compare,id]:state.compare;track(had?'compare_remove':'compare_add',{gameId:id});render();
