@@ -174,7 +174,7 @@ function renderAccountArea(){
         '<span class="account-copy"><b>'+esc(displayName())+'</b><small>'+esc(state.user.email||"Signed in")+'</small></span>'+
         '<span class="account-chevron">›</span>'+
       '</button>'+
-      '<button class="account-signout" id="accountSignout" type="button">Sign out</button>';
+      '<button class="account-signout" id="accountSignout" type="button">Log out</button>';
     return;
   }
   const count=guestSavedCount();
@@ -287,7 +287,7 @@ async function accountPage(){
         '<button class="btn" id="connectRoblox" type="button" disabled title="Roblox connection is not enabled yet">Connect Roblox</button>'+
       '</section>'+
     '</div>'+
-    '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>'+(verified?"Email verified.":"Email confirmation still pending.")+' Core rankings and search remain available without an account.</p></div><button class="btn" id="accountSignOut" type="button">Sign out</button></section>'+
+    '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>'+(verified?"Email verified.":"Email confirmation still pending.")+' Core rankings and search remain available without an account.</p></div><button class="btn" id="accountSignOut" type="button">Log out</button></section>'+
     footer()+
   '</section>';
 }
