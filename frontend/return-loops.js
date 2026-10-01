@@ -71,7 +71,20 @@ function alertPrefs() {
 
 function prefsFor(gameId) {
   const all = alertPrefs();
-  return { ...DEFAULT_PREFS, ...(all[String(gameId)] || {}) };
+  const local = all[String(gameId)] || {};
+  const account = window.__BOBAKS_ACCOUNT_ALERT_PREFS__ || null;
+  const accountDefaults = account
+    ? {
+        top10: Boolean(account.alerts_enabled && account.top10_enabled),
+        newPeak: Boolean(account.alerts_enabled && account.new_peak_enabled),
+        bigMove: Boolean(account.alerts_enabled && account.rank_jump_enabled)
+      }
+    : DEFAULT_PREFS;
+  return {
+    top10: Boolean(accountDefaults.top10 && (local.top10 ?? true)),
+    newPeak: Boolean(accountDefaults.newPeak && (local.newPeak ?? true)),
+    bigMove: Boolean(accountDefaults.bigMove && (local.bigMove ?? true))
+  };
 }
 
 function setPrefs(gameId, prefs) {
@@ -309,7 +322,7 @@ function alertPanel(gameId) {
     '<label><input type="checkbox" data-alert-pref="top10" ' + (prefs.top10 ? "checked" : "") + '> Notify when it enters Top 10</label>' +
     '<label><input type="checkbox" data-alert-pref="newPeak" ' + (prefs.newPeak ? "checked" : "") + '> Notify when it sets a new peak</label>' +
     '<label><input type="checkbox" data-alert-pref="bigMove" ' + (prefs.bigMove ? "checked" : "") + '> Notify when it jumps 5+ ranks</label>' +
-    '<p class="return-alert-note">Alerts are checked when you revisit Bobaks. They stay on this device and do not require an account.</p>';
+    '<p class="return-alert-note">Alerts are checked when you revisit Bobaks. Account-wide alert settings sync across devices when you are signed in.</p>';
   return panel;
 }
 
