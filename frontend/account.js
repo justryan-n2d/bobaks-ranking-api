@@ -438,6 +438,16 @@ window.__BOBAKS_ACCOUNT_UI__={
   signOut
 };
 
+document.addEventListener("click",event=>{
+  const button=event.target?.closest?.("#resendConfirmation,#backToSignIn,#refreshVerification,#retryGuestMigration,#savedAccountCta");
+  if(!button)return;
+  if(button.id==="resendConfirmation")resendConfirmation();
+  else if(button.id==="backToSignIn"){state.confirmation={pending:false,email:"",message:""};goAuth("signin",{push:false})}
+  else if(button.id==="refreshVerification")refreshVerification();
+  else if(button.id==="retryGuestMigration")retryGuestMigration();
+  else if(button.id==="savedAccountCta")goAuth("signin");
+});
+
 const authReady=authReadyBootstrap();
 async function authReadyBootstrap(){
   await hydrate({migrateGuest:true,rerender:false}).catch(()=>{
