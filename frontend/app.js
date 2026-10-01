@@ -220,33 +220,15 @@ function accountBusy(){return !!accountUI()?.isBusy?.()}
 function accountState(){return accountUI()?.state||null}
 
 document.addEventListener('click',event=>{
-  const button=event.target?.closest?.('#accountGuest,#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
-  if(!button)return;
-  if(button.id==='accountGuest'){
-    event.preventDefault();
-    document.body.classList.remove('sidebar-open');
-    goHome();
-  }else if(button.id==='accountSignIn'){
-    event.preventDefault();
-    document.body.classList.remove('sidebar-open');
-    goAuth('signin');
-  }else if(button.id==='accountSignUp'){
-    event.preventDefault();
-    document.body.classList.remove('sidebar-open');
-    goAuth('signup');
-  }else if(button.id==='continueGuest'){
-    event.preventDefault();
-    document.body.classList.remove('sidebar-open');
-    goHome();
-  }else if(button.id==='accountOpen'){
-    event.preventDefault();
-    document.body.classList.remove('sidebar-open');
-    goAccount();
-  }else if(button.id==='accountSignout'||button.id==='accountSignOut'){
-    event.preventDefault();
-    document.body.classList.remove('sidebar-open');
-    signOutAccount();
-  }
+  const b=event.target?.closest?.('#accountGuest,#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
+  if(!b)return;
+  event.preventDefault();
+  document.body.classList.remove('sidebar-open');
+  if(b.id==='accountGuest'||b.id==='continueGuest')goHome();
+  else if(b.id==='accountSignIn')goAuth('signin');
+  else if(b.id==='accountSignUp')goAuth('signup');
+  else if(b.id==='accountOpen')goAccount();
+  else signOutAccount();
 });
 
 function fallbackNext(){const n=Date.now(),step=600000;return new Date((Math.floor(n/step)+1)*step+15000).toISOString()}
