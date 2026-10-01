@@ -56,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_SHA::12}"
-          sed -i "s|/app.js?v=20261001-2</script>|/app.js?v=${VERSION}</script>|" frontend/index.html
+          sed -i -E "s|/app\.js\?v=[^\"]+</script>|/app.js?v=${VERSION}</script>|" frontend/index.html
 
       - name: Deploy frontend Worker
         run: npx wrangler deploy --config wrangler.jsonc
