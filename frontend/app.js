@@ -159,6 +159,24 @@ function loadTheme(){try{const saved=localStorage.getItem('bobaks.theme');state.
 function setTheme(theme){state.theme=theme==='light'?'light':'dark';document.documentElement.setAttribute('data-theme',state.theme);try{localStorage.setItem('bobaks.theme',state.theme)}catch{};nav()}
 function loadSaved(){try{const v=JSON.parse(localStorage.getItem('bobaks.watchlist')||'[]');if(Array.isArray(v))state.saved=[...new Set(v.map(String))].slice(0,25)}catch{state.saved=[]}}
 function saveSaved(){try{localStorage.setItem('bobaks.watchlist',JSON.stringify(state.saved))}catch{}}
+window.__BOBAKS_ACCOUNT_APP__={
+  getSaved:()=>state.saved.slice(),
+  setSaved:ids=>{
+    state.saved=[...new Set((ids||[]).map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+    saveSaved();
+    render();
+  },
+  render:()=>render(),
+  goHome:()=>goHome(),
+  footer,
+  icon,
+  api,
+  track,
+  setAccountMeta,
+  authMeta,
+  setPageMeta,
+  esc
+};
 function nav(){
   $('rankNav')?.classList.toggle('active',state.view==='home');
   $('savedNav')?.classList.toggle('active',state.view==='saved');
