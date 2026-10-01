@@ -1,0 +1,33 @@
+name: Live Payload Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/live-payload-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe current production payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          FRONTEND="https://bobaks-ranking-api.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          html=$(curl -fsS "$FRONTEND/")
+          app_path=$(printf "%s\n" "$html" | sed -n 's|.*<script src="\([^"]*app\.js[^"]*\)"></script>.*|\1|p' | head -n 1)
+          echo "app_path=$app_path"
+          app_js=$(curl -fsS "$FRONTEND$app_path")
+          echo "$app_js" | grep -F "const p=await api('/api/rankings?period='+encodeURIComponent(state.period),{cache:false});"
+
+          curl -fsS "$FRONTEND/api/rankings?period=live" -D /tmp/frontend.headers -o /tmp/live.json
+          cat /tmp/frontend.headers
+          jq -e '.period == "live" and (.data | length == 100)' /tmp/live.json >/dev/null
+          wc -c /tmp/live.json
+          jq '{rows:(.data|length),updatedAt,keys:(.data[0]|keys),gameKeys:(.data[0].game|keys)}' /tmp/live.json
