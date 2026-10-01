@@ -140,6 +140,8 @@ test("privacy copy discloses anonymous product analytics identifiers", () => {
 
 test("frontend records direct-entry page views and loads the analytics client", () => {
   const html = readFrontend();
+  const app = readApp();
+  assert.match(app, /const initialGame=location\.pathname\.match\(GAME_ROUTE\);/);
   assert.match(
     html,
     /if\(initialGame\)\{openGame\(initialGame\[1\],\{push:false\}\);track\('page_view',\{gameId:initialGame\[1\],period:state\.period\}\);\}/
