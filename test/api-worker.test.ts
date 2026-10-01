@@ -1113,6 +1113,18 @@ test("ranking endpoint returns only compact game metadata needed by ranking card
     }
 
     if (parsed.pathname === "/rest/v1/Game") {
+      const select = parsed.searchParams.get("select");
+      if (select === "id,universeId,placeId,name,creatorName,iconUrl,isActive") {
+        return response([{
+          id: "1",
+          universeId: "1001",
+          placeId: "2001",
+          name: "Test Game",
+          creatorName: "Creator",
+          iconUrl: "https://cdn.example/test.png",
+          isActive: true
+        }]);
+      }
       return response([{
         id: "1",
         universeId: "1001",
