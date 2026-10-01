@@ -193,7 +193,7 @@ function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
 let accountModulePromise;
 function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
-  if(!accountModulePromise)accountModulePromise=import('/account.js?v=20261001-auth-4').catch(error=>{console.error('Bobaks account module failed:',error);accountModulePromise=null;return null});
+  if(!accountModulePromise)accountModulePromise=import('/account.js?v=20261001-auth-5').catch(error=>{window.__BOBAKS_ACCOUNT_MODULE_ERROR__=String(error?.message||error);console.error('Bobaks account module failed:',error);window.dispatchEvent(new CustomEvent('bobaks:account-module-error',{detail:{message:window.__BOBAKS_ACCOUNT_MODULE_ERROR__}}));accountModulePromise=null;return null});
   return accountModulePromise;
 }
 function authClient(){return accountUI()?.client?.()||null}
