@@ -179,9 +179,9 @@ function renderAccountArea(){
   }
   const count=guestSavedCount();
   host.innerHTML=
-    '<button class="account-card signed-out" id="accountGuest" type="button" title="Keep browsing Bobaks as a guest"><span class="account-avatar">?</span><span class="account-copy"><b>Guest mode</b><small>'+(count?fmt(count)+" saved on this device":"Browse without an account")+'</small></span></button>'+
-    '<button class="btn primary account-cta" id="accountSignIn" type="button">Sign in</button>'+
-    '<button class="btn account-cta" id="accountSignUp" type="button">Create account</button>';
+    '<a class="account-card signed-out" id="accountGuest" href="/sign-in" title="Open the sign-in page"><span class="account-avatar">?</span><span class="account-copy"><b>Guest mode</b><small>'+(count?fmt(count)+" saved on this device":"Continue without an account")+'</small></span><span class="account-chevron">›</span></a>'+
+    '<a class="btn primary account-cta" id="accountSignIn" href="/sign-in">Sign in</a>'+
+    '<a class="btn account-cta" id="accountSignUp" href="/create-account">Create account</a>';
 }
 
 const ACCOUNT_LOADING='<div class=account-loading-screen><span class=account-spinner></span><b>Loading account</b></div>';
