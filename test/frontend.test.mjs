@@ -512,3 +512,46 @@ test("Cloudflare frontend exposes only public Supabase auth configuration", () =
   assert.match(config, /"SUPABASE_PUBLISHABLE_KEY"\s*:\s*"sb_publishable_/);
   assert.doesNotMatch(config, /"SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY|SECRET_KEYS?)"/);
 });
+
+
+test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area, profile, alerts, and synced watchlist surfaces", () => {
+  const html = readFrontend();
+  const app = readApp();
+  const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
+  const returnLoops = fs.readFileSync(path.resolve("frontend/return-loops.js"), "utf8");
+
+  assert.match(html, /id="siteSidebar"/);
+  assert.match(html, /id="accountArea"/);
+  assert.match(html, /id="mobileMenu"/);
+  assert.match(app, /function authPage()/);
+  assert.match(app, /function accountPage()/);
+  assert.match(app, /function hydrateAccount({migrateGuest=true,rerender=true}={})/);
+  assert.match(app, /client.addWatchlistGame(id)/);
+  assert.match(app, /client.removeWatchlistGame(id)/);
+  assert.match(app, /function submitProfile()/);
+  assert.match(app, /function submitAlertSettings()/);
+  assert.match(app, /id="profileForm"/);
+  assert.match(app, /id="alertForm"/);
+  assert.match(app, /Persistent alerts/);
+  assert.match(app, /Synced to your Bobaks account/);
+  assert.match(app, /Sign in/);
+  assert.match(app, /Create account/);
+  assert.match(core, /recoverSessionFromUrl/);
+  assert.match(returnLoops, /window\.__BOBAKS_ACCOUNT_ALERT_PREFS__/);
+  assert.match(html, /responsive session-aware sidebar account UI/);
+});
+
+test("guest and account watchlist states are explicitly separated", () => {
+  const app = readApp();
+  assert.match(app, /Saved only on this device\. Sign in to sync across devices/);
+  assert.match(app, /Synced to your Bobaks account across devices/);
+  assert.match(app, /migrateGuest/);
+});
+
+test("account alert settings feed the existing return-loop alert checks", () => {
+  const module = fs.readFileSync(path.resolve("frontend/return-loops.js"), "utf8");
+  assert.match(module, /account.alerts_enabled && account.top10_enabled/);
+  assert.match(module, /account.alerts_enabled && account.new_peak_enabled/);
+  assert.match(module, /account.alerts_enabled && account.rank_jump_enabled/);
+  assert.match(module, /Account-wide alert settings sync across devices/);
+});
