@@ -524,7 +524,8 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
   const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
 
   assert.doesNotMatch(html, /<script type="module" src="\/account\.js/);
-  assert.match(readApp(), /import\('\/account\.js\?v=20261001-auth-5-/);
+  assert.match(readApp(), /import\(url\)/);
+  assert.match(readApp(), /\/account\.js\?v=20261001-auth-5-/);
   assert.match(account, /createAuthClient/);
   assert.match(account, /window\.__BOBAKS_AUTH__/);
   assert.match(account, /bobaks:auth-ready/);
