@@ -287,7 +287,6 @@ function authPage(){
         '<label>Password<input id="authPassword" name="password" type="password" minlength="8" autocomplete="'+(signup?'new-password':'current-password')+'" required placeholder="At least 8 characters"></label>'+
         '<button class="btn primary account-submit" id="authSubmit" type="submit">'+(signup?'Create account':'Sign in')+'</button>'+
       '</form>'+
-      '<button class="account-link" id="forgotPassword" type="button">Forgot password?</button>'+
       '<div class="account-form-note">'+(signup?'You may need to confirm your email before the first sign-in.':'No account yet? You can create one in seconds.')+'</div>'+
       '<button class="btn account-guest" id="continueGuest" type="button">Continue as guest</button>'+
     '</section>'+
@@ -559,7 +558,7 @@ async function savedPage(){
   for(const id of state.saved){
     try{const r=await api('/api/games/'+encodeURIComponent(id));if(r.data)cards.push(r.data)}catch{}
   }
-  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>Saved only on this device. No account required.</p></div></section><section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
+  return '<section class="hero"><div class="hero-main"><div class="eyebrow">YOUR WATCHLIST</div><h1>Saved <em>Games</em></h1><p>'+(isSignedIn()?'Synced to your Bobaks account across devices.':'Saved only on this device. Sign in to sync across devices.')+'</p></div></section><section class="main-card"><div class="listhead"><div><h2>Your saved games</h2><p>Quick access to games you want to keep watching.</p></div></div><section class="rows">'+(cards.length?cards.map(g=>'<div class="row" style="grid-template-columns:54px minmax(0,1fr) 120px"><span class="rank">•</span><button class="game" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name)+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><span class="actions"><button class="mini" data-save="'+g.id+'">Remove</button></span></div>').join(''):'<div class="empty">Nothing saved yet.</div>')+'</section></section>'+footer();
 }
 async function comparePage(){
   if(!state.compare.length)return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Choose Compare on ranking rows to add games.</p></div></section>'+footer();
@@ -607,13 +606,6 @@ function bind(){
   const accountBrowse=$('accountBrowse');if(accountBrowse)accountBrowse.onclick=()=>goHome({push:true});
   const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitAuth()};
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
-  const forgotPassword=$('forgotPassword');if(forgotPassword)forgotPassword.onclick=async()=>{
-    const client=authClient();const email=String($('authEmail')?.value||'').trim();
-    if(!client||!email){state.auth.error='Enter your email first.';render();return}
-    try{await client.resetPasswordForEmail(email,new URL('/account',location.origin).toString());state.auth.error='Password reset email sent. Check your inbox.'}
-    catch(error){state.auth.error=String(error?.message||'Could not send the reset email.')}
-    render();
-  };
   const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
   const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitProfile()};
   const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitAlertSettings()};
