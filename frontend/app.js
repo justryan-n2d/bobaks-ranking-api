@@ -195,7 +195,7 @@ function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
   const url='/account.js?v=20261001-auth-5-'+(++accountModuleAttempt);
   accountModulePromise=import(url).catch(error=>{
-    console.error('Account module failed',error);
+    console.error(error);
     accountModulePromise=null;
     if(location.pathname==='/account'){
       $('app').innerHTML='<div class="banner error">Account failed to load. <button id="retryAccountModule">Retry</button></div>';
