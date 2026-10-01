@@ -1230,6 +1230,37 @@ body{padding-left:252px}
   .mobile-brand .mark{width:34px;height:34px;border-radius:10px}
   .wrap{width:min(100% - 20px,1320px);padding-top:22px}
 }
+.account-migration-note,.account-migration-warning,.account-migration-success{
+  margin-bottom:12px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;
+  font-size:9px;line-height:1.5;background:var(--surface-2)
+}
+.account-migration-warning{border-color:rgba(244,201,93,.25);background:rgba(244,201,93,.06)}
+.account-migration-warning b,.account-migration-warning small{display:block}
+.account-migration-warning b{color:#FFE5A0;font-size:9px}
+.account-migration-warning small{margin:3px 0 7px;color:var(--muted)}
+.account-migration-success{color:#8DE0C0;border-color:rgba(55,214,162,.18);background:rgba(55,214,162,.05)}
+.account-verification-status{
+  display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:11px;border:1px solid var(--line);
+  border-radius:12px;background:var(--surface-2)
+}
+.account-verification-status>span{
+  width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(255,255,255,.05);color:#A9BDD2;font-weight:900;flex:none
+}
+.account-verification-status.verified>span{color:#67E0B2;background:rgba(55,214,162,.10)}
+.account-verification-status.unverified>span{color:#FFD878;background:rgba(244,201,93,.10)}
+.account-verification-status div{min-width:0;display:grid;gap:3px}
+.account-verification-status b{font-size:10px}
+.account-verification-status small{color:var(--muted);font-size:8px;line-height:1.45}
+.account-verification-icon{
+  width:52px;height:52px;margin:0 auto 10px;border-radius:16px;display:grid;place-items:center;
+  background:rgba(55,214,162,.10);color:#67E0B2;font-size:22px;font-weight:900
+}
+.account-confirm-title{text-align:center;margin:0;font-family:Manrope,Inter,sans-serif;font-size:18px}
+.account-confirm-copy{text-align:center;color:var(--muted);font-size:10px;line-height:1.6;margin:7px 0 0}
+@media(max-width:900px){
+  .account-hero h1{font-size:clamp(30px,9vw,48px)}
+}
 @media(max-width:680px){
   .account-grid{grid-template-columns:1fr}
   .account-hero{padding:22px 18px;border-radius:16px}
@@ -1243,7 +1274,7 @@ body{padding-left:252px}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="/analytics-client.js"></script>
-<script type="module" src="/account.js?v=20261001-auth-2"></script>
+<script type="module" src="/account.js?v=20261001-auth-3"></script>
 </head>
 <body>
 <header class="top" id="siteSidebar" aria-label="Bobaks main navigation">
