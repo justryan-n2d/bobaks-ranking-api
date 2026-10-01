@@ -479,3 +479,8 @@ test("ranking data requests bypass browser cache to avoid stale SPA fallback res
     /const p=await api\('\/api\/rankings\?period='\+encodeURIComponent\(state\.period\),\{cache:false\}\)/
   );
 });
+
+test("homepage uses an explicit app bundle version", () => {
+  const html = readHtml();
+  assert.match(html, /<script src="\/app\.js\?v=\d{8}-[a-z0-9-]+"><\/script>/);
+});
