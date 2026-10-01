@@ -520,3 +520,13 @@ test("frontend worker gives cacheable static assets a long edge cache window", a
   assert.equal(result.status, 200);
   assert.equal(result.headers.get("cache-control"), "public, max-age=300, s-maxage=86400");
 });
+
+test("homepage shell is not stored in browser cache", async () => {
+  const env = makeEnv([]);
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/")
+    ,env
+  );
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("cache-control"), "no-store");
+});
