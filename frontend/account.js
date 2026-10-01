@@ -295,7 +295,8 @@ async function accountPage(){
 function goAuth(mode="signin",{push=true}={}){
   state.mode=mode==="signup"?"signup":"signin";
   state.error="";
-  if(push&&location.pathname!=="/account")history.pushState({view:"auth"},"","/account");
+  const target=state.mode==="signup"?"/create-account":"/sign-in";
+  if(push&&location.pathname!==target)history.pushState({view:"auth"},"",target);
   setAuthMeta(state.mode);
   render();
 }
