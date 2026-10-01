@@ -549,7 +549,7 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
   assert.match(account, /Create account/);
   assert.match(core, /recoverSessionFromUrl/);
   assert.match(returnLoops, /window\.__BOBAKS_ACCOUNT_ALERT_PREFS__/);
-  assert.match(html, /responsive session-aware sidebar account UI/);
+  assert.match(html, /class="top" id="siteSidebar"/);
 });
 
 test("guest and account watchlist states are explicitly separated", () => {
