@@ -231,6 +231,8 @@ async function accountPage(){
   const alerts=state.alerts||defaults;
   const profile=state.profile||{};
   const ids=getSaved();
+  const verified=Boolean(state.verification.emailConfirmed);
+  const roblox=state.robloxIdentity;
   const cards=await Promise.all(ids.map(async id=>{
     try{const response=await api("/api/games/"+encodeURIComponent(id));return response.data||{id,name:"Game #"+id}}catch{return {id,name:"Game #"+id}}
   }));
@@ -264,7 +266,19 @@ async function accountPage(){
     '<section class="account-panel account-watchlist-panel"><div class="account-panel-head account-panel-head-row"><div><div class="eyebrow">WATCHLIST</div><h2>Saved games</h2><p>'+(ids.length?"Synced to your Bobaks account across devices.":"Save games from rankings and they will appear here.")+'</p></div><button class="btn" id="accountBrowse" type="button">Browse rankings</button></div>'+
       '<div class="account-watchlist">'+(cards.length?cards.map(g=>'<article class="account-game"><button class="account-game-main" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name||("Game #"+g.id))+'</b><small>'+esc(g.creatorName||"Unknown creator")+'</small></span></button><button class="mini" data-save="'+g.id+'">Remove</button></article>').join(""):'<div class="empty account-empty">No saved games yet.</div>')+'</div>'+
     '</section>'+
-    '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>Core rankings and search remain available without an account.</p></div><button class="btn" id="accountSignOut" type="button">Sign out</button></section>'+
+    '<div class="account-grid">'+
+      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">VERIFICATION</div><h2>Email status</h2><p>Keep your account email verified for recovery and future identity linking.</p></div></div>'+
+        '<div class="account-verification-status '+(verified?"verified":"unverified")+'"><span>'+(verified?"✓":"!")+'</span><div><b>'+(verified?"Email verified":"Email confirmation needed")+'</b><small>'+(verified?"Your Supabase Auth email is confirmed.":"Check your inbox for the confirmation link.")+'</small></div></div>'+
+        '<button class="btn" id="refreshVerification" type="button">Refresh verification status</button>'+
+      '</section>'+
+      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ROBLOX IDENTITY</div><h2>Connect Roblox</h2><p>Bobaks will use Roblox OAuth 2.0 + OpenID Connect for identity verification. No Roblox password or cookie is stored.</p></div></div>'+
+        (roblox
+          ?'<div class="account-verification-status verified"><span>✓</span><div><b>@'+esc(roblox.username||roblox.display_name||"Roblox user")+'</b><small>Connected · last verified '+esc(String(roblox.last_verified_at||roblox.connected_at||"").slice(0,10)||"not available")+'</small></div></div><a class="account-link" target="_blank" rel="noreferrer noopener" href="'+esc(roblox.profile_url||("https://www.roblox.com/users/"+encodeURIComponent(roblox.roblox_user_id||"")))+'">Open Roblox profile ↗</a>'
+          :'<div class="account-verification-status"><span>○</span><div><b>Not connected yet</b><small>Secure OAuth callback and token exchange are the next server-side step.</small></div></div>')+
+        '<button class="btn" id="connectRoblox" type="button" disabled title="Roblox connection is not enabled yet">Connect Roblox</button>'+
+      '</section>'+
+    '</div>'+
+    '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>'+(verified?"Email verified.":"Email confirmation still pending.")+' Core rankings and search remain available without an account.</p></div><button class="btn" id="accountSignOut" type="button">Sign out</button></section>'+
     footer()+
   '</section>';
 }
