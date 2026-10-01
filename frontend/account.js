@@ -180,7 +180,7 @@ function renderAccountArea(){
   const count=guestSavedCount();
   host.innerHTML=
     '<a class="account-card signed-out" id="accountGuest" href="/sign-in" title="Open the sign-in page"><span class="account-avatar">?</span><span class="account-copy"><b>Guest mode</b><small>'+(count?fmt(count)+" saved on this device":"Continue without an account")+'</small></span><span class="account-chevron">›</span></a>'+
-    '<a class="btn primary account-cta" id="accountSignIn" href="/sign-in">Sign in</a>'+
+    '<a class="btn primary account-cta" id="accountSignIn" href="/sign-in">Log in</a>'+
     '<a class="btn account-cta" id="accountSignUp" href="/create-account">Create account</a>';
 }
 
@@ -197,10 +197,10 @@ function authPage(){
       '<section class="account-form-card">'+
         '<div class="account-verification-icon">✓</div>'+
         '<h2 class="account-confirm-title">Confirm your Bobaks account</h2>'+
-        '<p class="account-confirm-copy">After confirming, return here and sign in. Your guest watchlist will still be here to sync.</p>'+
+        '<p class="account-confirm-copy">After confirming, return here and log in. Your guest watchlist will still be here to sync.</p>'+
         message+
         '<button class="btn primary account-submit" id="resendConfirmation" type="button">Resend confirmation email</button>'+
-        '<button class="btn account-guest" id="backToSignIn" type="button">Back to sign in</button>'+
+        '<button class="btn account-guest" id="backToSignIn" type="button">Back to log in</button>'+
       '</section>'+footer()+
     '</section>';
   }
@@ -208,21 +208,21 @@ function authPage(){
   const error=state.error?'<div class="account-form-error" role="alert">'+esc(state.error)+'</div>':"";
   const guestCount=guestSavedCount();
   const guestNote=guestCount
-    ?'<div class="account-migration-note">'+esc(fmt(guestCount)+" saved game"+(guestCount===1?"":"s")+" on this device will be synced after sign in.")+'</div>'
+    ?'<div class="account-migration-note">'+esc(fmt(guestCount)+" saved game"+(guestCount===1?"":"s")+" on this device will be synced after log in.")+'</div>'
     :"";
   return '<section class="account-page auth-page">'+
     '<div class="account-hero"><div class="eyebrow">BOBAKS ACCOUNT</div>'+
       '<h1>'+(signup?'Keep your Bobaks <em>in sync</em>':'Welcome back to <em>Bobaks</em>')+'</h1>'+
-      '<p>'+(signup?'Create an optional account to keep your watchlist, alerts, and profile across devices.':'Sign in to sync your watchlist and alert preferences across devices. You can keep using Bobaks as a guest.')+'</p>'+
+      '<p>'+(signup?'Create an optional account to keep your watchlist, alerts, and profile across devices.':'Log in to sync your watchlist and alert preferences across devices. You can keep using Bobaks as a guest.')+'</p>'+
     '</div>'+
     '<section class="account-form-card">'+
-      '<div class="account-switcher"><button class="'+(signup?"":"active")+'" data-auth-mode="signin" type="button">Sign in</button><button class="'+(signup?"active":"")+'" data-auth-mode="signup" type="button">Create account</button></div>'+
+      '<div class="account-switcher"><button class="'+(signup?"":"active")+'" data-auth-mode="signin" type="button">Log in</button><button class="'+(signup?"active":"")+'" data-auth-mode="signup" type="button">Create account</button></div>'+
       error+guestNote+
       '<form id="authForm" class="account-form" novalidate>'+
         (signup?'<label>Display name <span>optional</span><input id="authDisplayName" name="displayName" maxlength="80" autocomplete="name" placeholder="How Bobaks should call you"></label>':"")+
         '<label>Email<input id="authEmail" name="email" type="email" maxlength="254" autocomplete="email" required placeholder="you@example.com"></label>'+
         '<label>Password<input id="authPassword" name="password" type="password" minlength="8" autocomplete="'+(signup?"new-password":"current-password")+'" required placeholder="At least 8 characters"></label>'+
-        '<button class="btn primary account-submit" id="authSubmit" type="submit">'+(signup?"Create account":"Sign in")+'</button>'+
+        '<button class="btn primary account-submit" id="authSubmit" type="submit">'+(signup?"Create account":"Log in")+'</button>'+
       '</form>'+
       '<div class="account-form-note">'+(signup?"You may need to confirm your email before the first sign-in.":"No account yet? You can create one in seconds.")+'</div>'+
       '<button class="btn account-guest" id="continueGuest" type="button">Continue as guest</button>'+
@@ -355,7 +355,8 @@ async function submitAuth(){
       state.confirmation={pending:true,email:String(data.get("email")||"").trim(),message:""};
       state.error="";
     }
-    if(result.session)history.replaceState({view:"account"},"","/account");
+    if(result.session&&state.mode==="signin")goHome();
+    else if(result.session)history.replaceState({view:"account"},"","/account");
   }catch(error){
     state.error=String(error?.message||"Authentication failed. Please try again.");
   }finally{
