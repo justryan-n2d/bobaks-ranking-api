@@ -402,7 +402,7 @@ test("Phase 6.4 return-loop module is wired into the SPA and keeps watchlist ale
   const html = readFrontend();
   const module = readReturnLoops();
   assert.match(html, /window\.__BOBAKS_API__=API/);
-  assert.match(html, /setTimeout\(\(\)=>import\('\/return-loops\.js'\)\.catch\(\(\)=>\{\}\),800\)/);
+  assert.match(html, /setTimeout\(\(\)=>import\('\/return-loops\.js\?v=20261001-watchlist-1'\)\.catch\(\(\)=>\{\}\),800\)/);
   assert.match(module, /bobaks\.return\.alert-preferences/);
   assert.match(module, /bobaks\.return\.observations/);
   assert.match(module, /bobaks\.return\.peaks/);
