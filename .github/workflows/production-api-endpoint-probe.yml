@@ -1,0 +1,48 @@
+name: Production API Endpoint Probe
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/production-api-endpoint-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe each endpoint
+        shell: bash
+        run: |
+          set +e
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          probe() {
+            local name="$1"
+            local url="$2"
+            local body="/tmp/body"
+            local headers="/tmp/headers"
+
+            echo "===== $name ====="
+            curl -sS --max-time 30 -D "$headers" "$url" -o "$body"
+            local curl_code=$?
+            echo "curl_exit=$curl_code"
+            echo "--- headers ---"
+            cat "$headers"
+            echo "--- body (first 2000 chars) ---"
+            head -c 2000 "$body"; echo
+            if [ $curl_code -eq 0 ]; then
+              jq '.' "$body" >/dev/null 2>&1
+              echo "json_parse_exit=$?"
+            fi
+          }
+
+          probe health "$API/api/health"
+          probe games "$API/api/games"
+          probe live "$API/api/rankings?period=live"
+          probe week "$API/api/rankings?period=week"
+          probe month "$API/api/rankings?period=month"
+          probe year "$API/api/rankings?period=year"
+          probe methodology "$API/api/rankings/methodology"
+          probe audit "$API/api/rankings/audit"
