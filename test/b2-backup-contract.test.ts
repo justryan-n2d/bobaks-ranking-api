@@ -17,7 +17,7 @@ test("B2 archive workflow uses bucket-scoped B2 credentials and region", () => {
     assert.match(workflow, new RegExp(name));
   }
 
-  assert.match(workflow, /AWS_DEFAULT_REGION: \\$\\{\\{ secrets\\.BOBAKS_B2_REGION \\}\\}/);
+  assert.ok(workflow.includes("AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}"));
   assert.doesNotMatch(workflow, /BOBAKS_R2_/);
 });
 
