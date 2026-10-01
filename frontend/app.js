@@ -1208,16 +1208,13 @@ $('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
 $('sidebarClose')?.addEventListener('click',()=>document.body.classList.remove('sidebar-open'));
 $('mobileMenu')?.addEventListener('click',()=>document.body.classList.add('sidebar-open'));
 $('mobileAccount')?.addEventListener('click',()=>{document.body.classList.remove('sidebar-open');goAccount()});
-window.addEventListener('bobaks:auth-ready',()=>{hydrateAccount({migrateGuest:true,rerender:true}).catch(()=>{state.auth.status='signed_out';render()})});
+window.addEventListener('bobaks:account-ready',()=>renderAccountArea());
 window.addEventListener('bobaks:auth-state',event=>{
-  const type=event.detail?.event;
-  if(type==='SIGNED_OUT'){
+  if(event.detail?.event==='SIGNED_OUT'){
     loadSaved();
-    state.auth={status:'signed_out',session:null,user:null,profile:null,alerts:null,error:''};
-    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+    state.view=state.view==='account'||state.view==='auth'?'home':state.view;
+    if(state.view==='home')setPageMeta(null);
     render();
-  }else if(type==='SIGNED_IN'||type==='SIGNED_UP'||type==='TOKEN_REFRESHED'){
-    hydrateAccount({migrateGuest:type!=='TOKEN_REFRESHED',rerender:true}).catch(()=>{});
   }
 });
 window.addEventListener('popstate',()=>{
@@ -1225,7 +1222,7 @@ window.addEventListener('popstate',()=>{
   if(location.pathname==='/account'){
     state.selected=null;
     if(isSignedIn()){state.view='account';setAccountMeta();render()}
-    else {state.view='auth';authMeta(state.authMode||'signin');render()}
+    else {state.view='auth';authMeta(accountState()?.mode||'signin');render()}
     return;
   }
   const gameMatch=location.pathname.match(GAME_ROUTE);
@@ -1237,9 +1234,7 @@ state.period=periodFromLocation();
 if(location.pathname==='/community'){state.view='community';setCommunityMeta();render();track('page_view',{route:'/community'});}
 else if(location.pathname==='/account'){
   if(isSignedIn()){state.view='account';setAccountMeta();render()}
-  else {state.view='auth';authMeta(state.authMode);render()}
+  else {state.view='auth';authMeta(accountState()?.mode||'signin');render()}
 }
-const initialGame=location.pathname.match(GAME_ROUTE);
-if(initialGame){openGame(initialGame[1],{push:false});track('page_view',{gameId:initialGame[1],period:state.period});}
-else if(location.pathname!=='/community'&&location.pathname!=='/account'){setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
+else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
 setTimeout(()=>import('/return-loops.js').catch(()=>{}),800);
