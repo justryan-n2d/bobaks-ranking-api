@@ -184,7 +184,7 @@ function renderAccountArea(){
     '<button class="btn account-cta" id="accountSignUp" type="button">Create account</button>';
 }
 
-function accountLoadingPage(){return '<div class="account-loading-screen" aria-busy="true"><div class="account-loading-box"><span class="account-spinner" aria-hidden="true"></span><b>Loading account...</b></div></div>'}
+function accountLoadingPage(){return '<div class="account-loading-screen"><span class="account-spinner"></span><b>Loading account...</b></div>'}
 function authPage(){
   if(state.status==="loading")return accountLoadingPage();
   if(state.confirmation.pending){
