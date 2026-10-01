@@ -521,6 +521,37 @@ test("frontend worker gives cacheable static assets a long edge cache window", a
   assert.equal(result.headers.get("cache-control"), "public, max-age=300, s-maxage=86400");
 });
 
+test("account SPA routes receive the browser-safe Supabase auth configuration", async () => {
+  const env = {
+    ...makeEnv([]),
+    SUPABASE_URL: "https://project.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test"
+  };
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/account"),
+    env
+  );
+  const html = await result.text();
+  assert.equal(result.status, 200);
+  assert.match(html, /window\.\__BOBAKS_AUTH_CONFIG__/);
+  assert.ok(html.includes('"supabaseUrl":"https://project.supabase.co"'));
+  assert.ok(html.includes('"publishableKey":"sb_publishable_test"'));
+  assert.match(result.headers.get("cache-control") || "", /no-store/);
+});
+
+test("account SPA routes keep a usable public Supabase config when preview env vars are missing", async () => {
+  const env = makeEnv([]);
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/account"),
+    env
+  );
+  const html = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.ok(html.includes('"supabaseUrl":"https://zhrfozouzvxhpkylmpwh.supabase.co"'));
+  assert.ok(html.includes('"publishableKey":"sb_publishable_m5sYdsVZpWMOVRxyMSwblw_dIesP93F"'));
+});
+
 test("homepage shell is not stored in browser cache", async () => {
   const env = makeEnv([]);
   const result = await handleFrontendRequest(
