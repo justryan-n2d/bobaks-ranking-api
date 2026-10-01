@@ -445,7 +445,7 @@ test("frontend has a small HTML shell and keeps optional modules out of the crit
   assert.doesNotMatch(html, /<script[^>]+src="\/qrcode-generator\.js"/);
   assert.doesNotMatch(html, /<script[^>]+src="\/return-loops\.js"/);
   assert.match(app, /ensureQrCode/);
-  assert.match(app, /setTimeout\(\(\)=>import\('\/return-loops\.js'\)\.catch\(\(\)=>\{\}\),800\)/);
+  assert.match(app, /setTimeout\(\(\)=>import\('\/return-loops\.js\?v=20261001-watchlist-1'\)\.catch\(\(\)=>\{\}\),800\)/);
 });
 
 test("frontend API cache deduplicates identical requests and bypasses cache on manual refresh", () => {
