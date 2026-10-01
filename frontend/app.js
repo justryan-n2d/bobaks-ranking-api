@@ -228,11 +228,10 @@ function accountBusy(){return !!accountUI()?.isBusy?.()}
 function accountState(){return accountUI()?.state||null}
 
 document.addEventListener('click',event=>{
-  const b=event.target?.closest?.('#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
+  const b=event.target?.closest?.('#continueGuest,#accountSignout,#accountSignOut');
   if(!b)return;
   document.body.classList.remove('sidebar-open');
   if(b.id==='continueGuest')goHome();
-  else if(b.id==='accountOpen')goAccount();
   else signOutAccount();
 });
 
