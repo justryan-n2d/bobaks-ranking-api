@@ -236,3 +236,32 @@ test("saveComparison canonicalizes the game pair and targets its unique conflict
   assert.equal(payload.game_id_a, "12");
   assert.equal(payload.game_id_b, "42");
 });
+
+
+test("recoverSessionFromUrl consumes implicit-flow tokens, loads the user, and clears the fragment", async () => {
+  const storage = createMemoryStorage();
+  const calls = [];
+  let replaced = false;
+
+  const client = createAuthClient({
+    supabaseUrl: "https://example.supabase.co",
+    publishableKey: "sb_publishable_test",
+    storage,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      return jsonResponse({ id: "user-3", email: "confirmed@example.com" });
+    }
+  });
+
+  const session = await client.recoverSessionFromUrl({
+    hash: "#access_token=fragment-access&refresh_token=fragment-refresh&expires_in=3600&token_type=bearer&type=signup",
+    replaceUrl: () => { replaced = true; }
+  });
+
+  assert.equal(session.access_token, "fragment-access");
+  assert.equal(session.refresh_token, "fragment-refresh");
+  assert.equal(session.user.id, "user-3");
+  assert.equal(calls[0].init.headers.get("authorization"), "Bearer fragment-access");
+  assert.equal(replaced, true);
+  assert.equal(JSON.parse(storage.getItem("bobaks.auth.session.v1")).user.id, "user-3");
+});
