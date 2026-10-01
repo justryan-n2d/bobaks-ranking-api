@@ -192,7 +192,7 @@ function authPage(){
     return '<section class="account-page auth-page">'+
       '<div class="account-hero"><div class="eyebrow">EMAIL VERIFICATION</div>'+
         '<h1>Check your <em>email</em></h1>'+
-        '<p>We sent a confirmation link to <strong>'+esc(maskEmail(state.confirmation.email))+'</strong>. Confirm it before signing in.</p>'+
+        '<p>We sent a confirmation link to <strong>'+esc(maskEmail(state.confirmation.email))+'</strong>. Confirm it before logging in.</p>'+
       '</div>'+
       '<section class="account-form-card">'+
         '<div class="account-verification-icon">✓</div>'+
@@ -224,7 +224,7 @@ function authPage(){
         '<label>Password<input id="authPassword" name="password" type="password" minlength="8" autocomplete="'+(signup?"new-password":"current-password")+'" required placeholder="At least 8 characters"></label>'+
         '<button class="btn primary account-submit" id="authSubmit" type="submit">'+(signup?"Create account":"Log in")+'</button>'+
       '</form>'+
-      '<div class="account-form-note">'+(signup?"You may need to confirm your email before the first sign-in.":"No account yet? You can create one in seconds.")+'</div>'+
+      '<div class="account-form-note">'+(signup?"You may need to confirm your email before the first log in.":"No account yet? You can create one in seconds.")+'</div>'+
       '<button class="btn account-guest" id="continueGuest" type="button">Continue as guest</button>'+
     '</section>'+footer()+
   '</section>';
