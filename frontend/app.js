@@ -1247,6 +1247,9 @@ $('mobileMenu')?.addEventListener('click',()=>document.body.classList.add('sideb
 $('mobileAccount')?.addEventListener('click',()=>{document.body.classList.remove('sidebar-open');goAccount()});
 window.addEventListener('bobaks:account-ready',()=>{
   renderAccountArea();
+  // accountArea is populated asynchronously by account.js after the first
+  // homepage bind, so bind its new controls again before the user can click them.
+  if(location.pathname!=='/account')bind();
   if(location.pathname==='/account'){
     if(isSignedIn()){state.view='account';setAccountMeta()}
     else {state.view='auth';authMeta(accountState()?.mode||'signin')}
