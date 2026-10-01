@@ -26,5 +26,14 @@ jobs:
         run: node --test test/social-content-generator.test.mjs
       - name: Build backend
         run: npm run build
+      - name: Probe live same-origin ranking path
+        shell: bash
+        run: |
+          set -euo pipefail
+          FRONTEND="https://bobaks-ranking-api.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          curl -fsS --max-time 30 "$FRONTEND/api/rankings?period=live" | jq -e '.period == "live" and (.data | length > 0) and (.data[0].gameId != null)' >/dev/null
+          curl -fsS --max-time 30 "$API/api/rankings?period=live" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
+          echo "Live frontend same-origin and direct API ranking paths returned data."
       - name: Verification marker
-        run: echo "Backend tests, frontend verification, and build completed for this commit."
+        run: echo "Backend tests, frontend verification, build, and live production path probe completed for this commit."
