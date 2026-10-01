@@ -87,6 +87,35 @@ function communityPage(){
     '</section><section class="panel community-note"><h2>Keep reports useful</h2><p>For bug reports, include the Bobaks page URL, what you expected, and what happened. For feature requests, describe the problem first so the community can discuss the need behind the idea.</p></section>'+footer();
 }
 
+function setAccountMeta(){
+  document.title="Account | Bobaks Ranking";
+  const description="Manage your Bobaks account, watchlist, alerts, and profile settings.";
+  const desc=document.querySelector("#seo-description");if(desc)desc.content=description;
+  const canonical=new URL("/account",location.origin).toString();
+  const canonicalEl=document.querySelector("#seo-canonical");if(canonicalEl)canonicalEl.href=canonical;
+  const ogTitle=document.querySelector("#seo-og-title");if(ogTitle)ogTitle.content="Account | Bobaks Ranking";
+  const ogDesc=document.querySelector("#seo-og-description");if(ogDesc)ogDesc.content=description;
+  const ogUrl=document.querySelector("#seo-og-url");if(ogUrl)ogUrl.content=canonical;
+  const twTitle=document.querySelector("#seo-twitter-title");if(twTitle)twTitle.content="Account | Bobaks Ranking";
+  const twDesc=document.querySelector("#seo-twitter-description");if(twDesc)twDesc.content=description;
+}
+function authMeta(mode){
+  const signup=mode==="signup";
+  const title=signup?"Create a Bobaks Account | Bobaks Ranking":"Sign in | Bobaks Ranking";
+  const description=signup
+    ?"Create an optional Bobaks account to sync your saved games and alert settings across devices."
+    :"Sign in to Bobaks to sync your saved games and alert settings across devices.";
+  document.title=title;
+  const desc=document.querySelector("#seo-description");if(desc)desc.content=description;
+  const canonical=new URL("/account",location.origin).toString();
+  const canonicalEl=document.querySelector("#seo-canonical");if(canonicalEl)canonicalEl.href=canonical;
+  const ogTitle=document.querySelector("#seo-og-title");if(ogTitle)ogTitle.content=title;
+  const ogDesc=document.querySelector("#seo-og-description");if(ogDesc)ogDesc.content=description;
+  const ogUrl=document.querySelector("#seo-og-url");if(ogUrl)ogUrl.content=canonical;
+  const twTitle=document.querySelector("#seo-twitter-title");if(twTitle)twTitle.content=title;
+  const twDesc=document.querySelector("#seo-twitter-description");if(twDesc)twDesc.content=description;
+}
+
 function setPageMeta(game){
   const name=String(game?.name||'');
   if(game&&name){
