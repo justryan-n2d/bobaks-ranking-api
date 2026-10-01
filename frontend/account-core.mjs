@@ -518,7 +518,7 @@ export function createAuthClient({
 
   async function addWatchlistGame(gameId) {
     const user = await getUser();
-    const result = await authenticatedFetch("/user_watchlist", {
+    const result = await authenticatedFetch("/user_watchlist?on_conflict=user_id%2Cgame_id", {
       method: "POST",
       headers: {
         prefer: "resolution=merge-duplicates,return=representation"
