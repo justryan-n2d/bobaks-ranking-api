@@ -219,6 +219,32 @@ function signOutAccount(){return accountUI()?.signOut?.()}
 function accountBusy(){return !!accountUI()?.isBusy?.()}
 function accountState(){return accountUI()?.state||null}
 
+document.addEventListener('click',event=>{
+  const button=event.target?.closest?.('#accountSignIn,#accountSignUp,#continueGuest,#accountOpen,#accountSignout,#accountSignOut');
+  if(!button)return;
+  if(button.id==='accountSignIn'){
+    event.preventDefault();
+    document.body.classList.remove('sidebar-open');
+    goAuth('signin');
+  }else if(button.id==='accountSignUp'){
+    event.preventDefault();
+    document.body.classList.remove('sidebar-open');
+    goAuth('signup');
+  }else if(button.id==='continueGuest'){
+    event.preventDefault();
+    document.body.classList.remove('sidebar-open');
+    goHome();
+  }else if(button.id==='accountOpen'){
+    event.preventDefault();
+    document.body.classList.remove('sidebar-open');
+    goAccount();
+  }else if(button.id==='accountSignout'||button.id==='accountSignOut'){
+    event.preventDefault();
+    document.body.classList.remove('sidebar-open');
+    signOutAccount();
+  }
+});
+
 function fallbackNext(){const n=Date.now(),step=600000;return new Date((Math.floor(n/step)+1)*step+15000).toISOString()}
 function schedule(){if(state.timer)clearTimeout(state.timer);if(state.next)state.timer=setTimeout(loadRankings,Math.max(1000,new Date(state.next).getTime()-Date.now()))}
 const RANKING_SHARE_LABELS={live:'Top 10 Roblox games right now',week:"Top 10 Roblox games this week",month:"Top 10 Roblox games this month",year:"Top 10 Roblox games this year"};
@@ -396,15 +422,9 @@ function bind(){
   const rankingLoadMore=$('rankingLoadMore');if(rankingLoadMore)rankingLoadMore.onclick=()=>{if(state.rankingLimit<50)state.rankingLimit=50;else if(state.rankingLimit<state.games.length)state.rankingLimit=state.games.length;else state.rankingLimit=15;render()};
   const movingToggle=$('movingToggle');if(movingToggle)movingToggle.onclick=()=>{state.movingLimit=state.movingLimit>2?2:6;render()};
   const back=$('back');if(back)back.onclick=()=>{state.view='home';state.selected=null;state.error='';setPageMeta(null);render();loadRankings()};
-  const accountOpen=$('accountOpen');if(accountOpen)accountOpen.onclick=()=>goAccount();
-  const accountSignIn=$('accountSignIn');if(accountSignIn)accountSignIn.onclick=()=>goAuth('signin');
-  const accountSignUp=$('accountSignUp');if(accountSignUp)accountSignUp.onclick=()=>goAuth('signup');
-  const accountSignout=$('accountSignout');if(accountSignout)accountSignout.onclick=signOutAccount;
-  const accountSignOut=$('accountSignOut');if(accountSignOut)accountSignOut.onclick=signOutAccount;
   const accountBrowse=$('accountBrowse');if(accountBrowse)accountBrowse.onclick=()=>goHome({push:true});
   const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAuth()};
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
-  const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
   const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitProfile()};
   const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!accountBusy())submitAlertSettings()};
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
