@@ -493,6 +493,31 @@ test("frontend API helper avoids duplicating the /api prefix", () => {
 });
 
 
+test("Phase 6.7 account bridge defines every referenced meta helper before runtime wiring", () => {
+  const app = readApp();
+  assert.match(app, /function setAccountMeta\(\)/);
+  assert.match(app, /function authMeta\(mode\)/);
+  assert.match(app, /window\.\__BOBAKS_ACCOUNT_APP__=\{/);
+});
+
+test("Phase 6.7 account UX includes guest migration recovery and Roblox identity groundwork", () => {
+  const html = readFrontend();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
+  const robloxCore = fs.readFileSync(path.resolve("frontend/roblox-identity-core.mjs"), "utf8");
+  assert.match(account, /recoverSessionFromUrl/);
+  assert.match(account, /retryGuestMigration/);
+  assert.match(account, /resendConfirmation/);
+  assert.match(account, /Refresh verification status/);
+  assert.match(account, /ROBLOX IDENTITY/);
+  assert.match(core, /auth\/v1\/resend/);
+  assert.match(core, /roblox_identities/);
+  assert.match(robloxCore, /apis\.roblox\.com\/oauth\/v1\/authorize/);
+  assert.match(robloxCore, /code_challenge_method/);
+  assert.match(robloxCore, /SHA-256/);
+  assert.match(html, /account-migration-note/);
+});
+
 test("Phase 6.7 account foundation loads a browser auth module", () => {
   const html = readHtml();
   const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
