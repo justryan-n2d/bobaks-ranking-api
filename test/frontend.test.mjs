@@ -552,11 +552,19 @@ test("ranking views use delegated account controls with a cache-busted app bundl
   const app = readApp();
   const html = fs.readFileSync(path.resolve("frontend/index.html"), "utf8");
   assert.match(app, /document\.addEventListener\('click',event=>\{/);
-  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountOpen", "accountSignout", "accountSignOut"]) {
+  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
     assert.match(app, new RegExp("#" + id));
   }
   assert.ok(html.includes('/app.js?v=20261001-account-8'));
 });
+
+test("successful log in redirects to the Bobaks homepage", () => {
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  assert.match(account, /client\.signIn/);
+  assert.match(account, /if\(result\.session&&state\.mode==="signin"\)goHome\(\)/);
+  assert.match(account, /<button class="btn primary account-submit" id="authSubmit" type="submit">.*Log in/);
+});
+
 
 test("account-ready rebinding wires asynchronously rendered sidebar account controls", () => {
   const app = readApp();
@@ -564,7 +572,7 @@ test("account-ready rebinding wires asynchronously rendered sidebar account cont
     app,
     /bobaks:account-ready[\s\S]*renderAccountArea\(\);[\s\S]*if\(location\.pathname!==['"]\/account['"]\)bind\(\)/
   );
-  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountOpen", "accountSignout", "accountSignOut"]) {
+  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
     assert.match(app, new RegExp("#" + id));
   }
 });
@@ -637,7 +645,7 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
   assert.match(account, /id="alertForm"/);
   assert.match(account, /Persistent alerts/);
   assert.match(account, /Synced to your Bobaks account/);
-  assert.match(account, /Sign in/);
+  assert.match(account, /Log in/);
   assert.match(account, /Create account/);
   assert.match(core, /recoverSessionFromUrl/);
   assert.match(returnLoops, /window\.__BOBAKS_ACCOUNT_ALERT_PREFS__/);
@@ -647,7 +655,7 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
 test("guest and account watchlist states are explicitly separated", () => {
   const app = readApp();
   const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
-  assert.match(app, /Saved only on this device\. Sign in to sync across devices/);
+  assert.match(app, /Saved only on this device\. Log in to sync across devices/);
   assert.match(account, /Synced to your Bobaks account across devices/);
   assert.match(account, /migrateGuest/);
 });
