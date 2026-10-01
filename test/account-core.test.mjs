@@ -51,7 +51,7 @@ test("signIn uses the password grant and persists the returned session", async (
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://example.supabase.co/auth/v1/token?grant_type=password");
   assert.equal(calls[0].init.method, "POST");
-  assert.equal(calls[0].init.headers.apikey, "sb_publishable_test");
+  assert.equal(calls[0].init.headers.get('apikey'), "sb_publishable_test");
   assert.equal(JSON.parse(calls[0].init.body).email, "player@example.com");
   assert.equal(session.user.id, "user-1");
   assert.equal(JSON.parse(storage.getItem("bobaks.auth.session.v1")).access_token, "access-token");
@@ -148,7 +148,7 @@ test("getUser retries once with a refreshed token after a 401", async () => {
   assert.equal(user.id, "user-1");
   const userCalls = calls.filter(call => call.url.endsWith("/auth/v1/user"));
   assert.equal(userCalls.length, 2);
-  assert.equal(userCalls[1].init.headers.authorization, "Bearer refreshed-access");
+  assert.equal(userCalls[1].init.headers.get('authorization'), "Bearer refreshed-access");
 });
 
 test("signOut always clears the local session even when remote logout fails", async () => {
@@ -193,7 +193,7 @@ test("authenticatedFetch includes the session bearer token and Supabase publisha
     "https://example.supabase.co/rest/v1/user_watchlist?select=game_id,created_at"
   );
   assert.equal(calls[0].init.headers.apikey, "sb_publishable_test");
-  assert.equal(calls[0].init.headers.authorization, "Bearer access-token");
+  assert.equal(calls[0].init.headers.get('authorization'), "Bearer access-token");
 });
 
 test("saveComparison canonicalizes the game pair and targets its unique conflict columns", async () => {
