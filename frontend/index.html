@@ -1152,6 +1152,8 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 }
 .account-card:hover{border-color:var(--line-strong);background:rgba(255,255,255,.075)}
 .account-card.signed-out{cursor:default}
+.account-card.account-fallback{cursor:pointer;text-decoration:none}
+.account-card.account-fallback:hover{border-color:var(--line-strong);background:rgba(255,255,255,.075)}
 .account-avatar{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface-3);border:1px solid var(--line-strong);color:#A8DFFF;font-size:11px;font-weight:900;flex:none}
 .account-avatar-large{width:62px;height:62px;border-radius:17px;font-size:18px}
 .account-copy{min-width:0;display:grid;gap:3px}
@@ -1274,7 +1276,6 @@ body{padding-left:252px}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="/analytics-client.js"></script>
-<script type="module" src="/account.js?v=20261001-auth-3"></script>
 </head>
 <body>
 <header class="top" id="siteSidebar" aria-label="Bobaks main navigation">
@@ -1282,7 +1283,13 @@ body{padding-left:252px}
     <button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button>
     <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close navigation">×</button>
   </div>
-  <div id="accountArea" class="account-area"></div>
+  <div id="accountArea" class="account-area">
+    <a class="account-card signed-out account-fallback" href="/account" aria-label="Open Bobaks account">
+      <span class="account-avatar">?</span>
+      <span class="account-copy"><b>Guest mode</b><small>Sign in or create account</small></span>
+      <span class="account-chevron">›</span>
+    </a>
+  </div>
   <nav class="nav">
     <button id="rankNav" class="active">⌂ <span>Rankings</span></button>
     <button id="savedNav">♡ <span>Saved</span> <span id="savedCount"></span></button>
