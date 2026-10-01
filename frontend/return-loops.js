@@ -54,6 +54,11 @@ function writeJson(key, value) {
 }
 
 function savedIds() {
+  const account = window.__BOBAKS_ACCOUNT_UI__;
+  if (account?.isSignedIn?.()) {
+    const ids = window.__BOBAKS_ACCOUNT_APP__?.getSaved?.() || [];
+    return [...new Set(ids.map(String).filter(id => /^\d+$/.test(id)))].slice(0, 25);
+  }
   try {
     const parsed = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || "[]");
     return Array.isArray(parsed)
