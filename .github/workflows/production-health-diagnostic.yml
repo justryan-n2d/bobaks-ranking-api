@@ -1,0 +1,38 @@
+name: Production Health Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/production-health-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe production health and ranking endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          FRONTEND="https://bobaks-ranking-api.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          for path in             "/api/health"             "/api/health/deep"             "/api/rankings?period=live"             "/api/rankings?period=week"             "/api/rankings?period=month"             "/api/rankings?period=year"
+          do
+            echo "=== API $path ==="
+            body=$(curl -fsS --max-time 30 "$API$path")
+            echo "$body" | jq .
+          done
+
+          for path in             "/api/rankings?period=live"             "/api/rankings?period=week"             "/api/rankings?period=month"             "/api/rankings?period=year"
+          do
+            echo "=== FRONTEND PROXY $path ==="
+            curl -fsS --max-time 30 "$FRONTEND$path" | jq '{period, rows:(.data|length), updatedAt}'
+          done
+
+          echo "=== SUMMARY ==="
+          curl -fsS --max-time 30 "$API/api/health" | jq '{ok,status,service,database}'
+          curl -fsS --max-time 30 "$API/api/health/deep" | jq '{ok,status,checks,alerts}'
