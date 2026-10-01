@@ -21,7 +21,8 @@ const state={
   confirmation:{pending:false,email:"",message:""},
   verification:{emailConfirmed:null,lastCheckedAt:null},
   migration:{status:"idle",sourceCount:0,syncedCount:0,failed:[]},
-  robloxIdentity:null
+  robloxIdentity:null,
+  saved:{profile:false,alerts:false}
 };
 
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -258,7 +259,7 @@ async function accountPage(){
           '<label>Email<input value="'+email+'" disabled aria-disabled="true"></label>'+
           '<label>Display name<input id="profileDisplayName" maxlength="80" value="'+esc(profile.display_name||"")+'" placeholder="Your Bobaks display name"></label>'+
           '<label class="account-check"><input id="profilePublic" type="checkbox" '+(profile.is_public?"checked":"")+'> Allow your profile to be shown publicly later</label>'+
-          '<button class="btn primary" id="profileSubmit" type="submit">Save profile</button>'+
+          '<div class="account-save-row"><button class="btn primary" id="profileSubmit" type="submit">Save profile</button><span class="account-save-ok " + (state.saved.profile?"visible":"") + "" id="profileSaved" aria-live="polite" aria-label="Profile saved">" + (state.saved.profile?"✓":"") + "</span></div>'+
         '</form>'+
       '</section>'+
       '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ALERTS</div><h2>Persistent alerts</h2><p>These settings follow your account across devices. Alert checks still happen when you revisit Bobaks.</p></div></div>'+
@@ -268,7 +269,7 @@ async function accountPage(){
           '<label class="setting-row"><span><b>New peak</b><small>Saved game reaches a new recorded peak</small></span><input id="newPeakEnabled" type="checkbox" '+(alerts.new_peak_enabled?"checked":"")+'></label>'+
           '<label class="setting-row"><span><b>Rank jump</b><small>Saved game jumps by the threshold below</small></span><input id="rankJumpEnabled" type="checkbox" '+(alerts.rank_jump_enabled?"checked":"")+'></label>'+
           '<label>Jump threshold<input id="rankJumpThreshold" type="number" min="1" max="100" value="'+(Number(alerts.rank_jump_threshold)||5)+'"></label>'+
-          '<button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button>'+
+          '<div class="account-save-row"><button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button><span class="account-save-ok " + (state.saved.alerts?"visible":"") + "" id="alertsSaved" aria-live="polite" aria-label="Alert settings saved">" + (state.saved.alerts?"✓":"") + "</span></div>'+
         '</form>'+
       '</section>'+
     '</div>'+
@@ -368,30 +369,42 @@ async function submitAuth(){
 async function submitProfile(){
   if(!isSignedIn()||state.busy)return;
   state.busy=true;
+  state.saved.profile=false;
   try{
-    state.profile=await client.updateProfile({
+    const saved=await client.updateProfile({
       display_name:String(document.getElementById("profileDisplayName")?.value||"").trim()||null,
       is_public:Boolean(document.getElementById("profilePublic")?.checked)
     });
+    if(!saved)throw new Error("Profile save was not confirmed.");
+    state.profile=saved;
+    state.saved.profile=true;
     state.error="";
-  }catch(error){state.error=String(error?.message||"Could not save your profile.")}
-  finally{state.busy=false;render()}
+  }catch(error){
+    state.saved.profile=false;
+    state.error=String(error?.message||"Could not save your profile.")
+  }finally{state.busy=false;render()}
 }
 async function submitAlerts(){
   if(!isSignedIn()||state.busy)return;
   state.busy=true;
+  state.saved.alerts=false;
   try{
-    state.alerts=await client.updateAlertPreferences({
+    const saved=await client.updateAlertPreferences({
       alerts_enabled:Boolean(document.getElementById("alertsEnabled")?.checked),
       top10_enabled:Boolean(document.getElementById("top10Enabled")?.checked),
       new_peak_enabled:Boolean(document.getElementById("newPeakEnabled")?.checked),
       rank_jump_enabled:Boolean(document.getElementById("rankJumpEnabled")?.checked),
       rank_jump_threshold:Number(document.getElementById("rankJumpThreshold")?.value||5)
     });
+    if(!saved)throw new Error("Alert settings save was not confirmed.");
+    state.alerts=saved;
+    state.saved.alerts=true;
     state.error="";
-    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=state.alerts||null;
-  }catch(error){state.error=String(error?.message||"Could not save alert settings.")}
-  finally{state.busy=false;render()}
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=state.alerts;
+  }catch(error){
+    state.saved.alerts=false;
+    state.error=String(error?.message||"Could not save alert settings.")
+  }finally{state.busy=false;render()}
 }
 async function signOut(){
   if(state.busy)return;
