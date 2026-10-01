@@ -1208,7 +1208,14 @@ $('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
 $('sidebarClose')?.addEventListener('click',()=>document.body.classList.remove('sidebar-open'));
 $('mobileMenu')?.addEventListener('click',()=>document.body.classList.add('sidebar-open'));
 $('mobileAccount')?.addEventListener('click',()=>{document.body.classList.remove('sidebar-open');goAccount()});
-window.addEventListener('bobaks:account-ready',()=>renderAccountArea());
+window.addEventListener('bobaks:account-ready',()=>{
+  renderAccountArea();
+  if(location.pathname==='/account'){
+    if(isSignedIn()){state.view='account';setAccountMeta()}
+    else {state.view='auth';authMeta(accountState()?.mode||'signin')}
+    render();
+  }
+});
 window.addEventListener('bobaks:auth-state',event=>{
   if(event.detail?.event==='SIGNED_OUT'){
     loadSaved();
