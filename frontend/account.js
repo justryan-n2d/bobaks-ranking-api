@@ -183,8 +183,29 @@ function renderAccountArea(){
 }
 
 function authPage(){
+  if(state.confirmation.pending){
+    const message=state.confirmation.message?'<div class="account-form-note">'+esc(state.confirmation.message)+'</div>':"";
+    return '<section class="account-page auth-page">'+
+      '<div class="account-hero"><div class="eyebrow">EMAIL VERIFICATION</div>'+
+        '<h1>Check your <em>email</em></h1>'+
+        '<p>We sent a confirmation link to <strong>'+esc(maskEmail(state.confirmation.email))+'</strong>. Confirm it before signing in.</p>'+
+      '</div>'+
+      '<section class="account-form-card">'+
+        '<div class="account-verification-icon">✓</div>'+
+        '<h2 class="account-confirm-title">Confirm your Bobaks account</h2>'+
+        '<p class="account-confirm-copy">After confirming, return here and sign in. Your guest watchlist will still be here to sync.</p>'+
+        message+
+        '<button class="btn primary account-submit" id="resendConfirmation" type="button">Resend confirmation email</button>'+
+        '<button class="btn account-guest" id="backToSignIn" type="button">Back to sign in</button>'+
+      '</section>'+footer()+
+    '</section>';
+  }
   const signup=state.mode==="signup";
   const error=state.error?'<div class="account-form-error" role="alert">'+esc(state.error)+'</div>':"";
+  const guestCount=guestSavedCount();
+  const guestNote=guestCount
+    ?'<div class="account-migration-note">'+esc(fmt(guestCount)+" saved game"+(guestCount===1?"":"s")+" on this device will be synced after sign in.")+'</div>'
+    :"";
   return '<section class="account-page auth-page">'+
     '<div class="account-hero"><div class="eyebrow">BOBAKS ACCOUNT</div>'+
       '<h1>'+(signup?'Keep your Bobaks <em>in sync</em>':'Welcome back to <em>Bobaks</em>')+'</h1>'+
@@ -192,7 +213,7 @@ function authPage(){
     '</div>'+
     '<section class="account-form-card">'+
       '<div class="account-switcher"><button class="'+(signup?"":"active")+'" data-auth-mode="signin" type="button">Sign in</button><button class="'+(signup?"active":"")+'" data-auth-mode="signup" type="button">Create account</button></div>'+
-      error+
+      error+guestNote+
       '<form id="authForm" class="account-form" novalidate>'+
         (signup?'<label>Display name <span>optional</span><input id="authDisplayName" name="displayName" maxlength="80" autocomplete="name" placeholder="How Bobaks should call you"></label>':"")+
         '<label>Email<input id="authEmail" name="email" type="email" maxlength="254" autocomplete="email" required placeholder="you@example.com"></label>'+
