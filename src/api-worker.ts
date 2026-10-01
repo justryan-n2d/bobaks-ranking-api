@@ -561,7 +561,7 @@ async function getGamesByIds(env: Env, ids: string[], fetchImpl: FetchLike): Pro
     env,
     "Game",
     {
-      select: gameSelect(),
+      select: rankingGameSelect(),
       id: `in.(${uniqueIds.join(",")})`
     },
     fetchImpl
@@ -574,26 +574,6 @@ async function getGamesByIds(env: Env, ids: string[], fetchImpl: FetchLike): Pro
   return map;
 }
 
-async function getActiveGamesForRanking(env: Env, fetchImpl: FetchLike): Promise<Map<string, JsonRow>> {
-  const rows = await supabaseGet(
-    env,
-    "Game",
-    {
-      select: rankingGameSelect(),
-      isActive: "eq.true",
-      order: "id.asc",
-      limit: "500"
-    },
-    fetchImpl
-  );
-
-  const map = new Map<string, JsonRow>();
-  for (const row of rows) {
-    if (row.id != null) map.set(String(row.id), row);
-  }
-  return map;
-}
-
 async function getRankings(
   env: Env,
   period: string,
@@ -602,7 +582,7 @@ async function getRankings(
   const dbPeriod = RANKING_PERIODS[period];
   if (!dbPeriod) throw new Error("Invalid period");
 
-  const rankingsPromise = supabaseGet(
+  const rankings = await supabaseGet(
     env,
     "Ranking",
     {
@@ -613,20 +593,12 @@ async function getRankings(
     },
     fetchImpl
   );
-  // Keep ranking and active-game metadata reads concurrent to minimize API TTFB.
-// Production performance traces sample 20 requests so p95 is not just a cold-cache max.
-  const activeGamesPromise = getActiveGamesForRanking(env, fetchImpl);
 
-  const rankings = await rankingsPromise;
-  const gameMap = await activeGamesPromise;
-
-  const missingGameIds = rankings
-    .map(row => String(row.gameId ?? ""))
-    .filter(id => id && !gameMap.has(id));
-  if (missingGameIds.length) {
-    const missingGames = await getGamesByIds(env, missingGameIds, fetchImpl);
-    for (const [id, game] of missingGames) gameMap.set(id, game);
-  }
+  const gameMap = await getGamesByIds(
+    env,
+    rankings.map(row => String(row.gameId ?? "")),
+    fetchImpl
+  );
 
   return rankings.map(row => ({
     ...row,
