@@ -192,7 +192,7 @@ test("authenticatedFetch includes the session bearer token and Supabase publisha
     calls[0].url,
     "https://example.supabase.co/rest/v1/user_watchlist?select=game_id,created_at"
   );
-  assert.equal(calls[0].init.headers.apikey, "sb_publishable_test");
+  assert.equal(calls[0].init.headers.get('apikey'), "sb_publishable_test");
   assert.equal(calls[0].init.headers.get('authorization'), "Bearer access-token");
 });
 
