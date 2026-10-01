@@ -12,7 +12,13 @@ const RANKING_META={
   month:{title:"This Month's Roblox Game Rankings | Bobaks Ranking",description:"See this month's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."},
   year:{title:"This Year's Roblox Game Rankings | Bobaks Ranking",description:"See this year's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."}
 };
-const state={view:'home',period:'live',theme:'dark',rankingExpanded:true,rankingLimit:15,movingLimit:2,games:[],saved:[],compare:[],selected:null,query:'',results:[],loading:false,error:'',next:null,timer:null,searchRequest:0};
+const state={
+  view:'home',period:'live',theme:'dark',rankingExpanded:true,rankingLimit:15,movingLimit:2,
+  games:[],saved:[],compare:[],selected:null,query:'',results:[],loading:false,error:'',
+  next:null,timer:null,searchRequest:0,
+  auth:{status:'loading',session:null,user:null,profile:null,alerts:null,error:''},
+  authMode:'signin',authBusy:false
+};
 const $=id=>document.getElementById(id);
 const GAME_ROUTE=/^\/game\/(\d+)$/;
 const gameUrl=id=>new URL('/game/'+encodeURIComponent(String(id)),location.origin).toString();
@@ -155,7 +161,270 @@ function loadTheme(){try{const saved=localStorage.getItem('bobaks.theme');state.
 function setTheme(theme){state.theme=theme==='light'?'light':'dark';document.documentElement.setAttribute('data-theme',state.theme);try{localStorage.setItem('bobaks.theme',state.theme)}catch{};nav()}
 function loadSaved(){try{const v=JSON.parse(localStorage.getItem('bobaks.watchlist')||'[]');if(Array.isArray(v))state.saved=[...new Set(v.map(String))].slice(0,25)}catch{state.saved=[]}}
 function saveSaved(){try{localStorage.setItem('bobaks.watchlist',JSON.stringify(state.saved))}catch{}}
-function nav(){ $('rankNav').classList.toggle('active',state.view==='home');$('savedNav').classList.toggle('active',state.view==='saved');$('communityNav').classList.toggle('active',state.view==='community');$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')';const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'☾ Dark':'☀ Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}}
+function nav(){
+  $('rankNav')?.classList.toggle('active',state.view==='home');
+  $('savedNav')?.classList.toggle('active',state.view==='saved');
+  $('communityNav')?.classList.toggle('active',state.view==='community');
+  if($('savedCount'))$('savedCount').textContent=state.saved.length?'('+state.saved.length+')':'';
+  if($('compareNav')){$('compareNav').hidden=state.compare.length===0;$('compareNav').textContent='Compare ('+state.compare.length+')'}
+  const themeBtn=$('themeNav');if(themeBtn){themeBtn.textContent=state.theme==='dark'?'☾ Dark':'☀ Light';themeBtn.title=state.theme==='dark'?'Switch to light mode':'Switch to dark mode';themeBtn.setAttribute('aria-label',themeBtn.title)}
+  renderAccountArea();
+}
+function authClient(){return window.__BOBAKS_AUTH__||null}
+function isSignedIn(){return state.auth.status==='signed_in'&&!!state.auth.user}
+function accountDisplayName(){
+  return String(state.auth.profile?.display_name||state.auth.user?.user_metadata?.display_name||state.auth.user?.email||'Bobaks User').trim();
+}
+function accountInitials(){
+  const name=accountDisplayName().replace(/[^a-zA-Z0-9 ]+/g,' ').trim();
+  const parts=name.split(/\s+/).filter(Boolean);
+  if(parts.length>=2)return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+  return (name.slice(0,2)||'BR').toUpperCase();
+}
+function authMeta(mode){
+  const title=mode==='signup'?'Create an account | Bobaks Ranking':'Sign in | Bobaks Ranking';
+  const description=mode==='signup'
+    ? 'Create an optional Bobaks Ranking account to sync your watchlist, alerts, and profile across devices.'
+    : 'Sign in to your optional Bobaks Ranking account and keep your watchlist and alert preferences across devices.';
+  document.title=title;
+  const desc=document.querySelector('#seo-description');if(desc)desc.content=description;
+  const canonical=new URL('/account',location.origin).toString();
+  const canonicalEl=document.querySelector('#seo-canonical');if(canonicalEl)canonicalEl.href=canonical;
+  const ogTitle=document.querySelector('#seo-og-title');if(ogTitle)ogTitle.content=title;
+  const ogDesc=document.querySelector('#seo-og-description');if(ogDesc)ogDesc.content=description;
+  const ogUrl=document.querySelector('#seo-og-url');if(ogUrl)ogUrl.content=canonical;
+  const twTitle=document.querySelector('#seo-twitter-title');if(twTitle)twTitle.content=title;
+  const twDesc=document.querySelector('#seo-twitter-description');if(twDesc)twDesc.content=description;
+}
+function setAccountMeta(){
+  document.title='Account | Bobaks Ranking';
+  const desc=document.querySelector('#seo-description');if(desc)desc.content='Manage your Bobaks Ranking profile, watchlist, and persistent alert preferences.';
+  const canonical=new URL('/account',location.origin).toString();
+  const canonicalEl=document.querySelector('#seo-canonical');if(canonicalEl)canonicalEl.href=canonical;
+  const ogTitle=document.querySelector('#seo-og-title');if(ogTitle)ogTitle.content='Account | Bobaks Ranking';
+  const ogDesc=document.querySelector('#seo-og-description');if(ogDesc)ogDesc.content='Manage your Bobaks Ranking profile, watchlist, and persistent alert preferences.';
+  const ogUrl=document.querySelector('#seo-og-url');if(ogUrl)ogUrl.content=canonical;
+}
+async function hydrateAccount({migrateGuest=true,rerender=true}={}){
+  const client=authClient();
+  if(!client){
+    state.auth={status:'signed_out',session:null,user:null,profile:null,alerts:null,error:''};
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+    if(rerender)render();
+    return;
+  }
+  const session=await client.getSession().catch(()=>null);
+  if(!session){
+    state.auth={status:'signed_out',session:null,user:null,profile:null,alerts:null,error:''};
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+    if(rerender)render();
+    return;
+  }
+
+  state.auth={...state.auth,status:'signed_in',session,user:session.user,loading:true,error:''};
+
+  if(migrateGuest&&state.saved.length){
+    await Promise.allSettled(state.saved.map(id=>client.addWatchlistGame(id)));
+  }
+
+  const [profile,alerts,watchlist]=await Promise.all([
+    client.getProfile().catch(()=>null),
+    client.getAlertPreferences().catch(()=>null),
+    client.listWatchlist().catch(()=>[])
+  ]);
+
+  state.auth={...state.auth,profile,alerts,loading:false};
+  state.saved=[...new Set((watchlist||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+  window.__BOBAKS_ACCOUNT_ALERT_PREFS__=alerts||null;
+  try{localStorage.setItem('bobaks.watchlist',JSON.stringify(state.saved))}catch{}
+  if(rerender)render();
+}
+function renderAccountArea(){
+  const host=$('accountArea');
+  if(!host)return;
+  if(state.auth.status==='loading'){
+    host.innerHTML='<div class="account-loading"><span class="account-avatar">…</span><div><b>Account</b><small>Checking session…</small></div></div>';
+    return;
+  }
+  if(isSignedIn()){
+    const name=esc(accountDisplayName());
+    const email=esc(state.auth.user?.email||'Signed in');
+    host.innerHTML=
+      '<button class="account-card" id="accountOpen" type="button" aria-label="Open account settings">'+
+        '<span class="account-avatar">'+esc(accountInitials())+'</span>'+
+        '<span class="account-copy"><b>'+name+'</b><small>'+email+'</small></span>'+
+        '<span class="account-chevron">›</span>'+
+      '</button>'+
+      '<button class="account-signout" id="accountSignout" type="button">Sign out</button>';
+    return;
+  }
+  host.innerHTML=
+    '<div class="account-card signed-out">'+
+      '<span class="account-avatar">?</span>'+
+      '<span class="account-copy"><b>Guest mode</b><small>Optional account for sync</small></span>'+
+    '</div>'+
+    '<button class="btn primary account-cta" id="accountSignIn" type="button">Sign in</button>'+
+    '<button class="btn account-cta" id="accountSignUp" type="button">Create account</button>';
+}
+function authPage(){
+  const signup=state.authMode==='signup';
+  const error=state.auth.error?'<div class="account-form-error" role="alert">'+esc(state.auth.error)+'</div>':'';
+  return '<section class="account-page auth-page">'+
+    '<div class="account-hero">'+
+      '<div class="eyebrow">BOBAKS ACCOUNT</div>'+
+      '<h1>'+(signup?'Keep your Bobaks <em>in sync</em>':'Welcome back to <em>Bobaks</em>')+'</h1>'+
+      '<p>'+(signup?'Create an optional account to keep your watchlist, alerts, and profile across devices.':'Sign in to sync your watchlist and alert preferences across devices. You can keep using Bobaks as a guest.')+'</p>'+
+    '</div>'+
+    '<section class="account-form-card">'+
+      '<div class="account-switcher">'+
+        '<button class="'+(!signup?'active':'')+'" data-auth-mode="signin" type="button">Sign in</button>'+
+        '<button class="'+(signup?'active':'')+'" data-auth-mode="signup" type="button">Create account</button>'+
+      '</div>'+
+      error+
+      '<form id="authForm" class="account-form" novalidate>'+
+        (signup?'<label>Display name <span>optional</span><input id="authDisplayName" name="displayName" maxlength="80" autocomplete="name" placeholder="How Bobaks should call you"></label>':'')+
+        '<label>Email<input id="authEmail" name="email" type="email" maxlength="254" autocomplete="email" required placeholder="you@example.com"></label>'+
+        '<label>Password<input id="authPassword" name="password" type="password" minlength="8" autocomplete="'+(signup?'new-password':'current-password')+'" required placeholder="At least 8 characters"></label>'+
+        '<button class="btn primary account-submit" id="authSubmit" type="submit">'+(signup?'Create account':'Sign in')+'</button>'+
+      '</form>'+
+      '<button class="account-link" id="forgotPassword" type="button">Forgot password?</button>'+
+      '<div class="account-form-note">'+(signup?'You may need to confirm your email before the first sign-in.':'No account yet? You can create one in seconds.')+'</div>'+
+      '<button class="btn account-guest" id="continueGuest" type="button">Continue as guest</button>'+
+    '</section>'+
+    footer()+
+  '</section>';
+}
+async function accountPage(){
+  const alerts=state.auth.alerts||{
+    alerts_enabled:true,top10_enabled:true,new_peak_enabled:true,rank_jump_enabled:true,rank_jump_threshold:5
+  };
+  const cards=await Promise.all(state.saved.slice(0,25).map(async id=>{
+    try{const r=await api('/api/games/'+encodeURIComponent(id));return r.data||{id,name:'Game #'+id}}catch{return {id,name:'Game #'+id}}
+  }));
+  const profile=state.auth.profile||{};
+  const email=esc(state.auth.user?.email||'');
+  return '<section class="account-page">'+
+    '<div class="account-hero">'+
+      '<div class="eyebrow">YOUR ACCOUNT</div>'+
+      '<div class="account-hero-row"><span class="account-avatar account-avatar-large">'+esc(accountInitials())+'</span><div><h1>'+esc(accountDisplayName())+'<em>.</em></h1><p>'+email+' · Your Bobaks identity and saved data.</p></div></div>'+
+    '</div>'+
+    '<div class="account-grid">'+
+      '<section class="account-panel account-profile-panel"><div class="account-panel-head"><div><div class="eyebrow">PROFILE</div><h2>Your profile</h2><p>These settings control what Bobaks stores for your account.</p></div></div>'+
+        '<form id="profileForm" class="account-form compact">'+
+          '<label>Email<input value="'+email+'" disabled aria-disabled="true"></label>'+
+          '<label>Display name<input id="profileDisplayName" maxlength="80" value="'+esc(profile.display_name||'')+'" placeholder="Your Bobaks display name"></label>'+
+          '<label class="account-check"><input id="profilePublic" type="checkbox" '+(profile.is_public?'checked':'')+'> Allow your profile to be shown publicly later</label>'+
+          '<button class="btn primary" id="profileSubmit" type="submit">Save profile</button>'+
+        '</form>'+
+      '</section>'+
+      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ALERTS</div><h2>Persistent alerts</h2><p>Account-wide preferences follow you across devices. Alerts are checked when you revisit Bobaks.</p></div></div>'+
+        '<form id="alertForm" class="alert-settings">'+
+          '<label class="setting-row"><span><b>Enable alerts</b><small>Master switch for account alerts</small></span><input id="alertsEnabled" type="checkbox" '+(alerts.alerts_enabled?'checked':'')+'></label>'+
+          '<label class="setting-row"><span><b>Top 10</b><small>When a saved game enters the Top 10</small></span><input id="top10Enabled" type="checkbox" '+(alerts.top10_enabled?'checked':'')+'></label>'+
+          '<label class="setting-row"><span><b>New peak</b><small>When a saved game reaches a new recorded peak</small></span><input id="newPeakEnabled" type="checkbox" '+(alerts.new_peak_enabled?'checked':'')+'></label>'+
+          '<label class="setting-row"><span><b>Rank jump</b><small>When a saved game jumps by the threshold below</small></span><input id="rankJumpEnabled" type="checkbox" '+(alerts.rank_jump_enabled?'checked':'')+'></label>'+
+          '<label>Jump threshold<input id="rankJumpThreshold" type="number" min="1" max="100" value="'+Number(alerts.rank_jump_threshold)||5+'"></label>'+
+          '<button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button>'+
+        '</form>'+
+      '</section>'+
+    '</div>'+
+    '<section class="account-panel account-watchlist-panel"><div class="account-panel-head account-panel-head-row"><div><div class="eyebrow">WATCHLIST</div><h2>Saved games</h2><p>'+(state.saved.length?'Synced to your Bobaks account.':'Save games from rankings and they will appear here.')+'</p></div><button class="btn" id="accountBrowse" type="button">Browse rankings</button></div>'+
+      '<div class="account-watchlist">'+(cards.length?cards.map(g=>'<article class="account-game"><button class="account-game-main" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name||('Game #'+g.id))+'</b><small>'+esc(g.creatorName||'Unknown creator')+'</small></span></button><button class="mini" data-save="'+g.id+'">Remove</button></article>').join(''):'<div class="empty account-empty">No saved games yet.</div>')+'</div>'+
+    '</section>'+
+    '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>Your account is optional. Core Bobaks rankings and search stay available without signing in.</p></div><button class="btn" id="accountSignOut" type="button">Sign out</button></section>'+
+    footer()+
+  '</section>';
+}
+function goAuth(mode='signin',{push=true}={}){
+  state.authMode=mode==='signup'?'signup':'signin';
+  state.auth.error='';
+  state.view='auth';
+  if(push&&location.pathname!=='/account')history.pushState({view:'auth'},'', '/account');
+  authMeta(state.authMode);
+  render();
+}
+function goAccount({push=true}={}){
+  if(!isSignedIn()){goAuth('signin',{push});return}
+  state.view='account';
+  state.auth.error='';
+  if(push&&location.pathname!=='/account')history.pushState({view:'account'},'', '/account');
+  setAccountMeta();
+  render();
+}
+async function submitAuth(){
+  const client=authClient();
+  const form=$('authForm');
+  if(!client||!form)return;
+  const fd=new FormData(form);
+  const email=String(fd.get('email')||'').trim();
+  const password=String(fd.get('password')||'');
+  const displayName=String(fd.get('displayName')||'').trim();
+  state.authBusy=true;state.auth.error='';render();
+  try{
+    if(state.authMode==='signup'){
+      const result=await client.signUp({email,password,displayName});
+      if(result.session){
+        await hydrateAccount({migrateGuest:true,rerender:false});
+        state.view='account';
+        setAccountMeta();
+      }else{
+        state.auth.error='Account created. Check your email to confirm the account, then sign in.';
+      }
+    }else{
+      await client.signIn({email,password});
+      await hydrateAccount({migrateGuest:true,rerender:false});
+      state.view='account';
+      setAccountMeta();
+    }
+  }catch(error){
+    state.auth.error=String(error?.message||'Authentication failed. Please try again.');
+  }finally{
+    state.authBusy=false;
+    render();
+  }
+}
+async function submitProfile(){
+  const client=authClient();if(!client||!isSignedIn())return;
+  const displayName=String($('profileDisplayName')?.value||'').trim();
+  const isPublic=Boolean($('profilePublic')?.checked);
+  state.authBusy=true;
+  try{
+    state.auth.profile=await client.updateProfile({display_name:displayName||null,is_public:isPublic});
+    state.auth.error='';
+  }catch(error){state.auth.error=String(error?.message||'Could not save your profile.')}
+  finally{state.authBusy=false;render()}
+}
+async function submitAlertSettings(){
+  const client=authClient();if(!client||!isSignedIn())return;
+  const threshold=Number($('rankJumpThreshold')?.value||5);
+  state.authBusy=true;
+  try{
+    const alerts=await client.updateAlertPreferences({
+      alerts_enabled:Boolean($('alertsEnabled')?.checked),
+      top10_enabled:Boolean($('top10Enabled')?.checked),
+      new_peak_enabled:Boolean($('newPeakEnabled')?.checked),
+      rank_jump_enabled:Boolean($('rankJumpEnabled')?.checked),
+      rank_jump_threshold:threshold
+    });
+    state.auth.alerts=alerts;
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=alerts||null;
+    state.auth.error='';
+  }catch(error){state.auth.error=String(error?.message||'Could not save alert settings.')}
+  finally{state.authBusy=false;render()}
+}
+async function signOutAccount(){
+  const client=authClient();if(!client)return;
+  state.authBusy=true;render();
+  try{await client.signOut()}catch(error){state.auth.error=String(error?.message||'Signed out locally.')}
+  loadSaved();
+  state.auth={status:'signed_out',session:null,user:null,profile:null,alerts:null,error:state.auth.error||''};
+  window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+  state.view='home';
+  setPageMeta(null);
+  render();
+  loadRankings();
+}
+
 function fallbackNext(){const n=Date.now(),step=600000;return new Date((Math.floor(n/step)+1)*step+15000).toISOString()}
 function schedule(){if(state.timer)clearTimeout(state.timer);if(state.next)state.timer=setTimeout(loadRankings,Math.max(1000,new Date(state.next).getTime()-Date.now()))}
 const RANKING_SHARE_LABELS={live:'Top 10 Roblox games right now',week:"Top 10 Roblox games this week",month:"Top 10 Roblox games this month",year:"Top 10 Roblox games this year"};
@@ -301,8 +570,78 @@ async function comparePage(){
   return '<section class="hero"><div class="hero-main"><div class="eyebrow">GAME COMPARISON</div><h1>Compare <em>Games</em></h1><p>Compare current popularity and live rank for selected games.</p></div></section><section class="compare">'+cards.map(g=>'<article class="panel"><div class="side-top"><img class="cover" src="'+esc(g.iconUrl||'')+'" alt="" loading="lazy" decoding="async"><div><h2>'+esc(g.name)+'</h2><p>'+esc(g.creatorName||'Unknown creator')+'</p></div></div><div class="stats"><div class="stat"><span>Players</span><strong>'+fmt(g.currentPlayers)+'</strong></div><div class="stat"><span>Live Rank</span><strong>'+(g.rankings?.live?.rank?'#'+g.rankings.live.rank:'N/A')+'</strong></div></div><button class="btn primary" data-game="'+g.id+'">Open game</button></article>').join('')+'</section>'+footer();
 }
 function info(key){const data={privacy:['Privacy Policy','Bobaks Ranking focuses on game-level analytics. No player-level profiles are required for the public ranking experience. Anonymous first-party visitor and session identifiers may be used to measure product usage, return visits, and session depth. They are not Roblox account IDs, are not used to build player profiles, and do not include IP addresses or raw search text. Visitor identifiers expire after 30 days and session identifiers use a 30-minute idle window.'],terms:['Terms of Use','Bobaks Ranking is an independent third-party analytics site. Player counts and rankings may change, be delayed, or become unavailable.'],sources:['Data Sources','Bobaks Ranking uses permitted public Roblox game-level data and calculates rankings from collected snapshots.']};if(key==='methodology')return '<section class="info"><button class="btn" id="back">← Back</button><h1>How Bobaks Rankings Work</h1><p>Rankings use qualifying Bobaks collection data. Live rankings require a recent qualifying snapshot. Weekly and monthly rankings use qualifying samples and the existing 50% coverage rule. Rank movement compares the current persisted ranking with the previous ranking set.</p><p>Recorded Peak means the highest player count Bobaks has recorded, not Roblox-wide all-time history.</p><p>Historical coverage depends on what Bobaks has successfully collected.</p></section>';const d=data[key]||data.privacy;return '<section class="info"><button class="btn" id="back">← Back</button><h1>'+d[0]+'</h1><p>'+d[1]+'</p><p>Contact: bobaksranking@gmail.com</p></section>'}
-function render(){nav();if(state.view==='community'){$('app').innerHTML=communityPage();bind();return}if(state.view==='detail'){$('app').innerHTML=detail();bind();return}if(state.view==='saved'){$('app').innerHTML='<div class="banner">Loading saved games...</div>';savedPage().then(html=>{if(state.view==='saved'){$('app').innerHTML=html;bind()}});return}if(state.view==='compare'){$('app').innerHTML='<div class="banner">Loading comparison...</div>';comparePage().then(html=>{if(state.view==='compare'){$('app').innerHTML=html;bind()}});return}if(state.view==='info'){$('app').innerHTML=info(state.infoKey);bind();return}$('app').innerHTML=home();bind()}
-function bind(){animateLiveValues();const q=$('search');if(q){q.oninput=e=>{state.query=e.target.value;clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>search(state.query),250)}}document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.period=b.dataset.period;state.rankingLimit=15;state.movingLimit=2;goHome({push:true})});const r=$('refresh');if(r)r.onclick=()=>loadRankings(true);const shareRankingBtn=$('shareRanking');if(shareRankingBtn)shareRankingBtn.onclick=shareRanking;const shareTrendingBtn=$('shareTrending');if(shareTrendingBtn)shareTrendingBtn.onclick=()=>shareSocialPost('trending');const sharePeaksBtn=$('sharePeaks');if(sharePeaksBtn)sharePeaksBtn.onclick=()=>shareSocialPost('peaks');const rankingToggle=$('rankingToggle');if(rankingToggle)rankingToggle.onclick=()=>{state.rankingExpanded=!state.rankingExpanded;render()};const rankingLoadMore=$('rankingLoadMore');if(rankingLoadMore)rankingLoadMore.onclick=()=>{if(state.rankingLimit<50)state.rankingLimit=50;else if(state.rankingLimit<state.games.length)state.rankingLimit=state.games.length;else state.rankingLimit=15;render()};const movingToggle=$('movingToggle');if(movingToggle)movingToggle.onclick=()=>{state.movingLimit=state.movingLimit>2?2:6;render()};const back=$('back');if(back)back.onclick=()=>{state.view='home';state.selected=null;state.error='';render();loadRankings()};document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});document.querySelectorAll('[data-save]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.save);const had=state.saved.includes(id);state.saved=had?state.saved.filter(x=>x!==id):state.saved.length<25?[...state.saved,id]:state.saved;saveSaved();track(had?'watchlist_remove':'watchlist_add',{gameId:id});render()});document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=String(b.dataset.compare);const had=state.compare.includes(id);state.compare=had?state.compare.filter(x=>x!==id):state.compare.length<2?[...state.compare,id]:state.compare;track(had?'compare_remove':'compare_add',{gameId:id});render()});document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>{track('share_opened',{gameId:b.dataset.share,channel:'rank_card'});share(b.dataset.share)});document.querySelectorAll('[data-info]').forEach(b=>b.onclick=()=>{state.view='info';state.infoKey=b.dataset.info;render()})}
+function render(){
+  nav();
+  if(state.view==='auth'){
+    $('app').innerHTML=authPage();bind();return;
+  }
+  if(state.view==='account'){
+    $('app').innerHTML='<div class="banner">Loading your account...</div>';
+    accountPage().then(html=>{if(state.view==='account'){$('app').innerHTML=html;bind()}});
+    return;
+  }
+  if(state.view==='community'){$('app').innerHTML=communityPage();bind();return}
+  if(state.view==='detail'){$('app').innerHTML=detail();bind();return}
+  if(state.view==='saved'){$('app').innerHTML='<div class="banner">Loading saved games...</div>';savedPage().then(html=>{if(state.view==='saved'){$('app').innerHTML=html;bind()}});return}
+  if(state.view==='compare'){$('app').innerHTML='<div class="banner">Loading comparison...</div>';comparePage().then(html=>{if(state.view==='compare'){$('app').innerHTML=html;bind()}});return}
+  if(state.view==='info'){$('app').innerHTML=info(state.infoKey);bind();return}
+  $('app').innerHTML=home();bind();
+}
+function bind(){
+  animateLiveValues();
+  const q=$('search');if(q){q.oninput=e=>{state.query=e.target.value;clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>search(state.query),250)}}
+  document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.period=b.dataset.period;state.rankingLimit=15;state.movingLimit=2;goHome({push:true})});
+  const r=$('refresh');if(r)r.onclick=()=>loadRankings(true);
+  const shareRankingBtn=$('shareRanking');if(shareRankingBtn)shareRankingBtn.onclick=shareRanking;
+  const shareTrendingBtn=$('shareTrending');if(shareTrendingBtn)shareTrendingBtn.onclick=()=>shareSocialPost('trending');
+  const sharePeaksBtn=$('sharePeaks');if(sharePeaksBtn)sharePeaksBtn.onclick=()=>shareSocialPost('peaks');
+  const rankingToggle=$('rankingToggle');if(rankingToggle)rankingToggle.onclick=()=>{state.rankingExpanded=!state.rankingExpanded;render()};
+  const rankingLoadMore=$('rankingLoadMore');if(rankingLoadMore)rankingLoadMore.onclick=()=>{if(state.rankingLimit<50)state.rankingLimit=50;else if(state.rankingLimit<state.games.length)state.rankingLimit=state.games.length;else state.rankingLimit=15;render()};
+  const movingToggle=$('movingToggle');if(movingToggle)movingToggle.onclick=()=>{state.movingLimit=state.movingLimit>2?2:6;render()};
+  const back=$('back');if(back)back.onclick=()=>{state.view='home';state.selected=null;state.error='';setPageMeta(null);render();loadRankings()};
+  const accountOpen=$('accountOpen');if(accountOpen)accountOpen.onclick=()=>goAccount();
+  const accountSignIn=$('accountSignIn');if(accountSignIn)accountSignIn.onclick=()=>goAuth('signin');
+  const accountSignUp=$('accountSignUp');if(accountSignUp)accountSignUp.onclick=()=>goAuth('signup');
+  const accountSignout=$('accountSignout');if(accountSignout)accountSignout.onclick=signOutAccount;
+  const accountSignOut=$('accountSignOut');if(accountSignOut)accountSignOut.onclick=signOutAccount;
+  const accountBrowse=$('accountBrowse');if(accountBrowse)accountBrowse.onclick=()=>goHome({push:true});
+  const authForm=$('authForm');if(authForm)authForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitAuth()};
+  document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>goAuth(b.dataset.authMode,{push:false}));
+  const forgotPassword=$('forgotPassword');if(forgotPassword)forgotPassword.onclick=async()=>{
+    const client=authClient();const email=String($('authEmail')?.value||'').trim();
+    if(!client||!email){state.auth.error='Enter your email first.';render();return}
+    try{await client.resetPasswordForEmail(email,new URL('/account',location.origin).toString());state.auth.error='Password reset email sent. Check your inbox.'}
+    catch(error){state.auth.error=String(error?.message||'Could not send the reset email.')}
+    render();
+  };
+  const continueGuest=$('continueGuest');if(continueGuest)continueGuest.onclick=()=>goHome();
+  const profileForm=$('profileForm');if(profileForm)profileForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitProfile()};
+  const alertForm=$('alertForm');if(alertForm)alertForm.onsubmit=e=>{e.preventDefault();if(!state.authBusy)submitAlertSettings()};
+  document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
+  document.querySelectorAll('[data-search-game]').forEach(b=>b.onclick=()=>{state.results=[];openGame(b.dataset.searchGame)});
+  document.querySelectorAll('[data-save]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation();
+    const id=String(b.dataset.save),had=state.saved.includes(id),client=authClient();
+    try{
+      if(isSignedIn()&&client){
+        if(had)await client.removeWatchlistGame(id);
+        else {
+          if(state.saved.length>=25)throw new Error('Your watchlist is limited to 25 games for now.');
+          await client.addWatchlistGame(id);
+        }
+      }
+      state.saved=had?state.saved.filter(x=>x!==id):[...state.saved,id];
+      saveSaved();
+      track(had?'watchlist_remove':'watchlist_add',{gameId:id});
+      render();
+    }catch(error){state.auth.error=String(error?.message||'Could not update your watchlist.');render()}
+  });
+  document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();const id=String(b.dataset.compare);const had=state.compare.includes(id);state.compare=had?state.compare.filter(x=>x!==id):state.compare.length<2?[...state.compare,id]:state.compare;track(had?'compare_remove':'compare_add',{gameId:id});render();
+  });
+  document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>{track('share_opened',{gameId:b.dataset.share,channel:'rank_card'});share(b.dataset.share)});
+  document.querySelectorAll('[data-info]').forEach(b=>b.onclick=()=>{state.view='info';state.infoKey=b.dataset.info;render()});
+}
 function animateLiveValues(){
   document.querySelectorAll('.live-value[data-from][data-to]').forEach(el=>{
     const from=Number(el.dataset.from),to=Number(el.dataset.to);
@@ -1108,9 +1447,34 @@ async function share(id){
   }
 }
 
-$('homeBtn').onclick=()=>goHome();$('rankNav').onclick=()=>goHome();$('savedNav').onclick=()=>{state.view='saved';render();track('saved_view')};$('compareNav').onclick=()=>{state.view='compare';render();track('compare_view')};$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
+$('homeBtn').onclick=()=>goHome();
+$('rankNav').onclick=()=>goHome();
+$('savedNav').onclick=()=>{state.view='saved';render();track('saved_view')};
+$('compareNav').onclick=()=>{state.view='compare';render();track('compare_view')};
+$('themeNav').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
+$('sidebarClose')?.addEventListener('click',()=>document.body.classList.remove('sidebar-open'));
+$('mobileMenu')?.addEventListener('click',()=>document.body.classList.add('sidebar-open'));
+$('mobileAccount')?.addEventListener('click',()=>{document.body.classList.remove('sidebar-open');goAccount()});
+window.addEventListener('bobaks:auth-ready',()=>{hydrateAccount({migrateGuest:true,rerender:true}).catch(()=>{state.auth.status='signed_out';render()})});
+window.addEventListener('bobaks:auth-state',event=>{
+  const type=event.detail?.event;
+  if(type==='SIGNED_OUT'){
+    loadSaved();
+    state.auth={status:'signed_out',session:null,user:null,profile:null,alerts:null,error:''};
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+    render();
+  }else if(type==='SIGNED_IN'||type==='SIGNED_UP'||type==='TOKEN_REFRESHED'){
+    hydrateAccount({migrateGuest:type!=='TOKEN_REFRESHED',rerender:true}).catch(()=>{});
+  }
+});
 window.addEventListener('popstate',()=>{
   if(location.pathname==='/community'){state.view='community';state.selected=null;setCommunityMeta();render();track('page_view',{route:'/community'});return}
+  if(location.pathname==='/account'){
+    state.selected=null;
+    if(isSignedIn()){state.view='account';setAccountMeta();render()}
+    else {state.view='auth';authMeta(state.authMode||'signin');render()}
+    return;
+  }
   const gameMatch=location.pathname.match(GAME_ROUTE);
   if(gameMatch){openGame(gameMatch[1],{push:false});return}
   state.period=periodFromLocation();state.view='home';state.selected=null;setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();
@@ -1118,7 +1482,11 @@ window.addEventListener('popstate',()=>{
 loadTheme();loadSaved();
 state.period=periodFromLocation();
 if(location.pathname==='/community'){state.view='community';setCommunityMeta();render();track('page_view',{route:'/community'});}
+else if(location.pathname==='/account'){
+  if(isSignedIn()){state.view='account';setAccountMeta();render()}
+  else {state.view='auth';authMeta(state.authMode);render()}
+}
 const initialGame=location.pathname.match(GAME_ROUTE);
 if(initialGame){openGame(initialGame[1],{push:false});track('page_view',{gameId:initialGame[1],period:state.period});}
-else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
+else if(location.pathname!=='/community'&&location.pathname!=='/account'){setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
 setTimeout(()=>import('/return-loops.js').catch(()=>{}),800);
