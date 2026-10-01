@@ -28,3 +28,5 @@ jobs:
         run: npm run build
       - name: Verification marker
         run: echo "Backend tests, frontend verification, and build completed for this commit."
+
+# Regression validation runs on every pull request and main push.
