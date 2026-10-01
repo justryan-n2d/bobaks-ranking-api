@@ -17,7 +17,11 @@
       "/sitemap.xml",
       "/robots.txt",
       "/community",
-      "/analytics"
+      "/analytics",
+      "/",
+      "/saved",
+      "/compare",
+      "/account"
     ]
   },
   "vars": {
@@ -45,6 +49,10 @@
     "/robots.txt",
     "/community",
     "/analytics",
-    "/admin/*"
+    "/admin/*",
+    "/",
+    "/saved",
+    "/compare",
+    "/account"
   ]
 }
