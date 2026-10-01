@@ -179,7 +179,7 @@ function renderAccountArea(){
   }
   const count=guestSavedCount();
   host.innerHTML=
-    '<div class="account-card signed-out"><span class="account-avatar">?</span><span class="account-copy"><b>Guest mode</b><small>'+(count?fmt(count)+" saved on this device":"Optional account for sync")+'</small></span></div>'+
+    '<button class="account-card signed-out" id="accountGuest" type="button" title="Keep browsing Bobaks as a guest"><span class="account-avatar">?</span><span class="account-copy"><b>Guest mode</b><small>'+(count?fmt(count)+" saved on this device":"Browse without an account")+'</small></span></button>'+
     '<button class="btn primary account-cta" id="accountSignIn" type="button">Sign in</button>'+
     '<button class="btn account-cta" id="accountSignUp" type="button">Create account</button>';
 }
