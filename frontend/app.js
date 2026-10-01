@@ -197,7 +197,7 @@ function ensureAccountModule(){
   accountModulePromise=import(url).catch(error=>{
     accountModulePromise=null;
     if(location.pathname==='/account'){
-      $('app').innerHTML='<div class="banner error">Account failed. <button id="retryAccountModule">Retry</button></div>';
+      $('app').innerHTML='<div class="banner error">Account: '+String(error?.message||error||'module error').slice(0,140)+' <button id="retryAccountModule">Retry</button></div>';
       $('retryAccountModule')?.addEventListener('click',()=>location.reload(),{once:true});
     }
     return null;
