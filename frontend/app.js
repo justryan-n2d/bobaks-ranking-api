@@ -193,7 +193,7 @@ function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
 let accountModulePromise;
 function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
-  const url='/account.js?v=20261001-auth-6';
+  const url='/account.js?v=20261001-auth-7';
   accountModulePromise=import(url).catch(error=>{
     accountModulePromise=null;
     if(location.pathname==='/account'){
@@ -1219,4 +1219,4 @@ else {
   if(initialGame){openGame(initialGame[1],{push:false});track('page_view',{gameId:initialGame[1],period:state.period});}
   else {setPageMeta(null);render();track('page_view',{period:state.period});loadRankings();}
 }
-setTimeout(()=>import('/return-loops.js').catch(()=>{}),800);
+setTimeout(()=>import('/return-loops.js?v=20261001-watchlist-1').catch(()=>{}),800);
