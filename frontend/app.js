@@ -890,8 +890,6 @@ function drawFrame(time=0,preview=true){
 
     const cardLink=gameUrl(g.gameId||g.id);
 
-    // Dedicated footer composition: keep the QR code in its own right-hand zone
-    // and keep the destination text comfortably above the inner card border.
     drawCardQr(ctx,cardLink,945,1396,112,tier);
 
     ctx.fillStyle='#7A91A8';ctx.font='700 17px Inter,system-ui,sans-serif';
