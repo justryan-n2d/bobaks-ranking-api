@@ -323,7 +323,7 @@ async function accountPage(){
           '<label class="setting-row"><span><b>Top 10</b><small>When a saved game enters the Top 10</small></span><input id="top10Enabled" type="checkbox" '+(alerts.top10_enabled?'checked':'')+'></label>'+
           '<label class="setting-row"><span><b>New peak</b><small>When a saved game reaches a new recorded peak</small></span><input id="newPeakEnabled" type="checkbox" '+(alerts.new_peak_enabled?'checked':'')+'></label>'+
           '<label class="setting-row"><span><b>Rank jump</b><small>When a saved game jumps by the threshold below</small></span><input id="rankJumpEnabled" type="checkbox" '+(alerts.rank_jump_enabled?'checked':'')+'></label>'+
-          '<label>Jump threshold<input id="rankJumpThreshold" type="number" min="1" max="100" value="'+Number(alerts.rank_jump_threshold)||5+'"></label>'+
+          '<label>Jump threshold<input id="rankJumpThreshold" type="number" min="1" max="100" value="'+(Number(alerts.rank_jump_threshold)||5)+'"></label>'+
           '<button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button>'+
         '</form>'+
       '</section>'+
