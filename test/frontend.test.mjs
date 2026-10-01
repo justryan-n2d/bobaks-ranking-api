@@ -603,6 +603,19 @@ test("Account module has an explicit SPA state bridge for persistent watchlists 
   }
 });
 
+test("account actions use dedicated auth pages instead of rendering auth inside rankings", () => {
+  const html = readFrontend();
+  const app = readApp();
+  const worker = fs.readFileSync(path.resolve("src/frontend-worker.ts"), "utf8");
+  assert.match(html, /id="accountArea"/);
+  assert.match(app, /AUTH_ROUTES=\{signin:['"]\/sign-in['"],signup:['"]\/create-account['"]\}/);
+  for (const href of ["/sign-in", "/create-account"]) {
+    assert.ok(fs.readFileSync(path.resolve("frontend/account.js"), "utf8").includes('href="'+href+'"'));
+  }
+  assert.match(worker, /url\.pathname === "\/sign-in"/);
+  assert.match(worker, /url\.pathname === "\/create-account"/);
+});
+
 test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area, profile, alerts, and synced watchlist surfaces", () => {
   const html = readFrontend();
   const app = readApp();
