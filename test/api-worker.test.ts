@@ -506,7 +506,7 @@ test("ranking endpoint supports the current period query contract", async () => 
   assert.ok(nextCollectionAt <= Date.now() + 25_000);
   assert.equal(result.headers.get("cache-control"), "no-store");
   assert.equal(result.headers.get("cloudflare-cdn-cache-control"), "public, max-age=5, stale-while-revalidate=30, stale-if-error=60");
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.ok(calls.some(call => call.url.includes("/rest/v1/DataCollectionLog?")));
   assert.equal((body.data as unknown[]).length, 1);
   assert.ok(calls.some(call => /period=eq\.weekly/.test(call.url)));
