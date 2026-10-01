@@ -120,7 +120,7 @@ function canonicalGameUrl(origin: string, id: string): string {
 }
 
 function normalizeRoute(pathname: string): string {
-  if (pathname === "/" || pathname === "/saved" || pathname === "/compare" || pathname === "/community") return pathname;
+  if (pathname === "/" || pathname === "/saved" || pathname === "/compare" || pathname === "/community" || pathname === "/sign-in" || pathname === "/create-account") return pathname;
   if (/^\/game\/\d+$/.test(pathname)) return "/game/:id";
   return pathname.startsWith("/info") ? "/info" : "/other";
 }
@@ -769,7 +769,7 @@ export async function handleFrontendRequest(
     return apiFetch(env, url.pathname + url.search, fetchImpl);
   }
 
-  if (url.pathname === "/" || url.pathname === "/saved" || url.pathname === "/compare" || url.pathname === "/account") {
+  if (url.pathname === "/" || url.pathname === "/saved" || url.pathname === "/compare" || url.pathname === "/account" || url.pathname === "/sign-in" || url.pathname === "/create-account") {
     return assetShell(env, request);
   }
 
