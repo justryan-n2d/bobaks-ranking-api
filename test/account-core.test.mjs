@@ -278,13 +278,17 @@ test("resendSignupConfirmation calls the Supabase signup resend endpoint", async
     }
   });
 
-  await client.resendSignupConfirmation("player@example.com");
+  await client.resendSignupConfirmation(
+    "player@example.com",
+    "https://bobaks.example/account"
+  );
 
   assert.equal(calls[0].url, "https://example.supabase.co/auth/v1/resend");
   assert.equal(calls[0].init.method, "POST");
   assert.deepEqual(JSON.parse(calls[0].init.body), {
     type: "signup",
-    email: "player@example.com"
+    email: "player@example.com",
+    redirect_to: "https://bobaks.example/account"
   });
 });
 
