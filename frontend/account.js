@@ -470,6 +470,20 @@ document.addEventListener("click",event=>{
   else if(button.id==="savedAccountCta")goAuth("signin");
 });
 
+document.addEventListener("input",event=>{
+  const target=event.target;
+  if(target?.closest?.("#profileForm")){
+    state.saved.profile=false;
+    document.getElementById("profileSaved")?.classList.remove("visible");
+    const mark=document.getElementById("profileSaved");if(mark)mark.textContent="";
+  }
+  if(target?.closest?.("#alertForm")){
+    state.saved.alerts=false;
+    document.getElementById("alertsSaved")?.classList.remove("visible");
+    const mark=document.getElementById("alertsSaved");if(mark)mark.textContent="";
+  }
+});
+
 const authReady=authReadyBootstrap();
 async function authReadyBootstrap(){
   await hydrate({migrateGuest:true,rerender:false}).catch(()=>{
