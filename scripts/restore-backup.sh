@@ -5,6 +5,7 @@ set -euo pipefail
 : "${BOBAKS_B2_BUCKET:?Set BOBAKS_B2_BUCKET to the backup bucket name}"
 : "${BOBAKS_B2_ACCESS_KEY_ID:?Set BOBAKS_B2_ACCESS_KEY_ID}"
 : "${BOBAKS_B2_SECRET_ACCESS_KEY:?Set BOBAKS_B2_SECRET_ACCESS_KEY}"
+: "${BOBAKS_B2_REGION:?Set BOBAKS_B2_REGION}"
 : "${BACKUP_ENCRYPTION_KEY:?Set BACKUP_ENCRYPTION_KEY}"
 : "${RESTORE_DB_URL:?Set RESTORE_DB_URL to a disposable or recovery Postgres database}"
 
@@ -14,8 +15,8 @@ if [[ -z "${OBJECT_KEY}" ]]; then
   exit 2
 fi
 
-export AWS_ACCESS_KEY_ID="${B2_ACCESS_KEY_ID}"
-export AWS_SECRET_ACCESS_KEY="${B2_SECRET_ACCESS_KEY}"
+export AWS_ACCESS_KEY_ID="${BOBAKS_B2_ACCESS_KEY_ID}"
+export AWS_SECRET_ACCESS_KEY="${BOBAKS_B2_SECRET_ACCESS_KEY}"
 export AWS_DEFAULT_REGION="${BOBAKS_B2_REGION}"
 
 case "${RESTORE_DB_URL}" in
@@ -50,7 +51,7 @@ if ! command -v pg_restore >/dev/null 2>&1; then
 fi
 
 echo "Downloading encrypted backup..."
-aws s3 cp   "s3://${B2_BUCKET}/${OBJECT_KEY}"   "${ENCRYPTED}"   --endpoint-url "${B2_ENDPOINT}"   --no-progress
+aws s3 cp   "s3://${BOBAKS_B2_BUCKET}/${OBJECT_KEY}"   "${ENCRYPTED}"   --endpoint-url "${BOBAKS_B2_ENDPOINT}"   --no-progress
 
 echo "Decrypting backup..."
 openssl enc   -d   -aes-256-cbc   -pbkdf2   -iter 310000   -in "${ENCRYPTED}"   -out "${DUMP}"   -pass env:BACKUP_ENCRYPTION_KEY
