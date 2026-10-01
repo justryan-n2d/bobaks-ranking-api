@@ -19,6 +19,8 @@ interface Env {
   ASSETS: AssetBinding;
   API_ORIGIN: string;
   API?: ServiceBinding;
+  SUPABASE_URL?: string;
+  SUPABASE_PUBLISHABLE_KEY?: string;
   DISCORD_INVITE_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_ANALYTICS_API_TOKEN?: string;
@@ -150,10 +152,38 @@ function recordAnalytics(env: Env, event: string, data: {
   }
 }
 
+function authConfigScript(env: Env): string {
+  const config = {
+    supabaseUrl: String(env.SUPABASE_URL ?? "").trim(),
+    publishableKey: String(env.SUPABASE_PUBLISHABLE_KEY ?? "").trim()
+  };
+
+  return "<script>window.__BOBAKS_AUTH_CONFIG__=" +
+    safeJsonLd(config) +
+    ";</script>";
+}
+
 async function assetShell(env: Env, request: Request): Promise<Response> {
-  return env.ASSETS.fetch(
+  const response = await env.ASSETS.fetch(
     new Request(new URL("/index.html", request.url).toString())
   );
+
+  if (!response.ok) return response;
+
+  const html = await response.text();
+  const injected = html.includes("</head>")
+    ? html.replace("</head>", authConfigScript(env) + "</head>")
+    : html;
+
+  const headers = new Headers(response.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+
+  return new Response(injected, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
 }
 
 async function assetResponse(env: Env, request: Request): Promise<Response> {
