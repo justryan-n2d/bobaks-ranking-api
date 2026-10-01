@@ -21,10 +21,7 @@ jobs:
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
-      - name: Open production site in mobile Chrome
-        env:
-          PLAYWRIGHT_BROWSERS_PATH: 0
-        run: |
+      - name: Open production site in mobile Chrome        run: |
           node --input-type=module <<'NODE'
           import { chromium } from 'playwright';
 
