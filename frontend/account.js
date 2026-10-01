@@ -245,6 +245,11 @@ async function accountPage(){
       '<span class="account-avatar account-avatar-large">'+esc(initials())+'</span><div><h1>'+esc(displayName())+'<em>.</em></h1><p>'+email+' · Your Bobaks identity and saved data.</p></div>'+
     '</div></div>'+
     error+
+    (state.migration.failed.length
+      ?'<div class="account-migration-warning" role="status"><b>Some guest saves still need syncing.</b><small>'+esc(migrationMessage())+'</small><button class="btn" id="retryGuestMigration" type="button">Retry sync</button></div>'
+      :state.migration.sourceCount
+        ?'<div class="account-migration-success" role="status">'+esc(migrationMessage())+'</div>'
+        :"")+
     '<div class="account-grid">'+
       '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">PROFILE</div><h2>Your profile</h2><p>Manage the small amount of profile data Bobaks stores.</p></div></div>'+
         '<form id="profileForm" class="account-form compact">'+
