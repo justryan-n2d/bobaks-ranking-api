@@ -4,7 +4,8 @@ const API='/api';window.__BOBAKS_API__=API;
 const periods=[['live','Live'],['week','This Week'],['month','This Month'],['year','This Year']];
 const RANKING_PATHS={live:'/',week:'/rankings/weekly',month:'/rankings/monthly',year:'/rankings/yearly'};
 const COMMUNITY_META={title:'Bobaks Ranking Community | Discord, Feedback & Game Discovery',description:'Join the Bobaks Ranking community, share feedback, request features, report bugs, and discuss Roblox game discovery.'};
-const COMMUNITY_DISCORD_URL=window.__BOBAKS_COMMUNITY__?.discordInviteUrl||'';
+const DISCORD_INVITE_URL=window.__BOBAKS_COMMUNITY__?.discordInviteUrl||'';
+const COMMUNITY_DISCORD_URL=DISCORD_INVITE_URL;
 const RANKING_META={
   live:{title:'Live Roblox Game Rankings | Bobaks Ranking',description:'See the latest live Roblox experience rankings, player counts, and rank movement collected by Bobaks Ranking.'},
   week:{title:"This Week's Roblox Game Rankings | Bobaks Ranking",description:"See this week's Roblox experience rankings, player activity, and rank movement collected by Bobaks Ranking."},
@@ -65,11 +66,8 @@ function goCommunity({push=true}={}){
   if(push&&location.pathname!=='/community')history.pushState({view:'community'},'', '/community');
   state.view='community';state.selected=null;state.error='';setCommunityMeta();render();track('page_view',{route:'/community'});
 }
-function communityAction(title,copy,href,label,disabled=false){
-  const action=disabled
-    ? '<span class="btn community-disabled" aria-disabled="true">'+label+'</span>'
-    : '<a class="btn primary" href="'+esc(href)+'">'+label+'</a>';
-  return '<article class="community-card"><div class="community-icon" aria-hidden="true">'+title.slice(0,1)+'</div><div><h2>'+esc(title)+'</h2><p>'+esc(copy)+'</p></div>'+action+'</article>';
+function communityAction(title,copy,href,label){
+  return '<article class="community-card"><div class="community-icon" aria-hidden="true">'+title.slice(0,1)+'</div><div><h2>'+esc(title)+'</h2><p>'+esc(copy)+'</p></div><a class="btn primary" href="'+esc(href)+'">'+label+'</a></article>';
 }
 function communityPage(){
   const discordReady=!!COMMUNITY_DISCORD_URL;
