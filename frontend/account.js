@@ -107,10 +107,6 @@ function loadGuestSaved(){
     return Array.isArray(value)?[...new Set(value.map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25):[];
   }catch{return []}
 }
-function persistSaved(ids){
-  try{localStorage.setItem("bobaks.watchlist",JSON.stringify(ids))}catch{}
-}
-
 async function hydrate({migrateGuest=true,rerender=true}={}){
   let session=await client.getSession().catch(()=>null);
   if(!session){
