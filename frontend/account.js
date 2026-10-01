@@ -1,52 +1,302 @@
 import { createAuthClient } from "./account-core.mjs";
 
-const config = window.__BOBAKS_AUTH_CONFIG__ ?? {};
-const hasConfig = Boolean(
-  String(config.supabaseUrl ?? "").trim() &&
-  String(config.publishableKey ?? "").trim()
-);
+const config=window.__BOBAKS_AUTH_CONFIG__||{};
+const client=createAuthClient({
+  supabaseUrl:config.supabaseUrl,
+  publishableKey:config.publishableKey
+});
 
-let auth = null;
+const state={
+  status:"loading",
+  session:null,
+  user:null,
+  profile:null,
+  alerts:null,
+  error:"",
+  mode:"signin",
+  busy:false
+};
 
-if (hasConfig) {
-  try {
-    auth = createAuthClient({
-      supabaseUrl: config.supabaseUrl,
-      publishableKey: config.publishableKey
-    });
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=value=>Number(value||0).toLocaleString("en-US",{maximumFractionDigits:0});
+const app=()=>window.__BOBAKS_ACCOUNT_APP__||{};
+const getSaved=()=>Array.isArray(app().getSaved?.())?app().getSaved?.():[];
+const setSaved=ids=>app().setSaved?.([...new Set((ids||[]).map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25));
+const footer=()=>app().footer?.()||"";
+const icon=value=>app().icon?.(value)||"";
+const render=()=>app().render?.();
+const setAccountMeta=()=>app().setAccountMeta?.();
+const setAuthMeta=mode=>app().authMeta?.(mode);
+const setHomeMeta=()=>app().setPageMeta?.(null);
+const goHome=()=>app().goHome?.();
+const api=path=>window.__BOBAKS_API_REQUEST__?window.__BOBAKS_API_REQUEST__(path):fetch(path,{headers:{accept:"application/json"}}).then(async r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.json()});
 
-    auth.onAuthStateChange((event, session) => {
-      window.dispatchEvent(new CustomEvent("bobaks:auth-state", {
-        detail: {
-          event,
-          userId: session?.user?.id ?? null
-        }
-      }));
-    });
-  } catch (error) {
-    console.error("Bobaks authentication initialization failed:", error);
+function isSignedIn(){return state.status==="signed_in"&&!!state.user}
+function displayName(){
+  return String(state.profile?.display_name||state.user?.user_metadata?.display_name||state.user?.email||"Bobaks User").trim();
+}
+function initials(){
+  const name=displayName().replace(/[^a-zA-Z0-9 ]+/g," ").trim();
+  const parts=name.split(/\s+/).filter(Boolean);
+  return (parts.length>=2?parts[0][0]+parts.at(-1)[0]:name.slice(0,2)||"BR").toUpperCase();
+}
+function loadGuestSaved(){
+  try{
+    const value=JSON.parse(localStorage.getItem("bobaks.watchlist")||"[]");
+    return Array.isArray(value)?[...new Set(value.map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25):[];
+  }catch{return []}
+}
+function persistSaved(ids){
+  try{localStorage.setItem("bobaks.watchlist",JSON.stringify(ids))}catch{}
+}
+
+async function hydrate({migrateGuest=true,rerender=true}={}){
+  const session=await client.getSession().catch(()=>null);
+  if(!session){
+    state.status="signed_out";
+    state.session=state.user=state.profile=state.alerts=null;
+    state.error="";
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+    const guest=getSaved();
+    if(guest.length===0){const local=loadGuestSaved();if(local.length)setSaved(local)}
+    if(rerender)render();
+    return null;
+  }
+
+  state.status="signed_in";
+  state.session=session;
+  state.user=session.user;
+  state.busy=false;
+
+  if(migrateGuest){
+    const guest=getSaved();
+    if(guest.length)await Promise.allSettled(guest.map(id=>client.addWatchlistGame(id)));
+  }
+
+  const [profile,alerts,watchlist]=await Promise.all([
+    client.getProfile().catch(()=>null),
+    client.getAlertPreferences().catch(()=>null),
+    client.listWatchlist().catch(()=>[])
+  ]);
+  state.profile=profile;
+  state.alerts=alerts;
+  const ids=[...new Set((watchlist||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+  setSaved(ids);
+  persistSaved(ids);
+  window.__BOBAKS_ACCOUNT_ALERT_PREFS__=alerts||null;
+  if(rerender)render();
+  return session;
+}
+
+function renderAccountArea(){
+  const host=document.getElementById("accountArea");
+  if(!host)return;
+  if(state.status==="loading"){
+    host.innerHTML='<div class="account-loading"><span class="account-avatar">…</span><div><b>Account</b><small>Checking session…</small></div></div>';
+    return;
+  }
+  if(isSignedIn()){
+    host.innerHTML=
+      '<button class="account-card" id="accountOpen" type="button" aria-label="Open account settings">'+
+        '<span class="account-avatar">'+esc(initials())+'</span>'+
+        '<span class="account-copy"><b>'+esc(displayName())+'</b><small>'+esc(state.user.email||"Signed in")+'</small></span>'+
+        '<span class="account-chevron">›</span>'+
+      '</button>'+
+      '<button class="account-signout" id="accountSignout" type="button">Sign out</button>';
+    return;
+  }
+  host.innerHTML=
+    '<div class="account-card signed-out"><span class="account-avatar">?</span><span class="account-copy"><b>Guest mode</b><small>Optional account for sync</small></span></div>'+
+    '<button class="btn primary account-cta" id="accountSignIn" type="button">Sign in</button>'+
+    '<button class="btn account-cta" id="accountSignUp" type="button">Create account</button>';
+}
+
+function authPage(){
+  const signup=state.mode==="signup";
+  const error=state.error?'<div class="account-form-error" role="alert">'+esc(state.error)+'</div>':"";
+  return '<section class="account-page auth-page">'+
+    '<div class="account-hero"><div class="eyebrow">BOBAKS ACCOUNT</div>'+
+      '<h1>'+(signup?'Keep your Bobaks <em>in sync</em>':'Welcome back to <em>Bobaks</em>')+'</h1>'+
+      '<p>'+(signup?'Create an optional account to keep your watchlist, alerts, and profile across devices.':'Sign in to sync your watchlist and alert preferences across devices. You can keep using Bobaks as a guest.')+'</p>'+
+    '</div>'+
+    '<section class="account-form-card">'+
+      '<div class="account-switcher"><button class="'+(signup?"":"active")+'" data-auth-mode="signin" type="button">Sign in</button><button class="'+(signup?"active":"")+'" data-auth-mode="signup" type="button">Create account</button></div>'+
+      error+
+      '<form id="authForm" class="account-form" novalidate>'+
+        (signup?'<label>Display name <span>optional</span><input id="authDisplayName" name="displayName" maxlength="80" autocomplete="name" placeholder="How Bobaks should call you"></label>':"")+
+        '<label>Email<input id="authEmail" name="email" type="email" maxlength="254" autocomplete="email" required placeholder="you@example.com"></label>'+
+        '<label>Password<input id="authPassword" name="password" type="password" minlength="8" autocomplete="'+(signup?"new-password":"current-password")+'" required placeholder="At least 8 characters"></label>'+
+        '<button class="btn primary account-submit" id="authSubmit" type="submit">'+(signup?"Create account":"Sign in")+'</button>'+
+      '</form>'+
+      '<div class="account-form-note">'+(signup?"You may need to confirm your email before the first sign-in.":"No account yet? You can create one in seconds.")+'</div>'+
+      '<button class="btn account-guest" id="continueGuest" type="button">Continue as guest</button>'+
+    '</section>'+footer()+
+  '</section>';
+}
+
+async function accountPage(){
+  const defaults={alerts_enabled:true,top10_enabled:true,new_peak_enabled:true,rank_jump_enabled:true,rank_jump_threshold:5};
+  const alerts=state.alerts||defaults;
+  const profile=state.profile||{};
+  const ids=getSaved();
+  const cards=await Promise.all(ids.map(async id=>{
+    try{const response=await api("/api/games/"+encodeURIComponent(id));return response.data||{id,name:"Game #"+id}}catch{return {id,name:"Game #"+id}}
+  }));
+  const error=state.error?'<div class="account-form-error" role="alert">'+esc(state.error)+'</div>':"";
+  const email=esc(state.user?.email||"");
+  return '<section class="account-page">'+
+    '<div class="account-hero"><div class="eyebrow">YOUR ACCOUNT</div><div class="account-hero-row">'+
+      '<span class="account-avatar account-avatar-large">'+esc(initials())+'</span><div><h1>'+esc(displayName())+'<em>.</em></h1><p>'+email+' · Your Bobaks identity and saved data.</p></div>'+
+    '</div></div>'+
+    error+
+    '<div class="account-grid">'+
+      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">PROFILE</div><h2>Your profile</h2><p>Manage the small amount of profile data Bobaks stores.</p></div></div>'+
+        '<form id="profileForm" class="account-form compact">'+
+          '<label>Email<input value="'+email+'" disabled aria-disabled="true"></label>'+
+          '<label>Display name<input id="profileDisplayName" maxlength="80" value="'+esc(profile.display_name||"")+'" placeholder="Your Bobaks display name"></label>'+
+          '<label class="account-check"><input id="profilePublic" type="checkbox" '+(profile.is_public?"checked":"")+'> Allow your profile to be shown publicly later</label>'+
+          '<button class="btn primary" id="profileSubmit" type="submit">Save profile</button>'+
+        '</form>'+
+      '</section>'+
+      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ALERTS</div><h2>Persistent alerts</h2><p>These settings follow your account across devices. Alert checks still happen when you revisit Bobaks.</p></div></div>'+
+        '<form id="alertForm" class="alert-settings">'+
+          '<label class="setting-row"><span><b>Enable alerts</b><small>Master switch</small></span><input id="alertsEnabled" type="checkbox" '+(alerts.alerts_enabled?"checked":"")+'></label>'+
+          '<label class="setting-row"><span><b>Top 10</b><small>Saved game enters the Top 10</small></span><input id="top10Enabled" type="checkbox" '+(alerts.top10_enabled?"checked":"")+'></label>'+
+          '<label class="setting-row"><span><b>New peak</b><small>Saved game reaches a new recorded peak</small></span><input id="newPeakEnabled" type="checkbox" '+(alerts.new_peak_enabled?"checked":"")+'></label>'+
+          '<label class="setting-row"><span><b>Rank jump</b><small>Saved game jumps by the threshold below</small></span><input id="rankJumpEnabled" type="checkbox" '+(alerts.rank_jump_enabled?"checked":"")+'></label>'+
+          '<label>Jump threshold<input id="rankJumpThreshold" type="number" min="1" max="100" value="'+(Number(alerts.rank_jump_threshold)||5)+'"></label>'+
+          '<button class="btn primary" id="alertSubmit" type="submit">Save alert settings</button>'+
+        '</form>'+
+      '</section>'+
+    '</div>'+
+    '<section class="account-panel account-watchlist-panel"><div class="account-panel-head account-panel-head-row"><div><div class="eyebrow">WATCHLIST</div><h2>Saved games</h2><p>'+(ids.length?"Synced to your Bobaks account across devices.":"Save games from rankings and they will appear here.")+'</p></div><button class="btn" id="accountBrowse" type="button">Browse rankings</button></div>'+
+      '<div class="account-watchlist">'+(cards.length?cards.map(g=>'<article class="account-game"><button class="account-game-main" data-game="'+g.id+'">'+icon(g.iconUrl)+'<span><b>'+esc(g.name||("Game #"+g.id))+'</b><small>'+esc(g.creatorName||"Unknown creator")+'</small></span></button><button class="mini" data-save="'+g.id+'">Remove</button></article>').join(""):'<div class="empty account-empty">No saved games yet.</div>')+'</div>'+
+    '</section>'+
+    '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>Core rankings and search remain available without an account.</p></div><button class="btn" id="accountSignOut" type="button">Sign out</button></section>'+
+    footer()+
+  '</section>';
+}
+
+function goAuth(mode="signin",{push=true}={}){
+  state.mode=mode==="signup"?"signup":"signin";
+  state.error="";
+  if(push&&location.pathname!=="/account")history.pushState({view:"auth"},"","/account");
+  setAuthMeta(state.mode);
+  render();
+}
+function goAccount({push=true}={}){
+  if(!isSignedIn()){goAuth("signin",{push});return}
+  state.error="";
+  if(push&&location.pathname!=="/account")history.pushState({view:"account"},"","/account");
+  setAccountMeta();
+  render();
+}
+async function submitAuth(){
+  const form=document.getElementById("authForm");
+  if(!form||state.busy)return;
+  const data=new FormData(form);
+  state.busy=true;
+  state.error="";
+  render();
+  try{
+    const result=state.mode==="signup"
+      ?await client.signUp({email:String(data.get("email")||"").trim(),password:String(data.get("password")||""),displayName:String(data.get("displayName")||"").trim()})
+      :await client.signIn({email:String(data.get("email")||"").trim(),password:String(data.get("password")||"")});
+    if(result.session){
+      await hydrate({migrateGuest:true,rerender:false});
+      state.error="";
+      if(isSignedIn()){setAccountMeta()}
+    }else{
+      state.error="Account created. Check your email to confirm the account, then sign in.";
+    }
+    if(result.session)history.replaceState({view:"account"},"","/account");
+  }catch(error){
+    state.error=String(error?.message||"Authentication failed. Please try again.");
+  }finally{
+    state.busy=false;
+    render();
   }
 }
 
-window.__BOBAKS_AUTH__ = auth;
+async function submitProfile(){
+  if(!isSignedIn()||state.busy)return;
+  state.busy=true;
+  try{
+    state.profile=await client.updateProfile({
+      display_name:String(document.getElementById("profileDisplayName")?.value||"").trim()||null,
+      is_public:Boolean(document.getElementById("profilePublic")?.checked)
+    });
+    state.error="";
+  }catch(error){state.error=String(error?.message||"Could not save your profile.")}
+  finally{state.busy=false;render()}
+}
+async function submitAlerts(){
+  if(!isSignedIn()||state.busy)return;
+  state.busy=true;
+  try{
+    state.alerts=await client.updateAlertPreferences({
+      alerts_enabled:Boolean(document.getElementById("alertsEnabled")?.checked),
+      top10_enabled:Boolean(document.getElementById("top10Enabled")?.checked),
+      new_peak_enabled:Boolean(document.getElementById("newPeakEnabled")?.checked),
+      rank_jump_enabled:Boolean(document.getElementById("rankJumpEnabled")?.checked),
+      rank_jump_threshold:Number(document.getElementById("rankJumpThreshold")?.value||5)
+    });
+    state.error="";
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=state.alerts||null;
+  }catch(error){state.error=String(error?.message||"Could not save alert settings.")}
+  finally{state.busy=false;render()}
+}
+async function signOut(){
+  if(state.busy)return;
+  state.busy=true;
+  let error="";
+  try{await client.signOut()}catch(err){error=String(err?.message||"Signed out locally.")}
+  state.status="signed_out";
+  state.session=state.user=state.profile=state.alerts=null;
+  state.error=error;
+  state.busy=false;
+  window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+  const local=getSaved();
+  if(local.length===0){const fallback=loadGuestSaved();if(fallback.length)setSaved(fallback)}
+  goHome();
+}
 
-const authReady = auth
-  ? auth.recoverSessionFromUrl().catch(error => {
-      console.error("Bobaks authentication callback failed:", error);
-      return null;
-    })
-  : Promise.resolve(null);
-
-window.__BOBAKS_AUTH_READY__ = authReady;
-
-authReady.finally(() => {
-  window.dispatchEvent(new CustomEvent("bobaks:auth-ready", {
-    detail: {
-      available: Boolean(auth)
-    }
-  }));
+client.onAuthStateChange((event,session)=>{
+  if(event==="SIGNED_OUT"){
+    state.status="signed_out";
+    state.session=state.user=state.profile=state.alerts=null;
+    state.error="";
+    window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
+    const fallback=loadGuestSaved();if(fallback.length)setSaved(fallback);
+    render();
+  }else if(event==="SIGNED_IN"||event==="SIGNED_UP"||event==="TOKEN_REFRESHED"){
+    hydrate({migrateGuest:event!=="TOKEN_REFRESHED",rerender:true}).catch(()=>{});
+  }
 });
 
-export function getBobaksAuth() {
-  return window.__BOBAKS_AUTH__ ?? null;
+window.__BOBAKS_ACCOUNT_UI__={
+  client:()=>client,
+  isSignedIn,
+  isBusy:()=>state.busy,
+  state,
+  hydrate,
+  renderAccountArea,
+  authPage,
+  accountPage,
+  goAuth,
+  goAccount,
+  submitAuth,
+  submitProfile,
+  submitAlerts,
+  signOut
+};
+
+const authReady=authReadyBootstrap();
+async function authReadyBootstrap(){
+  await hydrate({migrateGuest:true,rerender:false}).catch(()=>{
+    state.status="signed_out";
+  });
+  window.__BOBAKS_AUTH_READY_RESOLVED__=true;
+  renderAccountArea();
+  window.dispatchEvent(new CustomEvent("bobaks:account-ready",{detail:{available:true,signedIn:isSignedIn()}}));
 }
