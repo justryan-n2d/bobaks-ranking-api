@@ -372,6 +372,52 @@ export function createAuthClient({
     }
   }
 
+  async function recoverSessionFromUrl({
+    hash = globalThis.location?.hash ?? "",
+    replaceUrl = typeof globalThis.history?.replaceState === "function"
+      ? () => globalThis.history.replaceState(null, "", globalThis.location?.pathname + globalThis.location?.search)
+      : null
+  } = {}) {
+    const rawHash = String(hash ?? "").replace(/^#/, "");
+    if (!rawHash) return null;
+
+    const params = new URLSearchParams(rawHash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (!accessToken || !refreshToken) return null;
+
+    const sessionPayload = {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_in: Number(params.get("expires_in") ?? 0),
+      expires_at: Number(params.get("expires_at") ?? 0) || undefined,
+      token_type: params.get("token_type") ?? "bearer"
+    };
+
+    try {
+      const user = await authRequest("/auth/v1/user", {
+        accessToken
+      });
+
+      const session = writeSession({
+        ...sessionPayload,
+        user
+      });
+
+      if (!session) throw new Error("Authentication callback returned no usable session.");
+
+      emit("SIGNED_IN", session);
+      return session;
+    } finally {
+      try {
+        if (typeof replaceUrl === "function") replaceUrl();
+      } catch {
+        // Session cleanup must not turn a successful callback into a failure.
+      }
+    }
+  }
+
   async function resetPasswordForEmail(email, redirectTo) {
     const body = { email: normalizeEmail(email) };
     if (redirectTo) body.redirect_to = String(redirectTo);
@@ -590,6 +636,7 @@ export function createAuthClient({
     refreshSession,
     getSession,
     getUser,
+    recoverSessionFromUrl,
     resetPasswordForEmail,
     authenticatedFetch,
     getProfile,
