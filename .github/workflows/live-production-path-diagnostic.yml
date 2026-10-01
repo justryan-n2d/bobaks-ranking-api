@@ -1,0 +1,46 @@
+name: Live Production Path Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/live-production-path-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe same-origin frontend API
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FRONTEND="https://bobaks-ranking-api.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+
+          echo "=== FRONTEND /api/rankings?period=live ==="
+          curl -fsS --max-time 30 -D /tmp/frontend.headers "$FRONTEND/api/rankings?period=live" -o /tmp/frontend.json
+          cat /tmp/frontend.headers
+          jq -e '.period == "live" and (.data | length > 0) and (.data[0].gameId != null)' /tmp/frontend.json >/dev/null
+          jq '{period, rows:(.data|length), updatedAt, first:(.data[0] // null)}' /tmp/frontend.json
+
+          echo "=== DIRECT API /api/rankings?period=live ==="
+          curl -fsS --max-time 30 -D /tmp/api.headers "$API/api/rankings?period=live" -o /tmp/api.json
+          cat /tmp/api.headers
+          jq -e '.period == "live" and (.data | length > 0)' /tmp/api.json >/dev/null
+          jq '{period, rows:(.data|length), updatedAt, first:(.data[0] // null)}' /tmp/api.json
+
+          echo "=== FRONTEND SCRIPT ==="
+          curl -fsS --max-time 30 "$FRONTEND/" -o /tmp/index.html
+          app_path=$(sed -n 's|.*<script src="\([^"]*app\.js[^"]*\)"></script>.*|\1|p' /tmp/index.html | head -n 1)
+          test -n "$app_path"
+          echo "app_path=$app_path"
+          curl -fsS --max-time 30 "$FRONTEND$app_path" -o /tmp/app.js
+          grep -F "const API='/api'" /tmp/app.js
+          grep -F "function loadRankings" /tmp/app.js
+
+          echo "=== DIAGNOSTIC RESULT ==="
+          echo "Same-origin frontend API returned ranking rows successfully.";
