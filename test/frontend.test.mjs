@@ -489,3 +489,26 @@ test("frontend API helper avoids duplicating the /api prefix", () => {
   assert.ok(app.includes("const requestPath=key.startsWith(API+'/')?key.slice(API.length):key;"));
   assert.ok(app.includes("fetch(API+requestPath,{headers:{accept:'application/json'},cache:cache?'default':'no-store'})"));
 });
+
+
+test("Phase 6.7 account foundation loads a browser auth module", () => {
+  const html = readHtml();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
+
+  assert.match(html, /<script type="module" src="\/account\.js\?v=20261001-auth"><\/script>/);
+  assert.match(account, /createAuthClient/);
+  assert.match(account, /window\.__BOBAKS_AUTH__/);
+  assert.match(account, /bobaks:auth-ready/);
+  assert.match(core, /export const SESSION_STORAGE_KEY = "bobaks\.auth\.session\.v1"/);
+  assert.match(core, /auth\/v1\/signup/);
+  assert.match(core, /auth\/v1\/token\?grant_type=password/);
+  assert.match(core, /rest\/v1/);
+});
+
+test("Cloudflare frontend exposes only public Supabase auth configuration", () => {
+  const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
+  assert.match(config, /"SUPABASE_URL"\s*:/);
+  assert.match(config, /"SUPABASE_PUBLISHABLE_KEY"\s*:\s*"sb_publishable_/);
+  assert.doesNotMatch(config, /"SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY|SECRET_KEYS?)"/);
+});
