@@ -767,6 +767,10 @@ export async function handleFrontendRequest(
     return apiFetch(env, url.pathname + url.search, fetchImpl);
   }
 
+  if (url.pathname === "/" || url.pathname === "/saved" || url.pathname === "/compare" || url.pathname === "/account") {
+    return assetShell(env, request);
+  }
+
   if (url.pathname === "/robots.txt") {
     return new Response(
       "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nSitemap: " + url.origin + "/sitemap.xml\n",
