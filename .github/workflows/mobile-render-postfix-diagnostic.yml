@@ -1,0 +1,72 @@
+name: Mobile Render Postfix Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mobile-render-postfix-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install chromium
+      - name: Render production homepage in mobile Chromium
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({
+            viewport: { width: 393, height: 873 },
+            deviceScaleFactor: 2,
+            isMobile: true,
+            hasTouch: true,
+            userAgent: 'Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36'
+          });
+
+          page.on('console', msg => console.log('[console]', msg.type(), msg.text()));
+          page.on('pageerror', error => console.log('[pageerror]', error.message));
+          page.on('requestfailed', request => console.log('[requestfailed]', request.url(), request.failure()?.errorText ?? 'unknown'));
+
+          const responses = [];
+          page.on('response', response => {
+            const url = response.url();
+            if (url.includes('/api/rankings?period=live') || url.includes('/api/api/rankings?period=live') || url.includes('/app.js')) {
+              responses.push({ url, status: response.status(), contentType: response.headers()['content-type'] ?? '' });
+            }
+          });
+
+          await page.goto('https://bobaks-ranking-api.ryan-oledan0.workers.dev/', { waitUntil: 'networkidle', timeout: 30000 });
+          await page.waitForTimeout(5000);
+
+          const result = await page.evaluate(() => ({
+            rows: document.querySelectorAll('.rows .row').length,
+            error: document.querySelector('.banner.error')?.textContent ?? '',
+            coverage: document.querySelector('.data-list li')?.textContent ?? '',
+            updated: document.querySelector('.hero-status strong')?.textContent ?? '',
+            snapshotRows: window.__BOBAKS_RANKING_SNAPSHOT__?.data?.length ?? 0
+          }));
+
+          console.log('[responses]', JSON.stringify(responses));
+          console.log('[result]', JSON.stringify(result));
+
+          if (result.rows < 1 || result.snapshotRows < 1 || result.error) {
+            throw new Error('Production mobile browser did not render live ranking rows');
+          }
+          if (responses.some(r => r.url.includes('/api/api/rankings?period=live'))) {
+            throw new Error('Frontend still generated duplicated /api/api ranking URL');
+          }
+
+          await browser.close();
+          NODE
