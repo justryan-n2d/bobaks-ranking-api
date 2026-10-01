@@ -110,10 +110,17 @@ function persistSaved(ids){
 }
 
 async function hydrate({migrateGuest=true,rerender=true}={}){
-  const session=await client.getSession().catch(()=>null);
+  let session=await client.getSession().catch(()=>null);
+  if(!session){
+    session=await client.recoverSessionFromUrl({replaceUrl:()=>{
+      try{history.replaceState(null,"",location.pathname+location.search)}catch{}
+    }}).catch(()=>null);
+  }
   if(!session){
     state.status="signed_out";
     state.session=state.user=state.profile=state.alerts=null;
+    state.verification={emailConfirmed:null,lastCheckedAt:null};
+    state.robloxIdentity=null;
     state.error="";
     window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
     const guest=getSaved();
@@ -125,23 +132,27 @@ async function hydrate({migrateGuest=true,rerender=true}={}){
   state.status="signed_in";
   state.session=session;
   state.user=session.user;
+  state.verification={emailConfirmed:isEmailVerified(session.user),lastCheckedAt:new Date().toISOString()};
   state.busy=false;
 
-  if(migrateGuest){
-    const guest=getSaved();
-    if(guest.length)await Promise.allSettled(guest.map(id=>client.addWatchlistGame(id)));
-  }
+  let failed=[];
+  const guestBeforeMigration=migrateGuest?getSaved():[];
+  if(migrateGuest&&guestBeforeMigration.length)failed=await migrateGuestGames(guestBeforeMigration);
 
-  const [profile,alerts,watchlist]=await Promise.all([
+  const [profile,alerts,watchlist,robloxIdentity]=await Promise.all([
     client.getProfile().catch(()=>null),
     client.getAlertPreferences().catch(()=>null),
-    client.listWatchlist().catch(()=>[])
+    client.listWatchlist().catch(()=>[]),
+    client.getRobloxIdentity().catch(()=>null)
   ]);
   state.profile=profile;
   state.alerts=alerts;
-  const ids=[...new Set((watchlist||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+  state.robloxIdentity=robloxIdentity;
+  const remoteIds=[...new Set((watchlist||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
+  const ids=[...new Set([...remoteIds,...failed])].slice(0,25);
   setSaved(ids);
   persistSaved(ids);
+  if(!migrateGuest&&!state.migration.failed.length)state.migration={status:"idle",sourceCount:0,syncedCount:0,failed:[]};
   window.__BOBAKS_ACCOUNT_ALERT_PREFS__=alerts||null;
   if(rerender)render();
   return session;
