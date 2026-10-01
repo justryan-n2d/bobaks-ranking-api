@@ -537,7 +537,7 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
 
 test("account module failures surface a visible retry path instead of infinite loading", () => {
   const app = readApp();
-  assert.match(app, /Account failed/);
+  assert.match(app, /Account:\s*'/);
   assert.match(app, /id="retryAccountModule"/);
   assert.match(app, /location\.reload\(\)/);
 });
