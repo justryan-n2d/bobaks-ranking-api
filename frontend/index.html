@@ -1117,13 +1117,155 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
   .moving-info b{font-size:13px}
   .row{grid-template-columns:34px minmax(0,1fr) 105px;min-height:116px;padding:14px 11px}
 }
+ 
+/* Phase 6.7 account + navigation UX */
+.top{
+  position:fixed;
+  inset:0 auto 0 0;
+  width:252px;
+  height:100dvh;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:16px;
+  padding:20px 16px;
+  overflow-y:auto;
+  border-right:1px solid rgba(255,255,255,.10);
+  border-bottom:0;
+  box-shadow:14px 0 42px rgba(0,0,0,.20);
+  transition:transform .22s ease;
+}
+.sidebar-brand-row{display:flex;align-items:center;gap:8px}
+.sidebar-brand-row .brand{flex:1;text-align:left}
+.sidebar-close{display:none;width:34px;height:34px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.06);color:#DDE8F5;font-size:18px}
+.nav{display:grid;gap:7px;align-items:stretch}
+.nav button,.nav .nav-link{width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 12px}
+.nav button span,.nav .nav-link span{display:inline}
+.nav button,.nav .nav-link{transform:none}
+.nav button:hover,.nav .nav-link:hover{transform:translateX(2px)}
+.account-area{display:grid;gap:8px}
+.account-card{
+  width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;
+  padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.055);color:var(--text);text-align:left;
+}
+.account-card:hover{border-color:var(--line-strong);background:rgba(255,255,255,.075)}
+.account-card.signed-out{cursor:default}
+.account-avatar{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface-3);border:1px solid var(--line-strong);color:#A8DFFF;font-size:11px;font-weight:900;flex:none}
+.account-avatar-large{width:62px;height:62px;border-radius:17px;font-size:18px}
+.account-copy{min-width:0;display:grid;gap:3px}
+.account-copy b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-copy small{color:var(--muted);font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-chevron{color:var(--muted);font-size:20px;line-height:1}
+.account-signout{border:0;background:transparent;color:var(--muted);font-size:9px;font-weight:700;text-align:left;padding:0 4px}
+.account-signout:hover{color:#fff}
+.account-cta{width:100%;min-height:38px}
+.account-loading{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding:4px}
+.account-loading div{display:grid;gap:2px}
+.account-loading b{font-size:11px}
+.account-loading small{font-size:8px;color:var(--muted)}
+.sidebar-spacer{flex:1}
+.sidebar-note{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);color:var(--muted);font-size:8px;line-height:1.55}
+.mobile-topbar{display:none}
+body{padding-left:252px}
+.wrap{width:min(1320px,calc(100% - 32px));margin:0 auto;padding:32px 0 50px}
+.account-page{max-width:1050px;margin:0 auto}
+.account-hero{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.09);background:var(--brand);border-radius:20px;padding:28px 30px;margin-bottom:18px;box-shadow:0 22px 60px rgba(0,0,0,.24)}
+.account-hero:after{content:"";position:absolute;width:320px;height:320px;right:-100px;top:-140px;border-radius:50%;background:radial-gradient(circle,rgba(1,158,251,.23),transparent 70%);pointer-events:none}
+.account-hero h1{position:relative;z-index:1;margin:8px 0 8px;font-family:Manrope,Inter,sans-serif;font-size:clamp(34px,5vw,58px);letter-spacing:-.05em;line-height:1}
+.account-hero p{position:relative;z-index:1;margin:0;color:#C4D6EA;font-size:12px;line-height:1.6;max-width:680px}
+.account-hero-row{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
+.account-hero-row h1{margin:0}
+.account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.account-panel{border:1px solid var(--line);border-radius:17px;background:var(--surface);padding:19px;min-width:0}
+.account-panel-head{margin-bottom:14px}
+.account-panel-head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.account-panel h2{margin:4px 0 4px;font-family:Manrope,Inter,sans-serif;font-size:18px}
+.account-panel p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}
+.account-form{display:grid;gap:13px}
+.account-form label{display:grid;gap:6px;color:#CFE0F2;font-size:9px;font-weight:700}
+.account-form label>span{color:var(--muted-2);font-weight:600}
+.account-form input{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);padding:11px 12px;font-size:11px;outline:none}
+.account-form input:focus{border-color:var(--line-strong);box-shadow:0 0 0 3px rgba(1,158,251,.08)}
+.account-form input:disabled{opacity:.58;cursor:not-allowed}
+.account-form.compact{gap:12px}
+.account-submit{min-height:42px}
+.account-switcher{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);margin-bottom:14px}
+.account-switcher button{border:0;border-radius:8px;padding:9px;background:transparent;color:var(--muted);font-size:10px;font-weight:800}
+.account-switcher button.active{background:var(--accent);color:#fff}
+.account-form-card{width:min(460px,100%);margin:0 auto;padding:20px;border:1px solid var(--line);border-radius:17px;background:var(--surface);box-shadow:0 18px 55px rgba(0,0,0,.18)}
+.account-form-error{margin-bottom:12px;padding:10px 12px;border:1px solid rgba(255,117,134,.25);border-radius:10px;background:rgba(255,117,134,.07);color:#FFACB7;font-size:10px;line-height:1.5}
+.account-form-note{margin-top:12px;color:var(--muted-2);font-size:9px;line-height:1.55;text-align:center}
+.account-link{display:block;width:max-content;margin:10px auto 0;border:0;background:transparent;color:#A8DFFF;font-size:9px;font-weight:800}
+.account-guest{width:100%;margin-top:12px}
+.alert-settings{display:grid;gap:7px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.setting-row span{display:grid;gap:3px;min-width:0}
+.setting-row b{font-size:10px}
+.setting-row small{color:var(--muted);font-size:8px;line-height:1.45}
+.setting-row input,.account-check input{accent-color:var(--accent)}
+.alert-settings>label:last-of-type{display:grid;gap:6px;margin-top:4px;color:#CFE0F2;font-size:9px;font-weight:700}
+.alert-settings input[type=number]{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);padding:10px 11px;font-size:11px}
+.account-check{grid-template-columns:auto 1fr!important;align-items:start;gap:8px!important;color:var(--muted)!important;line-height:1.5}
+.account-watchlist-panel{margin-bottom:14px}
+.account-watchlist{display:grid;gap:8px}
+.account-game{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.account-game-main{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;border:0;background:transparent;color:var(--text);text-align:left;min-width:0}
+.account-game-main .cover,.account-game-main img{width:48px;height:48px;border-radius:11px}
+.account-game-main span:last-child{display:grid;gap:4px;min-width:0}
+.account-game-main b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-game-main small{color:var(--muted);font-size:8px}
+.account-empty{padding:28px 12px}
+.account-security{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+@media(max-width:900px){
+  body{padding-left:0}
+  .top{width:min(285px,88vw);transform:translateX(-105%);z-index:60;padding-top:16px}
+  body.sidebar-open .top{transform:translateX(0)}
+  .sidebar-close{display:block}
+  body.sidebar-open::after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:50}
+  .mobile-topbar{position:sticky;top:0;z-index:40;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--brand);border-bottom:1px solid rgba(255,255,255,.12);box-shadow:0 12px 36px rgba(0,0,0,.18)}
+  .mobile-menu{width:38px;height:38px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:18px}
+  .mobile-brand{border:0;background:transparent;color:#fff;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800}
+  .mobile-brand .mark{width:34px;height:34px;border-radius:10px}
+  .wrap{width:min(100% - 20px,1320px);padding-top:22px}
+}
+@media(max-width:680px){
+  .account-grid{grid-template-columns:1fr}
+  .account-hero{padding:22px 18px;border-radius:16px}
+  .account-hero-row{align-items:flex-start}
+  .account-avatar-large{width:52px;height:52px}
+  .account-panel{padding:16px}
+  .account-panel-head-row{flex-direction:column}
+  .account-panel-head-row .btn{width:100%}
+}
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="/analytics-client.js"></script>
 <script type="module" src="/account.js?v=20261001-auth"></script>
 </head>
 <body>
-<header class="top"><button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button><nav class="nav"><button id="rankNav" class="active">Rankings</button><button id="savedNav">Saved <span id="savedCount"></span></button><button id="compareNav" hidden>Compare</button><a id="communityNav" class="nav-link" href="/community">Community</a><button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ Dark</button></nav></header>
+<header class="top" id="siteSidebar" aria-label="Bobaks main navigation">
+  <div class="sidebar-brand-row">
+    <button class="brand" id="homeBtn"><img class="mark" src="/assets/bobaks-logo.png" alt=""> <span>Bobaks <span class="brand-accent">Ranking</span></span></button>
+    <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close navigation">×</button>
+  </div>
+  <div id="accountArea" class="account-area"></div>
+  <nav class="nav">
+    <button id="rankNav" class="active">⌂ <span>Rankings</span></button>
+    <button id="savedNav">♡ <span>Saved</span> <span id="savedCount"></span></button>
+    <button id="compareNav" hidden>⇄ <span>Compare</span></button>
+    <a id="communityNav" class="nav-link" href="/community">◎ <span>Community</span></a>
+    <button id="themeNav" aria-label="Switch theme" title="Switch theme">☾ <span>Dark</span></button>
+  </nav>
+  <div class="sidebar-spacer"></div>
+  <div class="sidebar-note">Live rankings and historical trends for Roblox experiences.</div>
+</header>
+<header class="mobile-topbar">
+  <button class="mobile-menu" id="mobileMenu" type="button" aria-label="Open navigation">☰</button>
+  <button class="mobile-brand" id="mobileAccount" type="button"><img class="mark" src="/assets/bobaks-logo.png" alt=""><span>Bobaks Ranking</span></button>
+</header>
 <main id="app" class="wrap"></main>
 <script src="/app.js?v=20261001-2"></script>
 </body>
