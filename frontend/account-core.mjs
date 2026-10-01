@@ -342,6 +342,7 @@ export function createAuthClient({
       const payload = await authRequest("/auth/v1/user", {
         accessToken: session.access_token
       });
+      writeSession({ ...session, user: payload });
       return payload;
     } catch (error) {
       if (error?.status !== 401 || !session.refresh_token) throw error;
@@ -352,6 +353,7 @@ export function createAuthClient({
       const payload = await authRequest("/auth/v1/user", {
         accessToken: session.access_token
       });
+      writeSession({ ...session, user: payload });
       return payload;
     }
   }
