@@ -539,6 +539,19 @@ test("account SPA routes receive the browser-safe Supabase auth configuration", 
   assert.match(result.headers.get("cache-control") || "", /no-store/);
 });
 
+test("account SPA routes keep a usable public Supabase config when preview env vars are missing", async () => {
+  const env = makeEnv([]);
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/account"),
+    env
+  );
+  const html = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.ok(html.includes('"supabaseUrl":"https://zhrfozouzvxhpkylmpwh.supabase.co"'));
+  assert.ok(html.includes('"publishableKey":"sb_publishable_m5sYdsVZpWMOVRxyMSwblw_dIesP93F"'));
+});
+
 test("homepage shell is not stored in browser cache", async () => {
   const env = makeEnv([]);
   const result = await handleFrontendRequest(
