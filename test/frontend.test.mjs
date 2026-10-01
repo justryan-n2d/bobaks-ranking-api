@@ -543,9 +543,10 @@ test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area,
 
 test("guest and account watchlist states are explicitly separated", () => {
   const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
   assert.match(app, /Saved only on this device\. Sign in to sync across devices/);
-  assert.match(app, /Synced to your Bobaks account across devices/);
-  assert.match(app, /migrateGuest/);
+  assert.match(account, /Synced to your Bobaks account across devices/);
+  assert.match(account, /migrateGuest/);
 });
 
 test("account alert settings feed the existing return-loop alert checks", () => {
