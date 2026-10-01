@@ -133,12 +133,13 @@ function apiCacheTtl(path){
 async function api(path,{cache=true}={}){
   if(!API)return Promise.reject(new Error('API origin unavailable'));
   const key=String(path);
+  const requestPath=key.startsWith(API+'/')?key.slice(API.length):key;
   const now=Date.now();
   if(cache){
     const hit=API_CACHE.get(key);
     if(hit&&hit.expiresAt>now)return hit.promise;
   }
-  const promise=fetch(API+key,{headers:{accept:'application/json'},cache:cache?'default':'no-store'}).then(async r=>{
+  const promise=fetch(API+requestPath,{headers:{accept:'application/json'},cache:cache?'default':'no-store'}).then(async r=>{
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();
   }).catch(error=>{
