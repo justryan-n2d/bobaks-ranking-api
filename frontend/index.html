@@ -1160,8 +1160,9 @@ html[data-theme="light"] .new.movement-badge{background:rgba(150,116,220,.10)}
 .account-copy b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .account-copy small{color:var(--muted);font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .account-chevron{color:var(--muted);font-size:20px;line-height:1}
-.account-signout{border:0;background:transparent;color:var(--muted);font-size:9px;font-weight:700;text-align:left;padding:0 4px}
-.account-signout:hover{color:#fff}
+.account-signout{width:100%;min-height:34px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.045);color:var(--text);font-size:10px;font-weight:800;text-align:center;padding:7px 10px;cursor:pointer;transition:background .18s ease,border-color .18s ease}
+.account-signout:hover{border-color:var(--line-strong);background:rgba(255,255,255,.075)}
+.account-signout:disabled{opacity:.55;cursor:default}
 .account-cta{width:100%;min-height:38px}
 .account-loading{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding:4px}
 .account-loading-screen{min-height:52vh;display:grid;place-items:center;text-align:center;gap:12px;padding:36px 16px}
