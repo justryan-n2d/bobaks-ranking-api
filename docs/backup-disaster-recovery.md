@@ -85,7 +85,7 @@ The repository includes `scripts/restore-backup.sh`.
 Use it only with a disposable or dedicated recovery database:
 
 ```bash
-export BOBAKS_B2_ENDPOINT='https://s3.<region>.backblazeb2.com'
+export BOBAKS_B2_REGION='<region>'
 export BOBAKS_B2_BUCKET='bobaks-ranking-archive-ryan01'
 export BOBAKS_B2_ACCESS_KEY_ID='...'
 export BOBAKS_B2_SECRET_ACCESS_KEY='...'
