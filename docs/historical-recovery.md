@@ -85,4 +85,4 @@ The drill leaves no synthetic rows behind when it succeeds.
 
 The independent database backup and restore workflow is documented in backup-disaster-recovery.md.
 
-The actual R2 archive and isolated restore drill remain pending while external backup storage activation is paused.
+The B2 account, private archive bucket, and bucket-restricted application key are provisioned. GitHub Secret configuration and a live B2 backup plus isolated restore drill remain pending.
