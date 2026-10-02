@@ -39,7 +39,7 @@ Do not place the B2 Application Key or any database credentials in source contro
 
 Add these repository secrets before activating the scheduled archive:
 
-- `SUPABASE_DB_URL`
+- `SUPABASE_DB_PASSWORD`
 - `BOBAKS_B2_ENDPOINT`
 - `BOBAKS_B2_BUCKET`
 - `BOBAKS_B2_ACCESS_KEY_ID`
@@ -56,6 +56,10 @@ Backblaze's S3-compatible endpoint has the form:
 `https://s3.<region>.backblazeb2.com`
 
 Use the region associated with the B2 bucket for both `BOBAKS_B2_REGION` and the endpoint hostname.
+
+The backup workflow connects to the Supabase Shared Pooler in Session mode using the exact host and project-specific user from the Supabase Connect dialog. The database password is supplied separately through `SUPABASE_DB_PASSWORD` via PostgreSQL's `PGPASSWORD` environment variable, rather than embedding the password in a connection URI. This avoids URI password-encoding errors while keeping the password out of source control.
+
+The repository currently targets `aws-0-ap-southeast-1.pooler.supabase.com:5432` for the Bobaks project. If Supabase changes the project's pooler host, update the workflow from the Connect dialog before the next backup run.
 
 Generate the separate backup-encryption key locally with:
 
