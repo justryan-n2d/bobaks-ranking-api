@@ -36,6 +36,7 @@ test("backup workflow uses password-based Postgres environment variables", () =>
   assert.match(workflow, /Normalize B2 endpoint/);
   assert.match(workflow, /https:\/\//);
   assert.match(workflow, /B2_ENDPOINT=/);
+  assert.match(workflow, /--endpoint-url "\$\{B2_ENDPOINT\}"/);
   assert.match(workflow, /psql .*select current_user, current_database/);
   assert.doesNotMatch(workflow, /--dbname="\$\{SUPABASE_DB_URL\}"/);
 });
