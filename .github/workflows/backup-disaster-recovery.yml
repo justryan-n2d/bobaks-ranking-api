@@ -108,6 +108,35 @@ jobs:
 
           echo "configured=true" >> "${GITHUB_OUTPUT}"
 
+      - name: Normalize B2 endpoint
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        env:
+          BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+
+          endpoint="${BOBAKS_B2_ENDPOINT%/}"
+
+          case "${endpoint}" in
+            https://*)
+              ;;
+            http://*)
+              echo "Backblaze B2 S3 endpoint must use HTTPS." >&2
+              exit 1
+              ;;
+            *)
+              endpoint="https://${endpoint}"
+              ;;
+          esac
+
+          if [[ "${endpoint}" != https://* ]]; then
+            echo "Invalid Backblaze B2 endpoint." >&2
+            exit 1
+          fi
+
+          printf 'B2_ENDPOINT=%s\n' "${endpoint}" >> "${GITHUB_ENV}"
+
       - name: Verify Supabase database connection
         if: steps.config.outputs.configured == 'true'
         shell: bash
