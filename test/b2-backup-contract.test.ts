@@ -32,6 +32,7 @@ test("backup workflow uses password-based Postgres environment variables", () =>
   assert.match(workflow, /Install PostgreSQL 17 client/);
   assert.match(workflow, /postgresql-client-17/);
   assert.match(workflow, /\/usr\/lib\/postgresql\/17\/bin/);
+  assert.match(workflow, /printf 'y\\n' \| sudo \/usr\/share\/postgresql-common\/pgdg\/apt\.postgresql\.org\.sh/);
   assert.match(workflow, /psql .*select current_user, current_database/);
   assert.doesNotMatch(workflow, /--dbname="\$\{SUPABASE_DB_URL\}"/);
 });
