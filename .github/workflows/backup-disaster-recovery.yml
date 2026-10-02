@@ -29,14 +29,21 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 17 client
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v pg_dump >/dev/null 2>&1 || ! command -v pg_restore >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          if [[ ! -x /usr/lib/postgresql/17/bin/pg_dump ]]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
             sudo apt-get update
-            sudo apt-get install -y postgresql-client
+            sudo apt-get install -y postgresql-client-17
           fi
+          export PATH="/usr/lib/postgresql/17/bin:${PATH}"
+          pg_dump --version
+          pg_restore --version
+          psql --version
 
       - name: Install AWS CLI
         shell: bash
