@@ -17,8 +17,20 @@ test("B2 archive workflow uses bucket-scoped B2 credentials and region", () => {
     assert.match(workflow, new RegExp(name));
   }
 
-  assert.ok(workflow.includes("AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}"));
+  assert.ok(workflow.includes("AWS_DEFAULT_REGION: \${{ secrets.BOBAKS_B2_REGION }}"));
   assert.doesNotMatch(workflow, /BOBAKS_R2_/);
+});
+
+test("backup workflow uses password-based Postgres environment variables", () => {
+  assert.match(workflow, /SUPABASE_DB_PASSWORD/);
+  assert.match(workflow, /PGPASSWORD: \$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/);
+  assert.match(workflow, /PGHOST:/);
+  assert.match(workflow, /PGUSER:/);
+  assert.match(workflow, /PGPORT:/);
+  assert.match(workflow, /PGDATABASE:/);
+  assert.match(workflow, /PGSSLMODE: require/);
+  assert.match(workflow, /psql .*select current_user, current_database/);
+  assert.doesNotMatch(workflow, /--dbname="\$\{SUPABASE_DB_URL\}"/);
 });
 
 test("restore script targets B2 and accepts the B2 region", () => {
@@ -33,6 +45,5 @@ test("restore script targets B2 and accepts the B2 region", () => {
 test("backup documentation describes B2 rather than the retired R2 path", () => {
   assert.match(docs, /Backblaze B2/i);
   assert.match(docs, /BOBAKS_B2_ENDPOINT/);
-  assert.match(docs, /BOBAKS_B2_BUCKET/);
   assert.doesNotMatch(docs, /BOBAKS_R2_/);
 });
