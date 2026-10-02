@@ -255,12 +255,12 @@ jobs:
           MANIFEST_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
 
           aws s3 cp "${ENCRYPTED}" "s3://${BOBAKS_B2_BUCKET}/${DAILY_KEY}" \
-            --endpoint-url "${BOBAKS_B2_ENDPOINT}" \
+            --endpoint-url "${B2_ENDPOINT}" \
             --content-type "application/octet-stream" \
             --no-progress
 
           aws s3 cp manifest.json "s3://${BOBAKS_B2_BUCKET}/${MANIFEST_KEY}" \
-            --endpoint-url "${BOBAKS_B2_ENDPOINT}" \
+            --endpoint-url "${B2_ENDPOINT}" \
             --content-type "application/json" \
             --no-progress
 
@@ -269,12 +269,12 @@ jobs:
             WEEKLY_MANIFEST_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
 
             aws s3 cp "${ENCRYPTED}" "s3://${BOBAKS_B2_BUCKET}/${WEEKLY_KEY}" \
-              --endpoint-url "${BOBAKS_B2_ENDPOINT}" \
+              --endpoint-url "${B2_ENDPOINT}" \
               --content-type "application/octet-stream" \
               --no-progress
 
             aws s3 cp manifest.json "s3://${BOBAKS_B2_BUCKET}/${WEEKLY_MANIFEST_KEY}" \
-              --endpoint-url "${BOBAKS_B2_ENDPOINT}" \
+              --endpoint-url "${B2_ENDPOINT}" \
               --content-type "application/json" \
               --no-progress
 
@@ -305,10 +305,10 @@ jobs:
           aws s3api head-object \
             --bucket "${BOBAKS_B2_BUCKET}" \
             --key "${DAILY_KEY}" \
-            --endpoint-url "${BOBAKS_B2_ENDPOINT}" >/dev/null
+            --endpoint-url "${B2_ENDPOINT}" >/dev/null
 
           aws s3 cp "s3://${BOBAKS_B2_BUCKET}/${DAILY_KEY}" remote-backup.enc \
-            --endpoint-url "${BOBAKS_B2_ENDPOINT}" \
+            --endpoint-url "${B2_ENDPOINT}" \
             --no-progress
 
           ACTUAL_SHA="$(sha256sum remote-backup.enc | awk '{print $1}')"
