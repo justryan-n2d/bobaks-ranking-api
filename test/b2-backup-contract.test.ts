@@ -53,6 +53,7 @@ test("restore script targets B2 and accepts the B2 region", () => {
 
 test("backup documentation describes B2 rather than the retired R2 path", () => {
   assert.match(docs, /Backblaze B2/i);
-  assert.match(docs, /BOBAKS_B2_ENDPOINT/);
+  assert.match(docs, /BOBAKS_B2_REGION/);
+  assert.doesNotMatch(docs, /BOBAKS_B2_ENDPOINT.*secret/i);
   assert.doesNotMatch(docs, /BOBAKS_R2_/);
 });
