@@ -59,7 +59,6 @@ jobs:
         shell: bash
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
           BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
           BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
           BOBAKS_B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
@@ -69,7 +68,6 @@ jobs:
 
           values=(
             "${SUPABASE_DB_PASSWORD}"
-            "${BOBAKS_B2_ENDPOINT}"
             "${BOBAKS_B2_BUCKET}"
             "${BOBAKS_B2_ACCESS_KEY_ID}"
             "${BOBAKS_B2_SECRET_ACCESS_KEY}"
@@ -99,7 +97,6 @@ jobs:
           if [[ "${missing}" -ne 0 ]]; then
             echo "Backup configuration is incomplete." >&2
             test -n "${SUPABASE_DB_PASSWORD}" || { echo "Missing GitHub secret: SUPABASE_DB_PASSWORD" >&2; exit 1; }
-            test -n "${BOBAKS_B2_ENDPOINT}" || { echo "Missing GitHub secret: BOBAKS_B2_ENDPOINT" >&2; exit 1; }
             test -n "${BOBAKS_B2_BUCKET}" || { echo "Missing GitHub secret: BOBAKS_B2_BUCKET" >&2; exit 1; }
             test -n "${BOBAKS_B2_ACCESS_KEY_ID}" || { echo "Missing GitHub secret: BOBAKS_B2_ACCESS_KEY_ID" >&2; exit 1; }
             test -n "${BOBAKS_B2_SECRET_ACCESS_KEY}" || { echo "Missing GitHub secret: BOBAKS_B2_SECRET_ACCESS_KEY" >&2; exit 1; }
@@ -108,35 +105,32 @@ jobs:
 
           echo "configured=true" >> "${GITHUB_OUTPUT}"
 
-      - name: Normalize B2 endpoint
+      - name: Build B2 endpoint from region
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
+          BOBAKS_B2_REGION: ${{ secrets.BOBAKS_B2_REGION }}
         run: |
           set -euo pipefail
 
-          endpoint="${BOBAKS_B2_ENDPOINT%/}"
+          region="${BOBAKS_B2_REGION}"
 
-          case "${endpoint}" in
-            https://*)
-              ;;
-            http://*)
-              echo "Backblaze B2 S3 endpoint must use HTTPS." >&2
-              exit 1
-              ;;
-            *)
-              endpoint="https://${endpoint}"
-              ;;
-          esac
-
-          if [[ "${endpoint}" != https://* ]]; then
-            echo "Invalid Backblaze B2 endpoint." >&2
+          if [[ ! "${region}" =~ ^[a-z0-9-]+$ ]]; then
+            echo "Invalid Backblaze B2 region format." >&2
             exit 1
           fi
 
+          endpoint="https://s3.${region}.backblazeb2.com"
           printf 'B2_ENDPOINT=%s\n' "${endpoint}" >> "${GITHUB_ENV}"
 
+      - name: Verify B2 endpoint connectivity
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          status="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 20 "${B2_ENDPOINT}")"
+          echo "Backblaze B2 endpoint responded with HTTP status ${status}."
       - name: Verify Supabase database connection
         if: steps.config.outputs.configured == 'true'
         shell: bash
@@ -239,8 +233,7 @@ jobs:
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
-          BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+                    BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
         run: |
@@ -287,8 +280,7 @@ jobs:
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
-          BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+                    BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
