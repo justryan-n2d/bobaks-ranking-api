@@ -131,6 +131,7 @@ jobs:
 
           status="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 20 "${B2_ENDPOINT}")"
           echo "Backblaze B2 endpoint responded with HTTP status ${status}."
+
       - name: Verify Supabase database connection
         if: steps.config.outputs.configured == 'true'
         shell: bash
@@ -233,7 +234,7 @@ jobs:
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-                    BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+          BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
         run: |
