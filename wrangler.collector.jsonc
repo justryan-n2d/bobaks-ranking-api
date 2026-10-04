@@ -9,7 +9,7 @@
   },
   "vars": {
     "SUPABASE_URL": "https://zhrfozouzvxhpkylmpwh.supabase.co",
-    "ROBLOX_THROTTLE_MS": "150",
+    "ROBLOX_THROTTLE_MS": "500",
     "ROBLOX_REQUEST_TIMEOUT_MS": "15000"
   },
   "triggers": {
