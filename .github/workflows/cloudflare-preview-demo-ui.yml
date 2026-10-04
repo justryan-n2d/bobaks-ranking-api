@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           output="$(npx wrangler preview --name "demo-ui-preview" --json 2>&1 | tee preview.log)"
-          preview_url="$(printf "%s" "$output" | grep -oE 'https://demo-ui-preview-[^"[:space:]]+\\.workers\\.dev' | head -1)"
+          preview_url="$(printf "%s" "$output" | grep -oE 'https://demo-ui-preview-[^"[:space:]]+\.workers\.dev' | head -1)"
           test -n "$preview_url"
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $preview_url" >> "$GITHUB_STEP_SUMMARY"
