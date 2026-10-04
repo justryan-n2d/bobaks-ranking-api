@@ -56,7 +56,7 @@ jobs:
           curl -fsS "$PREVIEW_URL" -o preview-home.html
           grep -F '<title>Bobaks Ranking |' preview-home.html
           curl -fsS -D ranking-headers.txt "$PREVIEW_URL/api/rankings?period=live" -o ranking-demo.json
-          grep -Fi '^x-bobaks-demo: 1' ranking-headers.txt
+          grep -i '^x-bobaks-demo: 1' ranking-headers.txt
           jq -e '.period == "live" and (.data | length == 30)' ranking-demo.json >/dev/null
           curl -fsS "$PREVIEW_URL/api/games/1001" | jq -e '.data.name == "Skybound Islands"' >/dev/null
           curl -fsS "$PREVIEW_URL/api/games/1001/peak" | jq -e '.data.peakPlayers == 53210' >/dev/null
