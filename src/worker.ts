@@ -831,8 +831,9 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
         );
       } catch (verificationError) {
         // Verification is a secondary maintenance step. Do not turn a valid
-        // collection run into a failed run just because verification is down.
-        errors++;
+        // player-count collection into a partial run just because activity
+        // verification is temporarily unavailable. The verification failure
+        // remains visible in Worker logs for operational diagnosis.
         console.error('Game activity verification failed:', verificationError);
       }
     }
