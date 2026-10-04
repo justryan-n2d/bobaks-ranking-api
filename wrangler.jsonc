@@ -35,7 +35,11 @@
       "dataset": "bobaks_product_web"
     }
   ],
-  "previews": {\n    "vars": {\n      "DEMO_MODE": "1"\n    }\n  },
+  "previews": {
+    "vars": {
+      "DEMO_MODE": "1"
+    }
+  },
   "run_worker_first": [
     "/game/*",
     "/rankings/*",
