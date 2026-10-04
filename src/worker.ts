@@ -730,7 +730,12 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
     } catch (discoveryError) {
       discoverySucceeded = false;
       console.warn('Roblox discovery failed; falling back to the known active game catalog:', discoveryError);
-      universeIds = await listKnownActiveUniverseIds(env, fetchImpl);
+      try {
+        universeIds = await listKnownActiveUniverseIds(env, fetchImpl);
+      } catch (catalogError) {
+        console.error('Known active game catalog fallback failed:', catalogError);
+        throw discoveryError;
+      }
       if (!universeIds.length) {
         throw discoveryError;
       }
