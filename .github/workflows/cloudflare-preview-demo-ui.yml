@@ -43,12 +43,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          output="$(npx wrangler preview --name "demo-ui-preview" --json)"
-          printf '%s\n' "$output" | tee preview.json
-          preview_url="$(printf '%s' "$output" | jq -er '.preview.urls[0]')"
-          test -n "$preview_url"
-          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
-          echo "Preview URL: $preview_url" >> "$GITHUB_STEP_SUMMARY"
+          output="$(npx wrangler preview --name "demo-ui-preview" --json 2>&1 | tee preview.log)"\n          preview_url="$(printf "%s" "$output" | grep -oE 'https://demo-ui-preview-[^"[:space:]]+\\.workers\\.dev' | head -1)"\n          test -n "$preview_url"\n          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"\n          echo "Preview URL: $preview_url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify preview API uses demo dataset
         env:
@@ -92,7 +87,7 @@ jobs:
           name: cloudflare-preview-demo-ui-evidence
           path: |
             artifacts/**
-            preview.json
+            preview.log
             preview-home.html
             ranking-demo.json
             ranking-headers.txt
