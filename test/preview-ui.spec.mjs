@@ -95,7 +95,12 @@ test("game rank-card flow generates the real share modal", async ({ page }) => {
   const modal = page.locator(".rank-card-modal");
   await expect(modal).toBeVisible();
   await expect(modal.getByRole("heading", { name: "Your Game Rank Card" })).toBeVisible();
-  await expect(modal.locator("canvas.rank-card-canvas")).toBeVisible();
+  const rankCard = modal.locator("canvas.rank-card-canvas");
+  await expect(rankCard).toBeVisible();
+  await expect(rankCard).toHaveAttribute(
+    "aria-label",
+    "Skybound Islands rank card, current players 48,210 and recorded peak 53,210"
+  );
   await expect(modal.locator("[data-download]")).toBeVisible();
   await expect(modal.locator("[data-copy-caption]")).toBeVisible();
   await expect(modal.locator("[data-copy-link]")).toBeVisible();
