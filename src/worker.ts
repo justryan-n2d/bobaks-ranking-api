@@ -200,7 +200,7 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
     const official = `${ROBLOX_OFFICIAL_BASE}/explore-api/v1/get-sort-content?sessionId=${sessionId}&sortId=${encodeURIComponent(sortId)}&device=computer&country=all&maxRows=100`;
     const proxy = `${ROBLOX_PROXY_BASE}/explore-api/v1/get-sort-content?sessionId=${sessionId}&sortId=${encodeURIComponent(sortId)}&device=computer&country=all&maxRows=100`;
     try {
-      const content = await robloxJsonWithFallback(official, proxy, fetchImpl, env, { retry429: false });
+      const content = await robloxJsonWithFallback(official, proxy, fetchImpl, env, { retry429WithoutHeader: false });
       for (const id of extractUniverseIds(content)) ids.add(id);
     } catch (error) {
       console.warn(`Could not read Roblox sort ${sortId}:`, error);
