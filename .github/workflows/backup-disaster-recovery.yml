@@ -40,10 +40,28 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client-17
           fi
+          printf 'PATH=/usr/lib/postgresql/17/bin:%s\n' "${PATH}" >> "${GITHUB_ENV}"
           export PATH="/usr/lib/postgresql/17/bin:${PATH}"
           pg_dump --version
           pg_restore --version
           psql --version
+
+      - name: Verify PostgreSQL 17 client tools
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pg_dump_version="$("/usr/lib/postgresql/17/bin/pg_dump" --version)"
+          pg_restore_version="$("/usr/lib/postgresql/17/bin/pg_restore" --version)"
+          psql_version="$("/usr/lib/postgresql/17/bin/psql" --version)"
+
+          echo "${pg_dump_version}"
+          echo "${pg_restore_version}"
+          echo "${psql_version}"
+
+          grep -Eq ' 17(\.|$)' <<< "${pg_dump_version}"
+          grep -Eq ' 17(\.|$)' <<< "${pg_restore_version}"
+          grep -Eq ' 17(\.|$)' <<< "${psql_version}"
 
       - name: Install AWS CLI
         shell: bash
@@ -147,7 +165,7 @@ jobs:
           set -euo pipefail
 
           for attempt in 1 2 3 4 5; do
-            if psql --no-psqlrc -v ON_ERROR_STOP=1 -Atqc "select current_user, current_database();" ; then
+            if /usr/lib/postgresql/17/bin/psql --no-psqlrc -v ON_ERROR_STOP=1 -Atqc "select current_user, current_database();" ; then
               echo "Supabase database connection verified."
               exit 0
             fi
@@ -186,7 +204,7 @@ jobs:
           DUMP="bobaks-public-${TIMESTAMP}.dump"
           ENCRYPTED="${DUMP}.enc"
 
-          pg_dump \
+          /usr/lib/postgresql/17/bin/pg_dump \
             --format=custom \
             --compress=6 \
             --schema=public \
@@ -316,7 +334,7 @@ jobs:
             -out restored-check.dump \
             -pass env:BACKUP_ENCRYPTION_KEY
 
-          pg_restore --list restored-check.dump >/dev/null
+          /usr/lib/postgresql/17/bin/pg_restore --list restored-check.dump >/dev/null
 
           echo "Remote backup uploaded, checksum-verified, decrypted, and structurally readable."
 
