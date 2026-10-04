@@ -10,7 +10,7 @@ When Roblox provides a Retry-After header, Bobaks uses that delay, capped at 15 
 
 Network failures, timeouts, and Roblox 5xx responses continue to use the existing retry behavior.
 
-The official Roblox endpoint is still attempted first, with the configured proxy fallback used after an exhausted official request.
+The official Roblox endpoint is still attempted first, with the configured proxy fallback used after an exhausted official request. Discovery endpoints do not retry a 429 response repeatedly; they fail over to the proxy and then to the known active-game catalog so a discovery rate limit does not stop player-count collection.
 
 ## Historical safety
 
@@ -22,6 +22,6 @@ Ranking refresh is downstream of collection. If refresh fails, the collection lo
 
 ## Operational goal
 
-The collector should tolerate temporary Roblox rate limits and transient network/server errors without turning a short upstream incident into unnecessary historical gaps.
+The collector should tolerate temporary Roblox rate limits and transient network/server errors without turning a short upstream incident into unnecessary historical gaps. When discovery is unavailable, the collector may use up to 300 persisted active game IDs as a temporary catalog fallback. Catalog fallback refreshes player counts but does not update activity-observation timestamps or run stale-game verification, preventing a rate-limited discovery source from falsely declaring games observed. Stale-game verification is bounded to 25 candidates per run to avoid a large verification burst.
 
 Longer outages are still recorded explicitly and surfaced by the Phase 4 production health monitoring layer.

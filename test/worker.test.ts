@@ -78,6 +78,78 @@ test("collector retries Roblox HTTP 429 and continues without recording a failur
   assert.equal(logStatus, "success");
 });
 
+test("collector falls back to the known active game catalog when Roblox discovery is rate limited", async () => {
+  let discoveryAttempts = 0;
+  let fallbackLookups = 0;
+  let loggedStatus = "";
+  let upsertBody = "";
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) {
+      discoveryAttempts++;
+      return new Response("rate limited", { status: 429 });
+    }
+
+    if (url.includes("/rest/v1/Game?") && url.includes("isActive=eq.true")) {
+      fallbackLookups++;
+      return response([{ id: "11", universeId: "1001" }]);
+    }
+
+    if (url.includes("/get-sort-content?")) {
+      throw new Error("discovery content should not be requested after discovery rate limit");
+    }
+
+    if (url.includes("thumbnails.roblox.com")) {
+      return response({ data: [{ targetId: 1001, imageUrl: "https://cdn.example/1.png" }] });
+    }
+
+    if (url.includes("games.roblox.com/v1/games")) {
+      return response({
+        data: [
+          { id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 42 }
+        ]
+      });
+    }
+
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      upsertBody = String(init?.body);
+      return response([{ id: "11", universeId: "1001" }]);
+    }
+
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      const body = JSON.parse(String(init?.body));
+      if ((init?.method ?? "GET") === "POST") loggedStatus = String(body.status);
+      return new Response("", { status: 201 });
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.equal(discoveryAttempts, 2);
+  assert.equal(fallbackLookups, 1);
+  assert.equal(loggedStatus, "success");
+
+  const upserted = JSON.parse(upsertBody) as Array<Record<string, unknown>>;
+  assert.equal(upserted.length, 1);
+  assert.equal(upserted[0].universeId, "1001");
+  assert.equal("lastObservedAt" in upserted[0], false);
+  assert.equal("verificationMisses" in upserted[0], false);
+});
+
 test("scheduled collector performs the complete collection cycle", async () => {
   const calls: { url: string; method: string; body?: string; headers: Headers }[] = [];
 
@@ -236,7 +308,7 @@ test("collector verifies stale active games without changing coverage rules", as
 
     if (url.includes("/rest/v1/rpc/list_stale_active_games")) {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      assert.equal(body.p_limit, 100);
+      assert.equal(body.p_limit, 25);
       assert.equal(typeof body.p_cutoff, "string");
       verificationMode = true;
       return response([{
@@ -335,6 +407,8 @@ test("collector does not count a Roblox source gap as a miss", async () => {
 
     if (url.includes("/rest/v1/rpc/list_stale_active_games")) {
       verificationMode = true;
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      assert.equal(body.p_limit, 25);
       return response([
         { id: "22", universeId: "2002", lastVerificationAttemptAt: null, verificationMisses: 0 },
         { id: "23", universeId: "2003", lastVerificationAttemptAt: null, verificationMisses: 1 },
