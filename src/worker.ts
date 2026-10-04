@@ -30,6 +30,11 @@ const DEFAULT_THROTTLE_MS = 150;
 const ROBLOX_RETRY_ATTEMPTS = 3;
 const ROBLOX_RETRY_DELAYS_MS = [500, 1000];
 const ROBLOX_MAX_RETRY_AFTER_MS = 15000;
+const STALE_GAME_VERIFICATION_BATCH = 25;
+
+interface RobloxRequestOptions {
+  retry429?: boolean;
+}
 
 function retryDelayMs(response: Response, attempt: number): number {
   const retryAfter = response.headers.get('Retry-After');
@@ -79,7 +84,12 @@ function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function robloxJson(url: string, fetchImpl: FetchLike, env: Env): Promise<Json> {
+async function robloxJson(
+  url: string,
+  fetchImpl: FetchLike,
+  env: Env,
+  options: RobloxRequestOptions = {}
+): Promise<Json> {
   for (let attempt = 1; attempt <= ROBLOX_RETRY_ATTEMPTS; attempt++) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), intEnv(env.ROBLOX_REQUEST_TIMEOUT_MS, DEFAULT_TIMEOUT_MS));
@@ -94,7 +104,7 @@ async function robloxJson(url: string, fetchImpl: FetchLike, env: Env): Promise<
         return (await response.json()) as Json;
       }
 
-      if (response.status === 429 && attempt < ROBLOX_RETRY_ATTEMPTS) {
+      if (response.status === 429 && options.retry429 !== false && attempt < ROBLOX_RETRY_ATTEMPTS) {
         const delay = retryDelayMs(response, attempt);
         console.warn(
           `Roblox HTTP 429 (attempt ${attempt}/${ROBLOX_RETRY_ATTEMPTS}), retrying in ${delay}ms`
@@ -123,12 +133,18 @@ async function robloxJson(url: string, fetchImpl: FetchLike, env: Env): Promise<
   throw new Error('Roblox request exhausted retry attempts');
 }
 
-async function robloxJsonWithFallback(officialUrl: string, proxyUrl: string, fetchImpl: FetchLike, env: Env): Promise<Json> {
+async function robloxJsonWithFallback(
+  officialUrl: string,
+  proxyUrl: string,
+  fetchImpl: FetchLike,
+  env: Env,
+  options: RobloxRequestOptions = {}
+): Promise<Json> {
   try {
-    return await robloxJson(officialUrl, fetchImpl, env);
+    return await robloxJson(officialUrl, fetchImpl, env, options);
   } catch (officialError) {
     console.warn('Roblox official endpoint failed, trying proxy:', officialError);
-    return await robloxJson(proxyUrl, fetchImpl, env);
+    return await robloxJson(proxyUrl, fetchImpl, env, options);
   }
 }
 
@@ -153,7 +169,7 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
   const sessionId = crypto.randomUUID();
   const sortsUrl = `${ROBLOX_OFFICIAL_BASE}/explore-api/v1/get-sorts?sessionId=${sessionId}&device=computer&country=all`;
   const proxySortsUrl = `${ROBLOX_PROXY_BASE}/explore-api/v1/get-sorts?sessionId=${sessionId}&device=computer&country=all`;
-  const sorts = await robloxJsonWithFallback(sortsUrl, proxySortsUrl, fetchImpl, env);
+  const sorts = await robloxJsonWithFallback(sortsUrl, proxySortsUrl, fetchImpl, env, { retry429: false });
   const sortList = Array.isArray(sorts.sorts) ? sorts.sorts : [];
   const preferred = new Set(['top-playing-now', 'top-rated', 'top-grossing', 'up-and-coming']);
   const ids = new Set<string>();
@@ -169,7 +185,7 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
     const official = `${ROBLOX_OFFICIAL_BASE}/explore-api/v1/get-sort-content?sessionId=${sessionId}&sortId=${encodeURIComponent(sortId)}&device=computer&country=all&maxRows=100`;
     const proxy = `${ROBLOX_PROXY_BASE}/explore-api/v1/get-sort-content?sessionId=${sessionId}&sortId=${encodeURIComponent(sortId)}&device=computer&country=all&maxRows=100`;
     try {
-      const content = await robloxJsonWithFallback(official, proxy, fetchImpl, env);
+      const content = await robloxJsonWithFallback(official, proxy, fetchImpl, env, { retry429: false });
       for (const id of extractUniverseIds(content)) ids.add(id);
     } catch (error) {
       console.warn(`Could not read Roblox sort ${sortId}:`, error);
@@ -387,7 +403,7 @@ async function listStaleActiveGames(
     method: 'POST',
     body: JSON.stringify({
       p_cutoff: cutoff,
-      p_limit: 100
+      p_limit: STALE_GAME_VERIFICATION_BATCH
     })
   });
   const body = await expectOk(response, 'Stale game lookup');
@@ -655,6 +671,32 @@ async function updateRankingRefreshLog(
   await expectOk(response, 'DataCollectionLog ranking refresh update');
 }
 
+async function listKnownActiveUniverseIds(
+  env: Env,
+  fetchImpl: FetchLike
+): Promise<string[]> {
+  const response = await supabaseRequest(
+    env,
+    'Game?select=id,universeId&isActive=eq.true&order=lastObservedAt.desc.nullslast&limit=300',
+    fetchImpl,
+    { method: 'GET' }
+  );
+  const body = await expectOk(response, 'Known active game catalog lookup');
+  if (!body.trim()) return [];
+
+  const data = JSON.parse(body) as unknown;
+  if (!Array.isArray(data)) {
+    throw new Error('Known active game catalog returned invalid data');
+  }
+
+  return data.flatMap(item => {
+    if (!item || typeof item !== 'object') return [];
+    const row = item as Record<string, unknown>;
+    const universeId = String(row.universeId ?? '');
+    return /^\d+$/.test(universeId) ? [universeId] : [];
+  });
+}
+
 export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promise<{ gamesChecked: number; gamesUpdated: number; errors: number }> {
   requiredSupabaseKey(env);
   const startedAt = new Date();
@@ -665,7 +707,20 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
   let collectionLogWritten = false;
 
   try {
-    const universeIds = await discoverUniverseIds(fetchImpl, env);
+    let universeIds: string[];
+    let discoverySucceeded = true;
+
+    try {
+      universeIds = await discoverUniverseIds(fetchImpl, env);
+    } catch (discoveryError) {
+      discoverySucceeded = false;
+      console.warn('Roblox discovery failed; falling back to the known active game catalog:', discoveryError);
+      universeIds = await listKnownActiveUniverseIds(env, fetchImpl);
+      if (!universeIds.length) {
+        throw discoveryError;
+      }
+    }
+
     const infos = await getUniverseInfo(universeIds, fetchImpl, env);
     const iconMap = await getUniverseThumbnails(
       infos
@@ -699,14 +754,19 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
         creatorId: creator?.id == null ? null : String(creator.id),
         description: info.description == null ? null : String(info.description),
         createdAt: parseDate(info.created),
-        updatedAt: parseDate(info.updated),
-        isActive: true,
-        lastObservedAt: now,
-        lastVerificationAttemptAt: now,
-        verificationMisses: 0,
-        inactiveAt: null,
-        inactiveReason: null
+        updatedAt: parseDate(info.updated)
       };
+
+      if (discoverySucceeded) {
+        Object.assign(row, {
+          isActive: true,
+          lastObservedAt: now,
+          lastVerificationAttemptAt: now,
+          verificationMisses: 0,
+          inactiveAt: null,
+          inactiveReason: null
+        });
+      }
 
       // Never erase a known-good icon just because Roblox returned no icon
       // in this collection cycle. A later successful cycle can refresh it.
@@ -741,18 +801,20 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
     // Games missing from discovery are not immediately marked inactive.
     // Only games that have not been observed for 24 hours enter explicit
     // verification, and they need 12 consecutive misses before deactivation.
-    try {
-      await verifyStaleGames(
-        env,
-        fetchImpl,
-        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        new Date().toISOString()
-      );
-    } catch (verificationError) {
-      // Verification is a secondary maintenance step. Do not turn a valid
-      // collection run into a failed run just because verification is down.
-      errors++;
-      console.error('Game activity verification failed:', verificationError);
+    if (discoverySucceeded) {
+      try {
+        await verifyStaleGames(
+          env,
+          fetchImpl,
+          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          new Date().toISOString()
+        );
+      } catch (verificationError) {
+        // Verification is a secondary maintenance step. Do not turn a valid
+        // collection run into a failed run just because verification is down.
+        errors++;
+        console.error('Game activity verification failed:', verificationError);
+      }
     }
 
     // Finalize the collection log before refreshing rankings so the current
