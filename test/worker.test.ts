@@ -493,6 +493,11 @@ test("collector keeps a successful collection when secondary activity verificati
     if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
     if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
     if (url.includes("games.roblox.com/v1/games")) {
+      if (url.includes("universeIds=2002")) {
+        return response({
+          data: [{ id: 2002, rootPlaceId: 3002, name: "Verified", creator: { id: 3002, name: "B" }, playing: 34 }]
+        });
+      }
       return response({
         data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
       });
