@@ -1,4 +1,5 @@
 import { authorizeAdminAnalytics, fetchAdminAnalytics, parseAnalyticsRange } from "./admin-analytics";
+import { handleDemoApiRequest } from "./demo-data";
 interface AssetBinding {
   fetch(request: Request): Promise<Response>;
 }
@@ -18,6 +19,7 @@ interface AnalyticsBinding {
 interface Env {
   ASSETS: AssetBinding;
   API_ORIGIN: string;
+  DEMO_MODE?: string;
   API?: ServiceBinding;
   DISCORD_INVITE_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
@@ -192,6 +194,10 @@ async function apiFetch(
   path: string,
   fetchImpl: FetchLike
 ): Promise<Response> {
+  if (env.DEMO_MODE === "1") {
+    return handleDemoApiRequest(new Request("https://bobaks-demo.local" + path));
+  }
+
   const base = env.API_ORIGIN.replace(/\/$/, "");
   const request = new Request(base + path, {
     headers: { accept: "application/json" }
@@ -676,6 +682,10 @@ async function handleAdminAnalyticsApi(request: Request, env: Env): Promise<Resp
 }
 
 async function handleAnalytics(request: Request, env: Env): Promise<Response> {
+  if (env.DEMO_MODE === "1") {
+    return new Response(null, { status: 204, headers: { "cache-control": "no-store", "x-bobaks-demo": "1" } });
+  }
+
   if (request.method !== "POST") {
     return new Response("Method not allowed", {
       status: 405,
