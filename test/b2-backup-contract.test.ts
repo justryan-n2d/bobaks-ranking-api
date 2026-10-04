@@ -33,9 +33,9 @@ test("backup workflow uses password-based Postgres environment variables", () =>
   assert.match(workflow, /\/usr\/lib\/postgresql\/17\/bin/);
   assert.ok(workflow.includes("printf 'PATH=/usr/lib/postgresql/17/bin:%s\\n' \"${PATH}\" >> \"${GITHUB_ENV}\""));
   assert.match(workflow, /name: Verify PostgreSQL 17 client tools/);
-  assert.match(workflow, /\/usr\/lib\/postgresql\/17\/bin\/pg_dump --version/);
-  assert.match(workflow, /\/usr\/lib\/postgresql\/17\/bin\/pg_restore --version/);
-  assert.match(workflow, /\/usr\/lib\/postgresql\/17\/bin\/psql/);
+  assert.ok(workflow.includes('pg_dump_version="$("/usr/lib/postgresql/17/bin/pg_dump" --version)"'));
+  assert.ok(workflow.includes('pg_restore_version="$("/usr/lib/postgresql/17/bin/pg_restore" --version)"'));
+  assert.ok(workflow.includes('psql_version="$("/usr/lib/postgresql/17/bin/psql" --version)"'));
   assert.match(workflow, /printf 'y\\n' \| sudo \/usr\/share\/postgresql-common\/pgdg\/apt\.postgresql\.org\.sh/);
   assert.match(workflow, /Build B2 endpoint from region/);
   assert.match(workflow, /Verify B2 endpoint connectivity/);
