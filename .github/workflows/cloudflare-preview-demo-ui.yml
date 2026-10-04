@@ -1,0 +1,101 @@
+name: Cloudflare Preview Demo UI
+
+on:
+  push:
+    branches:
+      - test/cloudflare-preview-demo-ui-20261005
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Run backend/frontend worker tests
+        run: |
+          npm test
+          npm run test:frontend
+
+      - name: Install Playwright for E2E verification
+        run: |
+          npm install --no-save --no-package-lock @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Deploy isolated Cloudflare Preview
+        id: preview
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          output="$(npx wrangler preview --name "demo-ui-preview" --json)"
+          printf '%s\n' "$output" | tee preview.json
+          preview_url="$(printf '%s' "$output" | jq -er '.preview.urls[0]')"
+          test -n "$preview_url"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $preview_url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify preview API uses demo dataset
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: |
+          set -euo pipefail
+          curl -fsS "$PREVIEW_URL" -o preview-home.html
+          grep -F '<title>Bobaks Ranking |' preview-home.html
+          curl -fsS -D ranking-headers.txt "$PREVIEW_URL/api/rankings?period=live" -o ranking-demo.json
+          grep -Fi '^x-bobaks-demo: 1' ranking-headers.txt
+          jq -e '.period == "live" and (.data | length == 30)' ranking-demo.json >/dev/null
+          curl -fsS "$PREVIEW_URL/api/games/1001" | jq -e '.data.name == "Skybound Islands"' >/dev/null
+          curl -fsS "$PREVIEW_URL/api/games/1001/peak" | jq -e '.data.peakPlayers == 53210' >/dev/null
+
+      - name: Run real Chromium frontend flows against Cloudflare Preview
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          npx playwright test test/preview-ui.spec.mjs --reporter=line
+
+      - name: Publish verification summary
+        if: always()
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: |
+          {
+            echo "## Cloudflare Preview Demo UI"
+            echo
+            echo "Preview URL: $PREVIEW_URL"
+            echo
+            echo "The browser suite was run against this isolated Preview with DEMO_MODE=1."
+            echo "Production Supabase/API traffic was not used by the demo API path."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-preview-demo-ui-evidence
+          path: |
+            artifacts/**
+            preview.json
+            preview-home.html
+            ranking-demo.json
+            ranking-headers.txt
+          if-no-files-found: warn
+          retention-days: 7
