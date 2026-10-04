@@ -66,7 +66,7 @@ test("saved and compare flows persist within the session", async ({ page }) => {
   await expect(page.locator("#savedCount")).toHaveText("(1)");
 
   await page.getByRole("button", { name: "Saved", exact: false }).first().click();
-  await expect(page.getByRole("heading", { name: "Saved Games" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Saved Games", exact: true })).toBeVisible();
   await expect(page.locator(".rows")).toContainText(gameName);
 
   await page.getByRole("button", { name: "Rankings", exact: true }).click();
@@ -121,7 +121,7 @@ test("theme and refresh controls work without losing the demo rankings", async (
   const after = await page.locator("html").getAttribute("data-theme");
   expect(after).not.toBe(before);
 
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await page.locator("#refresh").click();
   await expect(page.locator(".rows .row")).toHaveCount(15);
 
   await expect(page.getByRole("button", { name: "Live", exact: true })).toHaveClass(/active/);
