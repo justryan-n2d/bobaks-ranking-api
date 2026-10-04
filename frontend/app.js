@@ -817,9 +817,12 @@ async function share(id){
   let modal;
   const qrReady=ensureQrCode().catch(()=>{});
   try{
-    const r=await api('/api/games/'+encodeURIComponent(id));
+    const [gameResult, peakResult]=await Promise.all([
+      api('/api/games/'+encodeURIComponent(id)),
+      api('/api/games/'+encodeURIComponent(id)+'/peak')
+    ]);
     await qrReady;
-    const g={...(r.data||{}),gameId:String(id)};
+    const g={...(gameResult.data||{}),gameId:String(id),peak:Number(peakResult.data?.peakPlayers||0),peakAt:peakResult.data?.peakAt||null};
     if(!g.name)throw new Error('Game not found');
 
     modal=document.createElement('div');
@@ -831,6 +834,10 @@ async function share(id){
     const wrap=modal.querySelector('.rank-card-canvas-wrap');
     wrap.innerHTML='';
     result.canvas.className='rank-card-canvas';
+    result.canvas.setAttribute(
+      'aria-label',
+      String(g.name||'Game')+' rank card, current players '+fmt(Number(g.currentPlayers||g.rankings?.live?.score||0))+' and recorded peak '+fmt(Number(g.peak||0))
+    );
     wrap.appendChild(result.canvas);
 
     let stopAnimation=result.startAnimation();
