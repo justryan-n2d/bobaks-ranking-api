@@ -33,7 +33,18 @@ const ROBLOX_MAX_RETRY_AFTER_MS = 15000;
 const STALE_GAME_VERIFICATION_BATCH = 25;
 
 interface RobloxRequestOptions {
-  retry429?: boolean;
+  retry429WithoutHeader?: boolean;
+}
+
+function hasRetryAfterHeader(response: Response): boolean {
+  const retryAfter = response.headers.get('Retry-After');
+  if (!retryAfter) return false;
+
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) return true;
+
+  const retryAt = Date.parse(retryAfter);
+  return Number.isFinite(retryAt);
 }
 
 function retryDelayMs(response: Response, attempt: number): number {
@@ -104,7 +115,11 @@ async function robloxJson(
         return (await response.json()) as Json;
       }
 
-      if (response.status === 429 && options.retry429 !== false && attempt < ROBLOX_RETRY_ATTEMPTS) {
+      if (
+        response.status === 429 &&
+        attempt < ROBLOX_RETRY_ATTEMPTS &&
+        (options.retry429WithoutHeader !== false || hasRetryAfterHeader(response))
+      ) {
         const delay = retryDelayMs(response, attempt);
         console.warn(
           `Roblox HTTP 429 (attempt ${attempt}/${ROBLOX_RETRY_ATTEMPTS}), retrying in ${delay}ms`
@@ -169,7 +184,7 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
   const sessionId = crypto.randomUUID();
   const sortsUrl = `${ROBLOX_OFFICIAL_BASE}/explore-api/v1/get-sorts?sessionId=${sessionId}&device=computer&country=all`;
   const proxySortsUrl = `${ROBLOX_PROXY_BASE}/explore-api/v1/get-sorts?sessionId=${sessionId}&device=computer&country=all`;
-  const sorts = await robloxJsonWithFallback(sortsUrl, proxySortsUrl, fetchImpl, env, { retry429: false });
+  const sorts = await robloxJsonWithFallback(sortsUrl, proxySortsUrl, fetchImpl, env, { retry429WithoutHeader: false });
   const sortList = Array.isArray(sorts.sorts) ? sorts.sorts : [];
   const preferred = new Set(['top-playing-now', 'top-rated', 'top-grossing', 'up-and-coming']);
   const ids = new Set<string>();
