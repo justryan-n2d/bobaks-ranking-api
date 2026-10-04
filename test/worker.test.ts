@@ -481,6 +481,64 @@ test("collector retries transient Roblox discovery failures", async () => {
   assert.equal(attempts, 2);
 });
 
+test("collector keeps a successful collection when secondary activity verification fails", async () => {
+  let verificationCalled = false;
+  let rankingRefreshCalled = false;
+  let logStatus = "";
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
+    if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) {
+      return response({
+        data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+      });
+    }
+
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) {
+      return response([{ id: "22", universeId: "2002", lastVerificationAttemptAt: null, verificationMisses: 0 }]);
+    }
+
+    if (url.includes("/rest/v1/rpc/verify_game_activity")) {
+      verificationCalled = true;
+      return response("verification unavailable", 500);
+    }
+
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) return response([{ id: "11", universeId: "1001" }]);
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      if ((init?.method ?? "GET") === "POST") {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        logStatus = String(body.status);
+      }
+      return new Response("", { status: 201 });
+    }
+
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) {
+      rankingRefreshCalled = true;
+      return response(null);
+    }
+
+    throw new Error(`Unhandled URL: ${url}`);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.equal(verificationCalled, true);
+  assert.equal(rankingRefreshCalled, true);
+  assert.equal(logStatus, "success");
+});
+
 test("collector finalizes the run before refreshing rankings", async () => {
   const order: string[] = [];
   const fakeFetch: typeof fetch = async (input, init) => {
