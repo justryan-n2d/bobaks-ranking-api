@@ -308,7 +308,7 @@ test("collector verifies stale active games without changing coverage rules", as
 
     if (url.includes("/rest/v1/rpc/list_stale_active_games")) {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      assert.equal(body.p_limit, 100);
+      assert.equal(body.p_limit, 25);
       assert.equal(typeof body.p_cutoff, "string");
       verificationMode = true;
       return response([{
