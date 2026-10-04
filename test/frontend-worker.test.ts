@@ -530,3 +530,60 @@ test("homepage shell is not stored in browser cache", async () => {
   assert.equal(result.status, 200);
   assert.equal(result.headers.get("cache-control"), "no-store");
 });
+
+
+test("demo preview serves deterministic ranking rows without the production API", async () => {
+  const env = { ...makeEnv([]), DEMO_MODE: "1", API_ORIGIN: "" };
+  const shouldNotCallProductionApi: typeof fetch = async () => {
+    throw new Error("production API must not be called in demo mode");
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/api/rankings?period=live"),
+    env,
+    shouldNotCallProductionApi
+  );
+  const body = await result.json() as { data?: unknown[]; period?: string };
+
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("x-bobaks-demo"), "1");
+  assert.equal(body.period, "live");
+  assert.equal(body.data?.length, 30);
+});
+
+test("demo preview renders game pages from the demo API", async () => {
+  const env = { ...makeEnv([]), DEMO_MODE: "1", API_ORIGIN: "" };
+  const shouldNotCallProductionApi: typeof fetch = async () => {
+    throw new Error("production API must not be called in demo mode");
+  };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/game/1001"),
+    env,
+    shouldNotCallProductionApi
+  );
+  const html = await result.text();
+
+  assert.equal(result.status, 200);
+  assert.match(html, /Skybound Islands/);
+  assert.match(html, /Bobaks Live Rank: <strong>#1<\/strong>/);
+  assert.match(html, /Recorded Peak: <strong>53210<\/strong>/);
+});
+
+test("demo preview does not write product analytics", async () => {
+  const points: unknown[] = [];
+  const env = { ...makeEnv(points), DEMO_MODE: "1" };
+
+  const result = await handleFrontendRequest(
+    new Request("https://bobaks.example/analytics", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ event: "page_view", route: "/", period: "live" })
+    }),
+    env
+  );
+
+  assert.equal(result.status, 204);
+  assert.equal(result.headers.get("x-bobaks-demo"), "1");
+  assert.equal(points.length, 0);
+});
