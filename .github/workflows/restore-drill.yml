@@ -8,6 +8,15 @@ on:
         required: true
         type: string
 
+
+concurrency:
+  group: bobaks-recovery-restore-validation
+  cancel-in-progress: true
+
+concurrency:
+  group: bobaks-recovery-restore
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -32,10 +41,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y postgresql-common
           if [[ ! -x /usr/lib/postgresql/17/bin/pg_restore ]]; then
-            printf 'y\\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+            sudo apt-get update
+            sudo apt-get install -y curl ca-certificates
+            sudo install -d /usr/share/postgresql-common/pgdg
+            sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null <<EOF
+          Types: deb deb-src
+          URIs: https://apt.postgresql.org/pub/repos/apt
+          Suites: noble-pgdg
+          Architectures: amd64
+          Components: main
+          Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          EOF
             sudo apt-get update
             sudo apt-get install -y postgresql-client-17
           fi
@@ -47,7 +65,7 @@ jobs:
           set -euo pipefail
           pg_restore_version="$("/usr/lib/postgresql/17/bin/pg_restore" --version)"
           echo "${pg_restore_version}"
-          grep -Eq ' 17(\\.|$)' <<< "${pg_restore_version}"
+          grep -Eq ' 17(\.|$)' <<< "${pg_restore_version}"
 
       - name: Install AWS CLI
         shell: bash
@@ -74,7 +92,7 @@ jobs:
 
       - name: Restore backup into isolated target
         env:
-          OBJECT_KEY: ${{ inputs.object_key }}
+          OBJECT_KEY: ${{ inputs.object_key || env.VALIDATION_OBJECT_KEY }}
         shell: bash
         run: |
           set -euo pipefail
