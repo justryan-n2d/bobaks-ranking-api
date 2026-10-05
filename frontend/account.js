@@ -1,5 +1,5 @@
-import { createAuthClient } from "./account-core.mjs?v=20261001-auth-core-2";
-import { buildRobloxAuthorizeUrl, createPkceChallenge, randomUrlSafeToken } from "./roblox-identity-core.mjs?v=20261001-identity-2";
+import { createAuthClient } from "./account-core.mjs?v=20261005-auth-core-3";
+import { buildRobloxAuthorizeUrl, createPkceChallenge, randomUrlSafeToken } from "./roblox-identity-core.mjs?v=20261005-identity-3";
 window.__BOBAKS_ROBLOX_OAUTH__={buildRobloxAuthorizeUrl,createPkceChallenge,randomUrlSafeToken};
 
 const config=window.__BOBAKS_AUTH_CONFIG__||{};
@@ -22,6 +22,7 @@ const state={
   verification:{emailConfirmed:null,lastCheckedAt:null},
   migration:{status:"idle",sourceCount:0,syncedCount:0,failed:[]},
   robloxIdentity:null,
+  robloxPreferences:{show_roblox_identity:false,show_roblox_avatar:false},
   saved:{profile:false,alerts:false}
 };
 
