@@ -41,12 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pg_dump \
-            --schema-only \
-            --schema=public \
-            --no-owner \
-            --no-acl \
-            --file=production-public-schema.sql
+          docker run --rm --network host             -e PGPASSWORD             -e PGHOST             -e PGPORT             -e PGDATABASE             -e PGUSER             -e PGSSLMODE             -e PGAPPNAME             -v "${PWD}:/work"             postgres:17-alpine             pg_dump               --schema-only               --schema=public               --no-owner               --no-acl               --file=/work/production-public-schema.sql
           test -s production-public-schema.sql
 
       - name: Prepare recovery dependencies
@@ -63,10 +58,7 @@ jobs:
               ;;
           esac
 
-          docker run --rm --network host \\
-            -e RESTORE_DB_URL \\
-            postgres:17-alpine \\
-            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
+          cat > recovery-dependencies.sql <<'SQL'
           create schema if not exists private;
 
           create or replace function private.set_updated_at()
@@ -82,17 +74,15 @@ jobs:
           $function$;
           SQL
 
+          docker run --rm --network host             -e RESTORE_DB_URL             -i postgres:17-alpine             sh -c 'psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1' < recovery-dependencies.sql
+
       - name: Apply production public schema to recovery
         env:
           RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --network host \\
-            -e RESTORE_DB_URL \\
-            -v "${PWD}:/work" \\
-            postgres:17-alpine \\
-            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f /work/production-public-schema.sql
+          docker run --rm --network host             -e RESTORE_DB_URL             -v "${PWD}:/work"             postgres:17-alpine             sh -c 'psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f /work/production-public-schema.sql'
 
       - name: Verify recovery schema
         env:
@@ -100,28 +90,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --network host \\
-            -e RESTORE_DB_URL \\
-            postgres:17-alpine \\
-            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
-            select count(*)
-            from information_schema.tables
-            where table_schema='public'
-              and table_type='BASE TABLE';
-          " > recovery-public-table-count.txt
+
+          docker run --rm --network host             -e RESTORE_DB_URL             postgres:17-alpine             sh -c 'psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+              select count(*)
+              from information_schema.tables
+              where table_schema='''public'''
+                and table_type='''BASE TABLE''';
+            "' > recovery-public-table-count.txt
 
           echo "Recovery public table count: $(cat recovery-public-table-count.txt)"
           test "$(cat recovery-public-table-count.txt)" -gt 0
 
-          docker run --rm --network host \\
-            -e RESTORE_DB_URL \\
-            postgres:17-alpine \\
-            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
-            select string_agg(table_name, ',' order by table_name)
-            from information_schema.tables
-            where table_schema='public'
-              and table_type='BASE TABLE';
-          " > recovery-public-tables.txt
+          docker run --rm --network host             -e RESTORE_DB_URL             postgres:17-alpine             sh -c 'psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+              select string_agg(table_name, ''',''' order by table_name)
+              from information_schema.tables
+              where table_schema='''public'''
+                and table_type='''BASE TABLE''';
+            "' > recovery-public-tables.txt
 
           echo "Recovery public tables:"
           cat recovery-public-tables.txt
