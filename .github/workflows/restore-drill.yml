@@ -120,6 +120,7 @@ jobs:
             -in "${encrypted}" \
             -out "${dump}" \
             -pass env:BACKUP_ENCRYPTION_KEY
+          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
           pg_restore \
             --schema-only \
             --no-owner \
