@@ -22,27 +22,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL 17 client
+      - name: Verify PostgreSQL 17 container
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y postgresql-common
-          if [[ ! -x /usr/lib/postgresql/17/bin/pg_dump ]]; then
-            printf 'y\\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
-            sudo apt-get update
-            sudo apt-get install -y postgresql-client-17
-          fi
-          printf 'PATH=/usr/lib/postgresql/17/bin:%s\\n' "${PATH}" >> "${GITHUB_ENV}"
-
-      - name: Verify PostgreSQL clients
-        shell: bash
-        run: |
-          set -euo pipefail
-          pg_dump --version
-          psql --version
-          grep -Eq ' 17(\\.|$)' <<< "$(pg_dump --version)"
-          grep -Eq ' 17(\\.|$)' <<< "$(psql --version)"
+          docker run --rm postgres:17-alpine pg_dump --version
+          docker run --rm postgres:17-alpine psql --version
 
       - name: Export production public schema
         env:
@@ -78,7 +63,10 @@ jobs:
               ;;
           esac
 
-          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
+          docker run --rm --network host \\
+            -e RESTORE_DB_URL \\
+            postgres:17-alpine \\
+            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
           create schema if not exists private;
 
           create or replace function private.set_updated_at()
@@ -100,7 +88,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f production-public-schema.sql
+          docker run --rm --network host \\
+            -e RESTORE_DB_URL \\
+            -v "${PWD}:/work" \\
+            postgres:17-alpine \\
+            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f /work/production-public-schema.sql
 
       - name: Verify recovery schema
         env:
@@ -108,7 +100,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+          docker run --rm --network host \\
+            -e RESTORE_DB_URL \\
+            postgres:17-alpine \\
+            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
             select count(*)
             from information_schema.tables
             where table_schema='public'
@@ -118,7 +113,10 @@ jobs:
           echo "Recovery public table count: $(cat recovery-public-table-count.txt)"
           test "$(cat recovery-public-table-count.txt)" -gt 0
 
-          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+          docker run --rm --network host \\
+            -e RESTORE_DB_URL \\
+            postgres:17-alpine \\
+            psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
             select string_agg(table_name, ',' order by table_name)
             from information_schema.tables
             where table_schema='public'
