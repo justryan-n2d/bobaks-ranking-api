@@ -10,10 +10,6 @@ on:
 
 
 concurrency:
-  group: bobaks-recovery-restore-validation
-  cancel-in-progress: true
-
-concurrency:
   group: bobaks-recovery-restore
   cancel-in-progress: false
 
@@ -92,7 +88,7 @@ jobs:
 
       - name: Restore backup into isolated target
         env:
-          OBJECT_KEY: ${{ inputs.object_key || env.VALIDATION_OBJECT_KEY }}
+          OBJECT_KEY: ${{ inputs.object_key }}
         shell: bash
         run: |
           set -euo pipefail
