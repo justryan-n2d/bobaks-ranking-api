@@ -15,9 +15,8 @@ jobs:
   restore:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: restore-test
-
     env:
+      BOBAKS_B2_REGION: ${{ secrets.BOBAKS_B2_REGION }}
       AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}
       BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
       BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
