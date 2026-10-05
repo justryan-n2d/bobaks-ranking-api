@@ -1,12 +1,18 @@
 name: Bobaks Restore Drill
 
 on:
+  push:
+    branches:
+      - ops/real-restore-recovery-20261005
   workflow_dispatch:
     inputs:
       object_key:
         description: "Encrypted B2 backup object key to restore"
         required: true
         type: string
+
+env:
+  VALIDATION_OBJECT_KEY: weekly/2026/10/2026-10-05/bobaks-public-20261005T104214Z.dump.enc
 
 permissions:
   contents: read
@@ -35,7 +41,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-common
           if [[ ! -x /usr/lib/postgresql/17/bin/pg_restore ]]; then
-            printf 'y\\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+            printf '\\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
             sudo apt-get update
             sudo apt-get install -y postgresql-client-17
           fi
@@ -61,7 +67,7 @@ jobs:
       - name: Validate restore configuration
         shell: bash
         env:
-          OBJECT_KEY: ${{ inputs.object_key }}
+          OBJECT_KEY: ${{ inputs.object_key || env.VALIDATION_OBJECT_KEY }}
         run: |
           set -euo pipefail
           test -n "${OBJECT_KEY}"
