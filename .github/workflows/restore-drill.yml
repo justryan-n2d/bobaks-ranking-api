@@ -120,7 +120,7 @@ jobs:
             -in "${encrypted}" \
             -out "${dump}" \
             -pass env:BACKUP_ENCRYPTION_KEY
-          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA private;"
+          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA private; CREATE SCHEMA auth; CREATE TABLE auth.users (id uuid PRIMARY KEY);"
           psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 <<'SQL'
           CREATE OR REPLACE FUNCTION private.set_updated_at()
           RETURNS trigger
@@ -135,6 +135,26 @@ jobs:
           $function$;
           SQL
           pg_restore \
+            --section=pre-data \
+            --schema-only \
+            --no-owner \
+            --no-acl \
+            --exit-on-error \
+            --single-transaction \
+            --dbname="postgresql://postgres@127.0.0.1:5432/restore_validation" \
+            "${dump}"
+          pg_restore \
+            --data-only \
+            --table=public.profiles \
+            --no-owner \
+            --no-acl \
+            --exit-on-error \
+            --single-transaction \
+            --dbname="postgresql://postgres@127.0.0.1:5432/restore_validation" \
+            "${dump}"
+          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c 'INSERT INTO auth.users (id) SELECT id FROM public.profiles ON CONFLICT (id) DO NOTHING;'
+          pg_restore \
+            --section=post-data \
             --schema-only \
             --no-owner \
             --no-acl \
