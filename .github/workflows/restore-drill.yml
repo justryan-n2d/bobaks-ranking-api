@@ -28,14 +28,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 17 client
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v pg_restore >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          if [[ ! -x /usr/lib/postgresql/17/bin/pg_restore ]]; then
+            printf 'y\\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
             sudo apt-get update
-            sudo apt-get install -y postgresql-client
+            sudo apt-get install -y postgresql-client-17
           fi
+          printf 'PATH=/usr/lib/postgresql/17/bin:%s\\n' "${PATH}" >> "${GITHUB_ENV}"
+
+      - name: Verify PostgreSQL 17 client tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_restore_version="$("/usr/lib/postgresql/17/bin/pg_restore" --version)"
+          echo "${pg_restore_version}"
+          grep -Eq ' 17(\\.|$)' <<< "${pg_restore_version}"
 
       - name: Install AWS CLI
         shell: bash

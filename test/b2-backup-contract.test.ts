@@ -58,6 +58,10 @@ test("restore workflow uses repository Actions secrets without a GitHub environm
   assert.ok(restoreWorkflow.includes("      BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}"), "missing repository secret mapping for BACKUP_ENCRYPTION_KEY");
   assert.ok(restoreWorkflow.includes("      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}"), "missing repository secret mapping for RESTORE_DB_URL");
   assert.doesNotMatch(restoreWorkflow, /BOBAKS_B2_ENDPOINT/);
+  assert.match(restoreWorkflow, /Install PostgreSQL 17 client/);
+  assert.match(restoreWorkflow, /postgresql-client-17/);
+  assert.match(restoreWorkflow, /\/usr\/lib\/postgresql\/17\/bin\/pg_restore/);
+  assert.match(restoreWorkflow, /Verify PostgreSQL 17 client tools/);
   assert.doesNotMatch(restoreWorkflow, /restore-test/);
 });
 
@@ -70,6 +74,7 @@ test("restore script targets B2 and accepts the B2 region", () => {
   assert.match(restore, /BOBAKS_B2_REGION/);
   assert.match(restore, /BOBAKS_B2_ENDPOINT="https:\/\/s3\.\$\{BOBAKS_B2_REGION\}\.backblazeb2\.com"/);
   assert.doesNotMatch(restore, /BOBAKS_B2_ENDPOINT:\?/);
+  assert.match(restore, /--disable-triggers/);
   assert.match(restore, /BOBAKS_B2_BUCKET/);
   assert.match(restore, /BOBAKS_B2_ACCESS_KEY_ID/);
   assert.match(restore, /BOBAKS_B2_SECRET_ACCESS_KEY/);
