@@ -89,7 +89,7 @@ jobs:
 
       - name: Restore backup into isolated target
         env:
-          OBJECT_KEY: ${{ inputs.object_key }}
+          OBJECT_KEY: ${{ inputs.object_key || env.VALIDATION_OBJECT_KEY }}
         shell: bash
         run: |
           set -euo pipefail
