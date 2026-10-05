@@ -4,6 +4,7 @@ import test from "node:test";
 
 const workflow = readFileSync(".github/workflows/backup-disaster-recovery.yml", "utf8");
 const restore = readFileSync("scripts/restore-backup.sh", "utf8");
+const restoreWorkflow = readFileSync(".github/workflows/restore-drill.yml", "utf8");
 const docs = readFileSync("docs/backup-disaster-recovery.md", "utf8");
 
 test("B2 archive workflow uses bucket-scoped B2 credentials and region", () => {
@@ -46,6 +47,22 @@ test("backup workflow uses password-based Postgres environment variables", () =>
   assert.match(workflow, /BOBAKS_B2_REGION/);
   assert.match(workflow, /psql .*select current_user, current_database/);
   assert.doesNotMatch(workflow, /--dbname="\$\{SUPABASE_DB_URL\}"/);
+});
+
+test("restore workflow uses repository Actions secrets without a GitHub environment", () => {
+  assert.doesNotMatch(restoreWorkflow, /^\s+environment:\s+restore-test\s*$/m);
+  assert.ok(restoreWorkflow.includes("      BOBAKS_B2_REGION: ${{ secrets.BOBAKS_B2_REGION }}"), "missing repository secret mapping for BOBAKS_B2_REGION");
+  assert.ok(restoreWorkflow.includes("      BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}"), "missing repository secret mapping for BOBAKS_B2_BUCKET");
+  assert.ok(restoreWorkflow.includes("      BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}"), "missing repository secret mapping for BOBAKS_B2_ACCESS_KEY_ID");
+  assert.ok(restoreWorkflow.includes("      BOBAKS_B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}"), "missing repository secret mapping for BOBAKS_B2_SECRET_ACCESS_KEY");
+  assert.ok(restoreWorkflow.includes("      BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}"), "missing repository secret mapping for BACKUP_ENCRYPTION_KEY");
+  assert.ok(restoreWorkflow.includes("      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}"), "missing repository secret mapping for RESTORE_DB_URL");
+  assert.doesNotMatch(restoreWorkflow, /BOBAKS_B2_ENDPOINT/);
+});
+
+test("restore documentation uses repository Actions secrets", () => {
+  assert.match(docs, /repository secrets/i);
+  assert.doesNotMatch(docs, /GitHub Environment named `restore-test`/);
 });
 
 test("restore script targets B2 and accepts the B2 region", () => {

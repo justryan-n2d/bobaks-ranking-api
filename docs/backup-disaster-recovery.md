@@ -45,6 +45,7 @@ Add these repository secrets before activating the scheduled archive:
 - `BOBAKS_B2_SECRET_ACCESS_KEY`
 - `BOBAKS_B2_REGION`
 - `BACKUP_ENCRYPTION_KEY`
+- `RESTORE_DB_URL`
 
 Set `BOBAKS_B2_BUCKET` to:
 
@@ -99,7 +100,7 @@ export RESTORE_DB_URL='postgresql://...'
 
 The script refuses to restore into the current Bobaks production Supabase project.
 
-For a repeatable GitHub-based drill, the repository also includes `.github/workflows/restore-drill.yml`. Configure the GitHub Environment named `restore-test` with a `RESTORE_DB_URL` secret pointing to a disposable recovery database, then manually run the workflow and provide a weekly B2 object key.
+For a repeatable GitHub-based drill, the repository also includes `.github/workflows/restore-drill.yml`. Add `RESTORE_DB_URL` as a repository Actions secret pointing to a disposable recovery database, then manually run the workflow and provide a weekly B2 object key. The restore workflow uses repository Actions secrets only and does not require a GitHub Environment.
 
 The restore is data-only. The intended recovery sequence is:
 
