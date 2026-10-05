@@ -15,11 +15,11 @@ The API already has its Supabase server key configuration. No Roblox access toke
 
 ## Flow
 
-1. The signed-in Bobaks browser calls `POST /api/identity/roblox/start`.
+1. The signed-in Bobaks browser calls `POST /api/identity/roblox/start` through the same-origin web proxy. The proxy must forward the response's `Set-Cookie` header to the browser so the host-only `__Host-` transaction cookie belongs to the web origin.
 2. The API validates the Bobaks Supabase bearer token, generates state + PKCE verifier, and sets a signed, HttpOnly, Secure, SameSite=Lax transaction cookie.
 3. The browser is redirected to Roblox with the `openid profile` scopes.
 4. Roblox returns an authorization code and the same state to `/account/roblox-callback`.
-5. The browser calls `POST /api/identity/roblox/exchange` through the same-origin web proxy.
+5. After the Roblox callback returns to the web origin, the browser calls `POST /api/identity/roblox/exchange` through the same-origin web proxy, which forwards the browser cookie and Bobaks bearer token to the API.
 6. The API verifies the signed transaction cookie, state, and Bobaks user, exchanges the code at Roblox, then calls Roblox UserInfo.
 7. Bobaks stores only the verified Roblox identity fields: subject/ID, username, display name, profile URL, avatar URL, connection status, and verification timestamps.
 8. A unique constraint prevents the same Roblox account from being connected to two Bobaks accounts.
