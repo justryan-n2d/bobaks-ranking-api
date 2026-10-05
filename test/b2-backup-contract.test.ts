@@ -58,6 +58,7 @@ test("restore workflow uses repository Actions secrets without a GitHub environm
   assert.ok(restoreWorkflow.includes("      BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}"), "missing repository secret mapping for BACKUP_ENCRYPTION_KEY");
   assert.ok(restoreWorkflow.includes("      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}"), "missing repository secret mapping for RESTORE_DB_URL");
   assert.doesNotMatch(restoreWorkflow, /BOBAKS_B2_ENDPOINT/);
+  assert.doesNotMatch(restoreWorkflow, /restore-test/);
 });
 
 test("restore documentation uses repository Actions secrets", () => {
