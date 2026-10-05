@@ -98,11 +98,11 @@ export RESTORE_DB_URL='postgresql://...'
 ./scripts/restore-backup.sh weekly/YYYY/MM/YYYY-MM-DD/bobaks-public-<timestamp>.dump.enc
 ```
 
-The script refuses to restore into the current Bobaks production Supabase project.
+The script refuses to restore into the current Bobaks production Supabase project. The restore target must use PostgreSQL 17-compatible client tools, and the target connection should use a PostgreSQL superuser because the data-only restore temporarily disables triggers to preserve referential integrity while loading the dump.
 
 For a repeatable GitHub-based drill, the repository also includes `.github/workflows/restore-drill.yml`. Add `RESTORE_DB_URL` as a repository Actions secret pointing to a disposable recovery database, then manually run the workflow and provide a weekly B2 object key. The restore workflow uses repository Actions secrets only and does not require a GitHub Environment.
 
-The restore is data-only. The intended recovery sequence is:
+The restore is data-only and uses `pg_restore --disable-triggers` while loading the data. The intended recovery sequence is:
 
 `fresh Supabase project -> apply Bobaks migrations -> restore the public-schema data -> run production integrity audits`
 
