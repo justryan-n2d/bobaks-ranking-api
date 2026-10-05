@@ -315,11 +315,17 @@ async function accountPage(){
         '<div class="account-verification-status '+(verified?"verified":"unverified")+'"><span>'+(verified?"✓":"!")+'</span><div><b>'+(verified?"Email verified":"Email confirmation needed")+'</b><small>'+(verified?"Your Supabase Auth email is confirmed.":"Check your inbox for the confirmation link.")+'</small></div></div>'+
         '<button class="btn" id="refreshVerification" type="button">Refresh verification status</button>'+
       '</section>'+
-      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ROBLOX IDENTITY</div><h2>Connect Roblox</h2><p>Bobaks will use Roblox OAuth 2.0 + OpenID Connect for identity verification. No Roblox password or cookie is stored.</p></div></div>'+
-        (roblox
-          ?'<div class="account-verification-status verified"><span>✓</span><div><b>@'+esc(roblox.username||roblox.display_name||"Roblox user")+'</b><small>Connected · last verified '+esc(String(roblox.last_verified_at||roblox.connected_at||"").slice(0,10)||"not available")+'</small></div></div><a class="account-link" target="_blank" rel="noreferrer noopener" href="'+esc(roblox.profile_url||("https://www.roblox.com/users/"+encodeURIComponent(roblox.roblox_user_id||"")))+'">Open Roblox profile ↗</a>'
-          :'<div class="account-verification-status"><span>○</span><div><b>Not connected yet</b><small>Secure OAuth callback and token exchange are the next server-side step.</small></div></div>')+
-        '<button class="btn" id="connectRoblox" type="button" disabled title="Roblox connection is not enabled yet">Connect Roblox</button>'+
+      '<section class="account-panel"><div class="account-panel-head"><div><div class="eyebrow">ROBLOX IDENTITY</div><h2>Connect Roblox</h2><p>Your Bobaks account and Roblox identity stay separate. Connection is explicit, revocable, and uses Roblox OAuth 2.0 + OpenID Connect.</p></div></div>'+
+        (roblox&&roblox.status==="connected"
+          ?'<div class="account-verification-status verified"><span>✓</span><div><b>@'+esc(roblox.username||roblox.display_name||"Roblox user")+'</b><small>Connected · last verified '+esc(String(roblox.last_verified_at||roblox.connected_at||"").slice(0,10)||"not available")+'</small></div></div>'+
+            '<a class="account-link" target="_blank" rel="noreferrer noopener" href="'+esc(roblox.profile_url||("https://www.roblox.com/users/"+encodeURIComponent(roblox.roblox_user_id||"")))+'">Open Roblox profile ↗</a>'+
+            '<div class="account-visibility-block">'+
+              '<label class="setting-row"><span><b>Show Roblox identity</b><small>Allow future public Bobaks profile and community surfaces to show the connected Roblox identity.</small></span><input id="showRobloxIdentity" type="checkbox" '+(robloxPrefs.show_roblox_identity?"checked":"")+' '+(state.busy?"disabled":"")+'></label>'+
+              '<label class="setting-row"><span><b>Show Roblox avatar</b><small>Allow the Roblox avatar only where your Roblox identity is already visible.</small></span><input id="showRobloxAvatar" type="checkbox" '+(robloxPrefs.show_roblox_avatar?"checked":"")+' '+((!robloxPrefs.show_roblox_identity||state.busy)?"disabled":"")+'></label>'+
+            '</div>'+
+            '<button class="btn" id="disconnectRoblox" type="button" '+(state.busy?"disabled":"")+'>Disconnect Roblox</button>'
+          :'<div class="account-verification-status"><span>○</span><div><b>Not connected yet</b><small>Connect through a secure authorization-code + PKCE flow. Bobaks stores only the verified identity fields needed for account linking.</small></div></div>'+
+            '<button class="btn primary" id="connectRoblox" type="button" '+(state.busy?"disabled":"")+'>'+(state.busy?"Opening Roblox…":"Connect Roblox")+'</button>')+
       '</section>'+
     '</div>'+
     '<section class="account-panel account-security"><div><div class="eyebrow">ACCOUNT</div><h2>Session</h2><p>'+(verified?"Email verified.":"Email confirmation still pending.")+' Core rankings and search remain available without an account.</p></div><button class="btn" id="accountSignOut" type="button">Log out</button></section>'+
