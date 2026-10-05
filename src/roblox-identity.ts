@@ -198,11 +198,11 @@ async function startConnection(
   env: RobloxIdentityEnv,
   fetchImpl: FetchLike
 ) {
-  const config = requiredConfig(env);
-  if (!config) return json({ error: "Roblox identity connection is not configured." }, 503);
-
   const user = await authenticatedSupabaseUser(request, env, fetchImpl);
   if (!user) return json({ error: "Authentication required." }, 401);
+
+  const config = requiredConfig(env);
+  if (!config) return json({ error: "Roblox identity connection is not configured." }, 503);
 
   const transaction = await createTransactionCookie(user.id, config.redirectUri, config.cookieSecret);
   const url = new URL(ROBLOX_AUTHORIZE_URL);
@@ -222,11 +222,11 @@ async function exchangeConnection(
   env: RobloxIdentityEnv,
   fetchImpl: FetchLike
 ) {
-  const config = requiredConfig(env);
-  if (!config) return json({ error: "Roblox identity connection is not configured." }, 503);
-
   const user = await authenticatedSupabaseUser(request, env, fetchImpl);
   if (!user) return json({ error: "Authentication required." }, 401);
+
+  const config = requiredConfig(env);
+  if (!config) return json({ error: "Roblox identity connection is not configured." }, 503);
 
   const transaction = await readTransactionCookie(request, config.cookieSecret);
   if (!transaction || transaction.userId !== user.id) {
