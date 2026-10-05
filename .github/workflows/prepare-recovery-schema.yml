@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           docker run --rm --network host             -e PGPASSWORD             -e PGHOST             -e PGPORT             -e PGDATABASE             -e PGUSER             -e PGSSLMODE             -e PGAPPNAME             -v "${PWD}:/work"             postgres:17-alpine             pg_dump               --schema-only               --schema=public               --no-owner               --no-acl               --file=/work/production-public-schema.sql
           test -s production-public-schema.sql
+          sed -i '/^CREATE SCHEMA public;$/d' production-public-schema.sql
 
       - name: Prepare recovery dependencies
         env:
