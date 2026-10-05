@@ -40,6 +40,6 @@ The production Supabase project was already migrated before this API PR was fina
 - `20261001012510_account_foreign_key_indexes` is already applied and is now tracked in this repository.
 - The applied Roblox identity migration is `20261001015236_roblox_identity_foundation`. The PR's former `20261001030000_roblox_identity_foundation` filename was a duplicate timestamp and has been removed.
 - `20261005032805_identity_visibility_preferences` is already applied and is now tracked in this repository.
-- Production also already has the watchlist UPDATE policy represented by `20261001050000_watchlist_upsert_permissions`, but that version is not present in the reported production migration history. The migration remains in source control so fresh environments reproduce the verified production behavior; it must not be blindly re-applied to production as a second schema migration.
+- `20261001050000_watchlist_upsert_permissions` is now recorded in the production migration history. The watchlist UPDATE policy was already present, so the remote migration ledger was repaired by marking this migration as applied without re-running its SQL.
 
-This reconciliation is repository/history alignment only. No already-applied identity migration is re-executed as part of PR #123.
+This is now a clean repository/production migration-history alignment. No schema or data change was made by the ledger repair, and no already-applied identity migration is re-executed.
