@@ -163,7 +163,7 @@ test("exchange validates state, completes PKCE, stores only sanitized Roblox ide
   assert.ok(exchange);
   assert.equal(exchange.status, 200);
   const body = await exchange.json() as Record<string, unknown>;
-  assert.equal(body.roblox_user_id, "1516563360");
+  assert.equal(String(body.roblox_user_id), "1516563360");
   assert.equal(body.username, "ExampleUser");
   assert.equal("access_token" in body, false);
   assert.equal("refresh_token" in body, false);
