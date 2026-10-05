@@ -7,7 +7,7 @@ const MIGRATION = join(
   process.cwd(),
   "supabase",
   "migrations",
-  "20261005150000_roblox_identity_revoked_uniqueness.sql"
+  "20261005151219_roblox_identity_revoked_uniqueness.sql"
 );
 
 test("revoked Roblox identities do not participate in cross-account uniqueness", () => {
