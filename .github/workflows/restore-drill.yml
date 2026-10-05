@@ -121,19 +121,9 @@ jobs:
             -out "${dump}" \
             -pass env:BACKUP_ENCRYPTION_KEY
           psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-              CREATE ROLE anon NOLOGIN;
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-              CREATE ROLE authenticated NOLOGIN;
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-              CREATE ROLE service_role NOLOGIN;
-            END IF;
-          END
-          $;
+          SELECT 'CREATE ROLE anon NOLOGIN' WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') \gexec
+          SELECT 'CREATE ROLE authenticated NOLOGIN' WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') \gexec
+          SELECT 'CREATE ROLE service_role NOLOGIN' WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') \gexec
           DROP SCHEMA public CASCADE;
           CREATE SCHEMA private;
           CREATE SCHEMA auth;
