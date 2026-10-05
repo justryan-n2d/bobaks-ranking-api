@@ -22,7 +22,7 @@ The API already has its Supabase server key configuration. No Roblox access toke
 5. After the Roblox callback returns to the web origin, the browser calls `POST /api/identity/roblox/exchange` through the same-origin web proxy, which forwards the browser cookie and Bobaks bearer token to the API.
 6. The API verifies the signed transaction cookie, state, and Bobaks user, exchanges the code at Roblox, then calls Roblox UserInfo.
 7. Bobaks stores only the verified Roblox identity fields: subject/ID, username, display name, profile URL, avatar URL, connection status, and verification timestamps.
-8. A unique constraint prevents the same Roblox account from being connected to two Bobaks accounts.
+8. Partial unique constraints prevent the same connected Roblox account from being connected to two Bobaks accounts while allowing a revoked identity to be connected later.
 9. Disconnect marks the identity revoked and the UI clears Roblox visibility permissions.
 
 ## Security boundary
@@ -43,3 +43,7 @@ The production Supabase project was already migrated before this API PR was fina
 - `20261001050000_watchlist_upsert_permissions` is now recorded in the production migration history. The watchlist UPDATE policy was already present, so the remote migration ledger was repaired by marking this migration as applied without re-running its SQL.
 
 This is now a clean repository/production migration-history alignment. No schema or data change was made by the ledger repair, and no already-applied identity migration is re-executed.
+
+## Revocation lifecycle
+
+A disconnected identity row is retained as historical state and marked `revoked`. The `roblox_user_id` and `provider_subject` uniqueness indexes only cover rows with `status = 'connected'`, so a later Bobaks account can connect the same Roblox account without deleting the original history.
