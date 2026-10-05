@@ -1,0 +1,129 @@
+name: Prepare Bobaks Recovery Schema
+
+on:
+  push:
+    branches:
+      - ops/prepare-recovery-schema-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROD_PGHOST: aws-0-ap-southeast-1.pooler.supabase.com
+      PROD_PGPORT: "5432"
+      PROD_PGDATABASE: postgres
+      PROD_PGUSER: postgres.zhrfozouzvxhpkylmpwh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 client
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          if [[ ! -x /usr/lib/postgresql/17/bin/pg_dump ]]; then
+            printf 'y\\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-17
+          fi
+          printf 'PATH=/usr/lib/postgresql/17/bin:%s\\n' "${PATH}" >> "${GITHUB_ENV}"
+
+      - name: Verify PostgreSQL clients
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_dump --version
+          psql --version
+          grep -Eq ' 17(\\.|$)' <<< "$(pg_dump --version)"
+          grep -Eq ' 17(\\.|$)' <<< "$(psql --version)"
+
+      - name: Export production public schema
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGHOST: ${{ env.PROD_PGHOST }}
+          PGPORT: ${{ env.PROD_PGPORT }}
+          PGDATABASE: ${{ env.PROD_PGDATABASE }}
+          PGUSER: ${{ env.PROD_PGUSER }}
+          PGSSLMODE: require
+          PGAPPNAME: bobaks-recovery-schema-prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_dump \
+            --schema-only \
+            --schema=public \
+            --no-owner \
+            --no-acl \
+            --file=production-public-schema.sql
+          test -s production-public-schema.sql
+
+      - name: Prepare recovery dependencies
+        env:
+          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RESTORE_DB_URL}"
+          case "${RESTORE_DB_URL}" in
+            *zhrfozouzvxhpkylmpwh*)
+              echo "Refusing to target Bobaks production." >&2
+              exit 1
+              ;;
+          esac
+
+          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists private;
+
+          create or replace function private.set_updated_at()
+          returns trigger
+          language plpgsql
+          security definer
+          set search_path to ''
+          as $function$
+          begin
+            new.updated_at := now();
+            return new;
+          end;
+          $function$;
+          SQL
+
+      - name: Apply production public schema to recovery
+        env:
+          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f production-public-schema.sql
+
+      - name: Verify recovery schema
+        env:
+          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+            select count(*)
+            from information_schema.tables
+            where table_schema='public'
+              and table_type='BASE TABLE';
+          " > recovery-public-table-count.txt
+
+          echo "Recovery public table count: $(cat recovery-public-table-count.txt)"
+          test "$(cat recovery-public-table-count.txt)" -gt 0
+
+          psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+            select string_agg(table_name, ',' order by table_name)
+            from information_schema.tables
+            where table_schema='public'
+              and table_type='BASE TABLE';
+          " > recovery-public-tables.txt
+
+          echo "Recovery public tables:"
+          cat recovery-public-tables.txt
