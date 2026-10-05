@@ -446,6 +446,60 @@ async function submitAlerts(){
     state.error=String(error?.message||"Could not save alert settings.")
   }finally{state.busy=false;render()}
 }
+async function connectRoblox(){
+  if(!isSignedIn()||state.busy)return;
+  state.busy=true;
+  state.error="";
+  render();
+  try{
+    const url=await client.startRobloxConnection();
+    location.assign(url);
+  }catch(error){
+    state.error=String(error?.message||"Could not start the Roblox connection.");
+    state.busy=false;
+    render();
+  }
+}
+async function disconnectRoblox(){
+  if(!isSignedIn()||state.busy)return;
+  state.busy=true;
+  state.error="";
+  render();
+  try{
+    await client.disconnectRoblox();
+    state.robloxIdentity=null;
+    state.robloxPreferences={show_roblox_identity:false,show_roblox_avatar:false};
+    state.error="";
+  }catch(error){
+    state.error=String(error?.message||"Could not disconnect Roblox.");
+  }finally{
+    state.busy=false;
+    render();
+  }
+}
+async function saveRobloxVisibility(){
+  if(!isSignedIn()||state.busy||!state.robloxIdentity)return;
+  const identity=document.getElementById("showRobloxIdentity");
+  const avatar=document.getElementById("showRobloxAvatar");
+  const showIdentity=Boolean(identity?.checked);
+  const showAvatar=Boolean(avatar?.checked)&&showIdentity;
+  state.busy=true;
+  state.error="";
+  render();
+  try{
+    const saved=await client.updateRobloxIdentityPreferences({
+      show_roblox_identity:showIdentity,
+      show_roblox_avatar:showAvatar
+    });
+    state.robloxPreferences=saved||{show_roblox_identity:false,show_roblox_avatar:false};
+  }catch(error){
+    state.error=String(error?.message||"Could not save Roblox visibility settings.");
+  }finally{
+    state.busy=false;
+    render();
+  }
+}
+
 async function signOut(){
   if(state.busy)return;
   state.busy=true;
@@ -471,6 +525,7 @@ client.onAuthStateChange((event,session)=>{
     state.confirmation={pending:false,email:"",message:""};
     state.verification={emailConfirmed:null,lastCheckedAt:null};
     state.robloxIdentity=null;
+    state.robloxPreferences={show_roblox_identity:false,show_roblox_avatar:false};
     window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
     app().clearSaved?.();
     render();
@@ -497,17 +552,26 @@ window.__BOBAKS_ACCOUNT_UI__={
   submitProfile,
   submitAlerts,
   signOut,
+  connectRoblox,
+  disconnectRoblox,
+  saveRobloxVisibility,
   ready:()=>authReady
 };
 
 document.addEventListener("click",event=>{
-  const button=event.target?.closest?.("#resendConfirmation,#backToSignIn,#refreshVerification,#retryGuestMigration,#savedAccountCta");
+  const button=event.target?.closest?.("#resendConfirmation,#backToSignIn,#refreshVerification,#retryGuestMigration,#savedAccountCta,#connectRoblox,#disconnectRoblox");
   if(!button)return;
   if(button.id==="resendConfirmation")resendConfirmation();
   else if(button.id==="backToSignIn"){state.confirmation={pending:false,email:"",message:""};goAuth("signin",{push:false})}
   else if(button.id==="refreshVerification")refreshVerification();
   else if(button.id==="retryGuestMigration")retryGuestMigration();
   else if(button.id==="savedAccountCta")goAuth("signin");
+  else if(button.id==="connectRoblox")connectRoblox();
+  else if(button.id==="disconnectRoblox")disconnectRoblox();
+});
+
+document.addEventListener("change",event=>{
+  if(event.target?.id==="showRobloxIdentity"||event.target?.id==="showRobloxAvatar")saveRobloxVisibility();
 });
 
 document.addEventListener("input",event=>{
