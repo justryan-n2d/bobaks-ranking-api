@@ -58,7 +58,7 @@ jobs:
           test -n "${BOBAKS_B2_ACCESS_KEY_ID}" || { echo "Missing BOBAKS_B2_ACCESS_KEY_ID"; exit 1; }
           test -n "${BOBAKS_B2_SECRET_ACCESS_KEY}" || { echo "Missing BOBAKS_B2_SECRET_ACCESS_KEY"; exit 1; }
           test -n "${BACKUP_ENCRYPTION_KEY}" || { echo "Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
-          test -n "${RESTORE_DB_URL}" || { echo "Missing restore-test environment secret: RESTORE_DB_URL"; exit 1; }
+          test -n "${RESTORE_DB_URL}" || { echo "Missing repository Actions secret: RESTORE_DB_URL"; exit 1; }
 
       - name: Restore backup into isolated target
         env:
