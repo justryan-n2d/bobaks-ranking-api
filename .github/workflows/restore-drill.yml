@@ -26,7 +26,6 @@ jobs:
       BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
       BOBAKS_B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
       BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
-      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
 
     steps:
       - name: Checkout
@@ -50,7 +49,28 @@ jobs:
             sudo apt-get install -y awscli
           fi
 
-      - name: Validate restore configuration
+      - name: Start isolated PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -d \
+            --name bobaks-restore-db \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
+            -p 5432:5432 \
+            postgres:17
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; then
+              break
+            fi
+            if [[ "${attempt}" -eq 10 ]]; then
+              echo "Isolated PostgreSQL 17 did not become ready." >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          psql -h 127.0.0.1 -p 5432 -U postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE restore_validation;'
+
+- name: Validate restore configuration
         shell: bash
         env:
           OBJECT_KEY: ${{ inputs.object_key || env.RESTORE_OBJECT_KEY }}
@@ -62,15 +82,64 @@ jobs:
           test -n "${BOBAKS_B2_ACCESS_KEY_ID}" || { echo "Missing BOBAKS_B2_ACCESS_KEY_ID"; exit 1; }
           test -n "${BOBAKS_B2_SECRET_ACCESS_KEY}" || { echo "Missing BOBAKS_B2_SECRET_ACCESS_KEY"; exit 1; }
           test -n "${BACKUP_ENCRYPTION_KEY}" || { echo "Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
-          test -n "${RESTORE_DB_URL}" || { echo "Missing repository Actions secret: RESTORE_DB_URL"; exit 1; }
 
-      - name: Restore backup into isolated target
+      - name: Prepare isolated database schema
         env:
           OBJECT_KEY: ${{ inputs.object_key || env.RESTORE_OBJECT_KEY }}
         shell: bash
         run: |
           set -euo pipefail
+          encrypted="/tmp/bobaks-schema.dump.enc"
+          dump="/tmp/bobaks-schema.dump"
+          aws s3 cp \
+            "s3://${BOBAKS_B2_BUCKET}/${OBJECT_KEY}" \
+            "${encrypted}" \
+            --endpoint-url "https://s3.${BOBAKS_B2_REGION}.backblazeb2.com" \
+            --no-progress
+          openssl enc \
+            -d \
+            -aes-256-cbc \
+            -pbkdf2 \
+            -iter 310000 \
+            -in "${encrypted}" \
+            -out "${dump}" \
+            -pass env:BACKUP_ENCRYPTION_KEY
+          pg_restore \
+            --schema-only \
+            --no-owner \
+            --no-acl \
+            --exit-on-error \
+            --single-transaction \
+            --dbname="postgresql://postgres@127.0.0.1:5432/restore_validation" \
+            "${dump}"
+
+      - name: Restore backup into isolated target
+        env:
+          OBJECT_KEY: ${{ inputs.object_key || env.RESTORE_OBJECT_KEY }}
+          RESTORE_DB_URL: postgresql://postgres@127.0.0.1:5432/restore_validation
+        shell: bash
+        run: |
+          set -euo pipefail
           bash scripts/restore-backup.sh "${OBJECT_KEY}"
+
+      - name: Verify restored data
+        shell: bash
+        run: |
+          set -euo pipefail
+          table_count="$(psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -Atqc "select count(*) from information_schema.tables where table_schema = 'public';")"
+          ranking_by_period="$(psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -Atqc "select string_agg(\"period\" || ':' || cnt, ',' order by \"period\") from (select \"period\", count(*) as cnt from public.\"Ranking\" group by \"period\") s;")"
+          game_count="$(psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -Atqc 'select count(*) from public."Game";')"
+          snapshot_count="$(psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -Atqc 'select count(*) from public."GameSnapshot";')"
+
+          echo "Restored public table count: ${table_count}"
+          echo "Restored ranking rows by period: ${ranking_by_period}"
+          echo "Restored Game rows: ${game_count}"
+          echo "Restored GameSnapshot rows: ${snapshot_count}"
+
+          test "${table_count}" -gt 0
+          test "${ranking_by_period}" = "live:100,monthly:100,weekly:100,yearly:100"
+          test "${game_count}" -gt 0
+          test "${snapshot_count}" -gt 0
 
       - name: Report restore drill success
         run: echo "Bobaks restore drill completed successfully."
