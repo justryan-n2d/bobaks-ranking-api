@@ -56,6 +56,8 @@ The backup workflow connects to the Supabase Shared Pooler in Session mode using
 
 The repository currently targets `aws-0-ap-southeast-1.pooler.supabase.com:5432` for the Bobaks project. If Supabase changes the project's pooler host, update the workflow from the Connect dialog before the next backup run.
 
+The restore script derives the same B2 S3 endpoint from `BOBAKS_B2_REGION`, so the region remains the single source of truth across backup and restore.
+
 Generate the separate backup-encryption key locally with:
 
 ```bash
@@ -89,7 +91,6 @@ export BOBAKS_B2_REGION='<region>'
 export BOBAKS_B2_BUCKET='bobaks-ranking-archive-ryan01'
 export BOBAKS_B2_ACCESS_KEY_ID='...'
 export BOBAKS_B2_SECRET_ACCESS_KEY='...'
-export BOBAKS_B2_REGION='<region>'
 export BACKUP_ENCRYPTION_KEY='...'
 export RESTORE_DB_URL='postgresql://...'
 

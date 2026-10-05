@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${BOBAKS_B2_ENDPOINT:?Set BOBAKS_B2_ENDPOINT to the Backblaze B2 S3 endpoint}"
 : "${BOBAKS_B2_BUCKET:?Set BOBAKS_B2_BUCKET to the backup bucket name}"
 : "${BOBAKS_B2_ACCESS_KEY_ID:?Set BOBAKS_B2_ACCESS_KEY_ID}"
 : "${BOBAKS_B2_SECRET_ACCESS_KEY:?Set BOBAKS_B2_SECRET_ACCESS_KEY}"
@@ -14,6 +13,13 @@ if [[ -z "${OBJECT_KEY}" ]]; then
   echo "Usage: OBJECT_KEY=... RESTORE_DB_URL=... ./scripts/restore-backup.sh <b2-object-key>" >&2
   exit 2
 fi
+
+if [[ ! "${BOBAKS_B2_REGION}" =~ ^[a-z0-9-]+$ ]]; then
+  echo "Invalid Backblaze B2 region format." >&2
+  exit 1
+fi
+
+BOBAKS_B2_ENDPOINT="https://s3.${BOBAKS_B2_REGION}.backblazeb2.com"
 
 export AWS_ACCESS_KEY_ID="${BOBAKS_B2_ACCESS_KEY_ID}"
 export AWS_SECRET_ACCESS_KEY="${BOBAKS_B2_SECRET_ACCESS_KEY}"

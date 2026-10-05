@@ -19,7 +19,6 @@ jobs:
 
     env:
       AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}
-      BOBAKS_B2_ENDPOINT: ${{ secrets.BOBAKS_B2_ENDPOINT }}
       BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
       BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
       BOBAKS_B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
@@ -55,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${OBJECT_KEY}"
-          test -n "${BOBAKS_B2_ENDPOINT}" || { echo "Missing BOBAKS_B2_ENDPOINT"; exit 1; }
+          test -n "${BOBAKS_B2_REGION}" || { echo "Missing BOBAKS_B2_REGION"; exit 1; }
           test -n "${BOBAKS_B2_BUCKET}" || { echo "Missing BOBAKS_B2_BUCKET"; exit 1; }
           test -n "${BOBAKS_B2_ACCESS_KEY_ID}" || { echo "Missing BOBAKS_B2_ACCESS_KEY_ID"; exit 1; }
           test -n "${BOBAKS_B2_SECRET_ACCESS_KEY}" || { echo "Missing BOBAKS_B2_SECRET_ACCESS_KEY"; exit 1; }
