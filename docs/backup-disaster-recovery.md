@@ -4,77 +4,79 @@
 
 Bobaks keeps long-term ranking history in Supabase. The live database has retention controls, but long-term durability also needs an independent export that can survive a database or project failure.
 
-Supabase recommends that Free Plan projects regularly export their data and keep off-site backups. Supabase database backups on paid plans are separate from the long-term archive described here.
+The off-site archive provider for Bobaks is **Backblaze B2 Cloud Storage**. The B2 bucket is private, default encryption is enabled, and Object Lock is enabled on the bucket.
 
 ## Backup architecture
 
 The scheduled GitHub Actions workflow:
 
-1. Creates a logical PostgreSQL custom-format dump of the `public` schema.
-2. Encrypts the dump with AES-256-CBC using PBKDF2.
-3. Uploads the encrypted dump and a non-secret manifest to Cloudflare R2.
+1. Creates a logical PostgreSQL custom-format dump of the public schema.
+2. Encrypts the dump with AES-256-CBC using PBKDF2 before it leaves the runner.
+3. Uploads the encrypted dump and a non-secret manifest to Backblaze B2 through its S3-compatible API.
 4. Keeps daily backups under `daily/YYYY/MM/YYYY-MM-DD/`.
 5. Also stores the Sunday backup under `weekly/YYYY/MM/YYYY-MM-DD/`.
-6. Downloads the uploaded object again, verifies its SHA-256 checksum, decrypts it, and runs `pg_restore --list`.
+6. Downloads the uploaded daily object again, verifies its SHA-256 checksum, decrypts it, and runs `pg_restore --list`.
 
-GitHub Actions is used only to run the backup job. The database dump itself is not committed to this public repository and is not stored as a GitHub artifact.
+GitHub Actions is used only to run the backup job. The database dump is not committed to this public repository and is not stored as a GitHub Actions artifact.
+
+The workflow remains non-destructive until the archive path is proven. A future raw-snapshot archive/cleanup path must follow:
+
+`export -> upload -> verify -> record success -> delete`
+
+If B2 upload or verification fails, the PostgreSQL data must remain untouched.
+
+## B2 bucket and key
+
+Current Bobaks archive bucket:
+
+`bobaks-ranking-archive-ryan01`
+
+The bucket is private. The B2 application key is restricted to this bucket with Read and Write access. "Allow list all bucket names" is not required because Bobaks operates on a known bucket and known object keys.
+
+Do not place the B2 Application Key or any database credentials in source control.
 
 ## Required GitHub Actions secrets
 
-Configure these repository secrets before enabling the scheduled backup:
+Add these repository secrets before activating the scheduled archive:
 
-- `SUPABASE_DB_URL`
-- `BOBAKS_R2_ENDPOINT`
-- `BOBAKS_R2_BUCKET`
-- `BOBAKS_R2_ACCESS_KEY_ID`
-- `BOBAKS_R2_SECRET_ACCESS_KEY`
+- `SUPABASE_DB_PASSWORD`
+- `BOBAKS_B2_BUCKET`
+- `BOBAKS_B2_ACCESS_KEY_ID`
+- `BOBAKS_B2_SECRET_ACCESS_KEY`
+- `BOBAKS_B2_REGION`
 - `BACKUP_ENCRYPTION_KEY`
 
-Generate the encryption key locally with:
+Set `BOBAKS_B2_BUCKET` to:
+
+`bobaks-ranking-archive-ryan01`
+
+Backblaze's S3-compatible endpoint is derived by the workflow from `BOBAKS_B2_REGION` using the form `https://s3.<region>.backblazeb2.com`. This keeps the region as the single source of truth and avoids endpoint-entry mismatches. The workflow also performs a network connectivity check before uploading.
+
+The backup workflow connects to the Supabase Shared Pooler in Session mode using the exact host and project-specific user from the Supabase Connect dialog. The database password is supplied separately through `SUPABASE_DB_PASSWORD` via PostgreSQL's `PGPASSWORD` environment variable, rather than embedding the password in a connection URI. This avoids URI password-encoding errors while keeping the password out of source control.
+
+The repository currently targets `aws-0-ap-southeast-1.pooler.supabase.com:5432` for the Bobaks project. If Supabase changes the project's pooler host, update the workflow from the Connect dialog before the next backup run.
+
+Generate the separate backup-encryption key locally with:
 
 ```bash
 openssl rand -base64 32
 ```
 
-The R2 endpoint has the form:
+Keep this encryption key separate from the B2 application key.
 
-```
-https://<ACCOUNT_ID>.r2.cloudflarestorage.com
-```
+## Object Lock
 
-Use an R2 API token limited to the backup bucket with Object Read & Write access.
+Object Lock was enabled when the Bobaks bucket was created. **Object Lock enabled on a bucket does not by itself make uploaded files immutable.** A default bucket retention period or an explicit per-file retention setting must also be configured.
 
-## Create the R2 bucket
+Bobaks does not yet configure a default retention period on this bucket. This avoids accidentally applying a fixed retention policy to every object before the archive lifecycle is finalized.
 
-Create a private R2 bucket for Bobaks backups. Do not enable public bucket access.
+Until retention is configured, the primary archive safety controls are encryption, private access, least-privilege credentials, checksum verification, and restore testing.
 
-Cloudflare R2 supports the S3-compatible API, which is what the GitHub workflow uses.
+## Archive lifecycle
 
-After the bucket exists, set these GitHub secrets:
+The `daily/` prefix is for short-term operational recovery.
 
-```text
-BOBAKS_R2_ENDPOINT
-BOBAKS_R2_BUCKET
-BOBAKS_R2_ACCESS_KEY_ID
-BOBAKS_R2_SECRET_ACCESS_KEY
-```
-
-## Long-term retention
-
-The `daily/` prefix is intended for short-term operational recovery and should normally have a lifecycle rule such as 90 days.
-
-The `weekly/` prefix is the long-term archive. Configure an R2 Bucket Lock rule for this prefix with indefinite retention, or use another retention policy that matches the desired archive period.
-
-Do not configure a lifecycle expiration rule that can delete the weekly archive.
-
-Example Wrangler configuration after creating the bucket:
-
-```bash
-npx wrangler r2 bucket lifecycle add bobaks-backups daily-cleanup daily/ --expire-days 90
-npx wrangler r2 bucket lock add bobaks-backups weekly-archive weekly/ --retention-indefinite
-```
-
-These commands assume the bucket is named `bobaks-backups`. Replace it with the value used for `BOBAKS_R2_BUCKET`.
+The `weekly/` prefix is intended for long-term archive copies. Do not enable an expiration policy that can remove long-term weekly archives before an explicit retention decision is made.
 
 ## Restore procedure
 
@@ -83,45 +85,47 @@ The repository includes `scripts/restore-backup.sh`.
 Use it only with a disposable or dedicated recovery database:
 
 ```bash
-export R2_ENDPOINT='https://<ACCOUNT_ID>.r2.cloudflarestorage.com'
-export R2_BUCKET='bobaks-backups'
-export R2_ACCESS_KEY_ID='...'
-export R2_SECRET_ACCESS_KEY='...'
+export BOBAKS_B2_REGION='<region>'
+export BOBAKS_B2_BUCKET='bobaks-ranking-archive-ryan01'
+export BOBAKS_B2_ACCESS_KEY_ID='...'
+export BOBAKS_B2_SECRET_ACCESS_KEY='...'
+export BOBAKS_B2_REGION='<region>'
 export BACKUP_ENCRYPTION_KEY='...'
 export RESTORE_DB_URL='postgresql://...'
 
-./scripts/restore-backup.sh   weekly/2026/09/2026-09-27/bobaks-public-20260927T013000Z.dump.enc
+./scripts/restore-backup.sh weekly/YYYY/MM/YYYY-MM-DD/bobaks-public-<timestamp>.dump.enc
 ```
 
 The script refuses to restore into the current Bobaks production Supabase project.
 
-For a repeatable GitHub-based drill, the repository also includes `.github/workflows/restore-drill.yml`. Configure the GitHub Environment named `restore-test` with a `RESTORE_DB_URL` secret pointing to a disposable recovery database, then manually run the workflow and provide a weekly R2 object key.
+For a repeatable GitHub-based drill, the repository also includes `.github/workflows/restore-drill.yml`. Configure the GitHub Environment named `restore-test` with a `RESTORE_DB_URL` secret pointing to a disposable recovery database, then manually run the workflow and provide a weekly B2 object key.
 
 The restore is data-only. The intended recovery sequence is:
 
 `fresh Supabase project -> apply Bobaks migrations -> restore the public-schema data -> run production integrity audits`
 
-## Recovery test
+## Verification requirement
 
-A backup is not considered fully validated until a real restore drill succeeds.
+A backup is not considered fully validated until the workflow successfully:
 
-The scheduled backup workflow already performs a structural validation by decrypting the remote object and running `pg_restore --list`.
+1. Creates the encrypted database dump.
+2. Uploads the object to B2.
+3. Confirms the object exists.
+4. Downloads the same object.
+5. Confirms the SHA-256 checksum matches.
+6. Successfully decrypts the dump.
+7. Confirms the dump is structurally readable with `pg_restore --list`.
 
-A future restore drill should restore a recent weekly archive into an isolated Supabase project, then verify:
-
-- all expected tables exist
-- Game, GameSnapshot, DailyGameStat, GamePeak, Ranking, and DataCollectionLog contain expected data
-- ranking integrity audit passes
-- historical API requests work against the recovered database
+A separate restore drill must later restore a real weekly archive into an isolated recovery database.
 
 Do not use the production database as the restore-test target.
 
-## Why R2
+## Why Backblaze B2
 
-Cloudflare documents R2 as an S3-compatible object store and states that R2 is designed for 11 nines of annual durability. R2 also supports bucket-level retention controls that can keep objects indefinitely.
+B2 provides an S3-compatible API, bucket-scoped application keys, private buckets, and Object Lock support. Bobaks uses those capabilities for an independent archive rather than making B2 a dependency of the live ranking API.
 
-The goal here is not to claim that any cloud provider makes data loss impossible. The goal is to keep an independent, encrypted copy outside the production Postgres database and to regularly prove that the copy can be read and restored.
+The goal is to keep an encrypted copy outside the production Postgres database and regularly prove that the copy can be read and restored.
 
 ## Supabase Pro later
 
-When Bobaks moves to Supabase Pro, its daily managed database backups provide an additional recovery layer. The off-site R2 archive should remain in place because it serves a different purpose: long-term independent retention rather than short recovery-window restoration.
+When Bobaks moves to Supabase Pro, managed database backups can add another recovery layer. The independent B2 archive should remain because it serves a different purpose: long-term independent retention rather than only short recovery-window restoration.

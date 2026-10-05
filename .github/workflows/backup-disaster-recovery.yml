@@ -17,7 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      AWS_DEFAULT_REGION: auto
+      AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}
+      SUPABASE_DB_HOST: aws-0-ap-southeast-1.pooler.supabase.com
+      SUPABASE_DB_PORT: "5432"
+      SUPABASE_DB_NAME: postgres
+      SUPABASE_DB_USER: postgres.zhrfozouzvxhpkylmpwh
 
     steps:
       - name: Checkout
@@ -25,14 +29,39 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 17 client
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v pg_dump >/dev/null 2>&1 || ! command -v pg_restore >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          if [[ ! -x /usr/lib/postgresql/17/bin/pg_dump ]]; then
+            printf 'y\n' | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
             sudo apt-get update
-            sudo apt-get install -y postgresql-client
+            sudo apt-get install -y postgresql-client-17
           fi
+          printf 'PATH=/usr/lib/postgresql/17/bin:%s\n' "${PATH}" >> "${GITHUB_ENV}"
+          export PATH="/usr/lib/postgresql/17/bin:${PATH}"
+          pg_dump --version
+          pg_restore --version
+          psql --version
+
+      - name: Verify PostgreSQL 17 client tools
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pg_dump_version="$("/usr/lib/postgresql/17/bin/pg_dump" --version)"
+          pg_restore_version="$("/usr/lib/postgresql/17/bin/pg_restore" --version)"
+          psql_version="$("/usr/lib/postgresql/17/bin/psql" --version)"
+
+          echo "${pg_dump_version}"
+          echo "${pg_restore_version}"
+          echo "${psql_version}"
+
+          grep -Eq ' 17(\.|$)' <<< "${pg_dump_version}"
+          grep -Eq ' 17(\.|$)' <<< "${pg_restore_version}"
+          grep -Eq ' 17(\.|$)' <<< "${psql_version}"
 
       - name: Install AWS CLI
         shell: bash
@@ -47,21 +76,19 @@ jobs:
         id: config
         shell: bash
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
-          R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+          BOBAKS_B2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
+          BOBAKS_B2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
 
           values=(
-            "${SUPABASE_DB_URL}"
-            "${R2_ENDPOINT}"
-            "${R2_BUCKET}"
-            "${R2_ACCESS_KEY_ID}"
-            "${R2_SECRET_ACCESS_KEY}"
+            "${SUPABASE_DB_PASSWORD}"
+            "${BOBAKS_B2_BUCKET}"
+            "${BOBAKS_B2_ACCESS_KEY_ID}"
+            "${BOBAKS_B2_SECRET_ACCESS_KEY}"
             "${BACKUP_ENCRYPTION_KEY}"
           )
 
@@ -80,28 +107,89 @@ jobs:
             {
               echo "## Bobaks backup skipped"
               echo
-              echo "R2 backup storage is not configured yet. No backup was attempted."
+              echo "B2 backup storage is not configured yet. No backup was attempted."
             } >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
 
           if [[ "${missing}" -ne 0 ]]; then
-            echo "R2 backup configuration is incomplete." >&2
-            test -n "${SUPABASE_DB_URL}" || { echo "Missing GitHub secret: SUPABASE_DB_URL" >&2; exit 1; }
-            test -n "${R2_ENDPOINT}" || { echo "Missing GitHub secret: BOBAKS_R2_ENDPOINT" >&2; exit 1; }
-            test -n "${R2_BUCKET}" || { echo "Missing GitHub secret: BOBAKS_R2_BUCKET" >&2; exit 1; }
-            test -n "${R2_ACCESS_KEY_ID}" || { echo "Missing GitHub secret: BOBAKS_R2_ACCESS_KEY_ID" >&2; exit 1; }
-            test -n "${R2_SECRET_ACCESS_KEY}" || { echo "Missing GitHub secret: BOBAKS_R2_SECRET_ACCESS_KEY" >&2; exit 1; }
+            echo "Backup configuration is incomplete." >&2
+            test -n "${SUPABASE_DB_PASSWORD}" || { echo "Missing GitHub secret: SUPABASE_DB_PASSWORD" >&2; exit 1; }
+            test -n "${BOBAKS_B2_BUCKET}" || { echo "Missing GitHub secret: BOBAKS_B2_BUCKET" >&2; exit 1; }
+            test -n "${BOBAKS_B2_ACCESS_KEY_ID}" || { echo "Missing GitHub secret: BOBAKS_B2_ACCESS_KEY_ID" >&2; exit 1; }
+            test -n "${BOBAKS_B2_SECRET_ACCESS_KEY}" || { echo "Missing GitHub secret: BOBAKS_B2_SECRET_ACCESS_KEY" >&2; exit 1; }
             test -n "${BACKUP_ENCRYPTION_KEY}" || { echo "Missing GitHub secret: BACKUP_ENCRYPTION_KEY" >&2; exit 1; }
           fi
 
           echo "configured=true" >> "${GITHUB_OUTPUT}"
 
+      - name: Build B2 endpoint from region
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        env:
+          BOBAKS_B2_REGION: ${{ secrets.BOBAKS_B2_REGION }}
+        run: |
+          set -euo pipefail
+
+          region="${BOBAKS_B2_REGION}"
+
+          if [[ ! "${region}" =~ ^[a-z0-9-]+$ ]]; then
+            echo "Invalid Backblaze B2 region format." >&2
+            exit 1
+          fi
+
+          endpoint="https://s3.${region}.backblazeb2.com"
+          printf 'B2_ENDPOINT=%s\n' "${endpoint}" >> "${GITHUB_ENV}"
+
+      - name: Verify B2 endpoint connectivity
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          status="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 20 "${B2_ENDPOINT}")"
+          echo "Backblaze B2 endpoint responded with HTTP status ${status}."
+
+      - name: Verify Supabase database connection
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        env:
+          PGHOST: ${{ env.SUPABASE_DB_HOST }}
+          PGPORT: ${{ env.SUPABASE_DB_PORT }}
+          PGDATABASE: ${{ env.SUPABASE_DB_NAME }}
+          PGUSER: ${{ env.SUPABASE_DB_USER }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require
+          PGAPPNAME: bobaks-backup
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if /usr/lib/postgresql/17/bin/psql --no-psqlrc -v ON_ERROR_STOP=1 -Atqc "select current_user, current_database();" ; then
+              echo "Supabase database connection verified."
+              exit 0
+            fi
+
+            if [[ "${attempt}" -lt 5 ]]; then
+              echo "Supabase connection attempt ${attempt}/5 failed; retrying in 15 seconds." >&2
+              sleep 15
+            fi
+          done
+
+          echo "Supabase database connection could not be established after 5 attempts." >&2
+          exit 1
+
       - name: Create encrypted logical backup
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGHOST: ${{ env.SUPABASE_DB_HOST }}
+          PGPORT: ${{ env.SUPABASE_DB_PORT }}
+          PGDATABASE: ${{ env.SUPABASE_DB_NAME }}
+          PGUSER: ${{ env.SUPABASE_DB_USER }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require
+          PGAPPNAME: bobaks-backup
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
@@ -116,9 +204,22 @@ jobs:
           DUMP="bobaks-public-${TIMESTAMP}.dump"
           ENCRYPTED="${DUMP}.enc"
 
-          pg_dump             --dbname="${SUPABASE_DB_URL}"             --format=custom             --compress=6             --schema=public             --no-owner             --no-acl             --file="${DUMP}"
+          /usr/lib/postgresql/17/bin/pg_dump \
+            --format=custom \
+            --compress=6 \
+            --schema=public \
+            --no-owner \
+            --no-acl \
+            --file="${DUMP}"
 
-          openssl enc             -aes-256-cbc             -salt             -pbkdf2             -iter 310000             -in "${DUMP}"             -out "${ENCRYPTED}"             -pass env:BACKUP_ENCRYPTION_KEY
+          openssl enc \
+            -aes-256-cbc \
+            -salt \
+            -pbkdf2 \
+            -iter 310000 \
+            -in "${DUMP}" \
+            -out "${ENCRYPTED}" \
+            -pass env:BACKUP_ENCRYPTION_KEY
 
           SHA256="$(sha256sum "${ENCRYPTED}" | awk '{print $1}')"
 
@@ -147,20 +248,16 @@ jobs:
           }
           EOF
 
-      - name: Upload daily backup to R2
+      - name: Upload daily backup to Backblaze B2
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
-          R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+          BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
 
-          TIMESTAMP="$(cat backup-timestamp.txt)"
           YEAR="$(cat backup-year.txt)"
           MONTH="$(cat backup-month.txt)"
           DATE_UTC="$(cat backup-date.txt)"
@@ -169,17 +266,29 @@ jobs:
           DAILY_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
           MANIFEST_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
 
-          aws s3 cp "${ENCRYPTED}"             "s3://${R2_BUCKET}/${DAILY_KEY}"             --endpoint-url "${R2_ENDPOINT}"             --content-type "application/octet-stream"             --no-progress
+          aws s3 cp "${ENCRYPTED}" "s3://${BOBAKS_B2_BUCKET}/${DAILY_KEY}" \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --content-type "application/octet-stream" \
+            --no-progress
 
-          aws s3 cp manifest.json             "s3://${R2_BUCKET}/${MANIFEST_KEY}"             --endpoint-url "${R2_ENDPOINT}"             --content-type "application/json"             --no-progress
+          aws s3 cp manifest.json "s3://${BOBAKS_B2_BUCKET}/${MANIFEST_KEY}" \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --content-type "application/json" \
+            --no-progress
 
           if [[ "$(date -u '+%u')" == "7" ]]; then
             WEEKLY_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
             WEEKLY_MANIFEST_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
 
-            aws s3 cp "${ENCRYPTED}"               "s3://${R2_BUCKET}/${WEEKLY_KEY}"               --endpoint-url "${R2_ENDPOINT}"               --content-type "application/octet-stream"               --no-progress
+            aws s3 cp "${ENCRYPTED}" "s3://${BOBAKS_B2_BUCKET}/${WEEKLY_KEY}" \
+              --endpoint-url "${B2_ENDPOINT}" \
+              --content-type "application/octet-stream" \
+              --no-progress
 
-            aws s3 cp manifest.json               "s3://${R2_BUCKET}/${WEEKLY_MANIFEST_KEY}"               --endpoint-url "${R2_ENDPOINT}"               --content-type "application/json"               --no-progress
+            aws s3 cp manifest.json "s3://${BOBAKS_B2_BUCKET}/${WEEKLY_MANIFEST_KEY}" \
+              --endpoint-url "${B2_ENDPOINT}" \
+              --content-type "application/json" \
+              --no-progress
 
             printf '%s\n' "${WEEKLY_KEY}" > backup-weekly-key.txt
           else
@@ -190,12 +299,9 @@ jobs:
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          R2_ENDPOINT: ${{ secrets.BOBAKS_R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.BOBAKS_R2_BUCKET }}
-          R2_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_R2_SECRET_ACCESS_KEY }}
+          BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BOBAKS_B2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BOBAKS_B2_SECRET_ACCESS_KEY }}
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
@@ -207,16 +313,28 @@ jobs:
           EXPECTED_SHA="$(cat backup-sha256.txt)"
 
           DAILY_KEY="daily/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
-          aws s3api head-object             --bucket "${R2_BUCKET}"             --key "${DAILY_KEY}"             --endpoint-url "${R2_ENDPOINT}" >/dev/null
+          aws s3api head-object \
+            --bucket "${BOBAKS_B2_BUCKET}" \
+            --key "${DAILY_KEY}" \
+            --endpoint-url "${B2_ENDPOINT}" >/dev/null
 
-          aws s3 cp             "s3://${R2_BUCKET}/${DAILY_KEY}"             remote-backup.enc             --endpoint-url "${R2_ENDPOINT}"             --no-progress
+          aws s3 cp "s3://${BOBAKS_B2_BUCKET}/${DAILY_KEY}" remote-backup.enc \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --no-progress
 
           ACTUAL_SHA="$(sha256sum remote-backup.enc | awk '{print $1}')"
           test "${ACTUAL_SHA}" = "${EXPECTED_SHA}"
 
-          openssl enc             -d             -aes-256-cbc             -pbkdf2             -iter 310000             -in remote-backup.enc             -out restored-check.dump             -pass env:BACKUP_ENCRYPTION_KEY
+          openssl enc \
+            -d \
+            -aes-256-cbc \
+            -pbkdf2 \
+            -iter 310000 \
+            -in remote-backup.enc \
+            -out restored-check.dump \
+            -pass env:BACKUP_ENCRYPTION_KEY
 
-          pg_restore --list restored-check.dump >/dev/null
+          /usr/lib/postgresql/17/bin/pg_restore --list restored-check.dump >/dev/null
 
           echo "Remote backup uploaded, checksum-verified, decrypted, and structurally readable."
 
