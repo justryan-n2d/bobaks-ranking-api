@@ -1,6 +1,9 @@
 name: Bobaks Backup and Disaster Recovery
 
 on:
+  push:
+    branches:
+      - validate/real-b2-restore-20261005
   schedule:
     - cron: "30 1 * * *"
   workflow_dispatch:
@@ -276,7 +279,7 @@ jobs:
             --content-type "application/json" \
             --no-progress
 
-          if [[ "$(date -u '+%u')" == "7" ]]; then
+          if [[ "$(date -u '+%u')" == "7" || "${GITHUB_REF_NAME}" == "validate/real-b2-restore-20261005" ]]; then
             WEEKLY_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/${ENCRYPTED}"
             WEEKLY_MANIFEST_KEY="weekly/${YEAR}/${MONTH}/${DATE_UTC}/manifest.json"
 
