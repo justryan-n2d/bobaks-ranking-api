@@ -172,7 +172,8 @@ test("exchange validates state, completes PKCE, stores only sanitized Roblox ide
   assert.equal(tokenRequest.body.get("code"), "roblox-code-1");
   assert.equal(tokenRequest.body.get("grant_type"), "authorization_code");
   assert.equal(tokenRequest.body.get("client_id"), ENV.ROBLOX_CLIENT_ID);
-  assert.equal(tokenRequest.body.get("client_secret"), ENV.ROBLOX_CLIENT_SECRET);
+  assert.equal(tokenRequest.body.get("client_secret"), null);
+  assert.equal(tokenRequest.headers.get("authorization"), "Basic " + btoa(`${ENV.ROBLOX_CLIENT_ID}:${ENV.ROBLOX_CLIENT_SECRET}`));
   assert.ok(tokenRequest.body.get("code_verifier"));
   assert.ok(identityRequest);
   assert.equal(identityRequest.body.user_id, "user-1");
