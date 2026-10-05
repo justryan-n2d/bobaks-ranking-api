@@ -1,0 +1,67 @@
+name: Verify Bobaks Recovery Schema
+
+on:
+  push:
+    branches:
+      - ops/prepare-recovery-schema-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Verify recovery schema
+        env:
+          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RESTORE_DB_URL}"
+          case "${RESTORE_DB_URL}" in
+            *zhrfozouzvxhpkylmpwh*)
+              echo "Refusing to target Bobaks production." >&2
+              exit 1
+              ;;
+          esac
+
+          cat > verify.sql <<'SQL'
+          select concat_ws(',',
+            (select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),
+            (select count(*) from information_schema.columns where table_schema='public'),
+            (select count(*) from information_schema.views where table_schema='public'),
+            (select count(*) from information_schema.sequences where sequence_schema='public'),
+            (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'),
+            (select count(*) from pg_indexes where schemaname='public'),
+            (select count(*) from pg_policies where schemaname='public'),
+            (select count(*) from information_schema.triggers where trigger_schema='public'),
+            (select count(*) from information_schema.table_constraints where constraint_schema='public')
+          );
+          select string_agg(table_name, ',' order by table_name)
+          from information_schema.tables
+          where table_schema='public' and table_type='BASE TABLE';
+          select exists (
+            select 1
+            from pg_proc p
+            join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='private' and p.proname='set_updated_at'
+          );
+          select exists (
+            select 1
+            from pg_proc p
+            join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='auth' and p.proname='uid'
+          );
+          SQL
+
+          docker run --rm --network host -i             -e RESTORE_DB_URL             postgres:17-alpine             sh -c 'psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -At -f -' < verify.sql > verification.txt
+
+          echo "Recovery schema verification:"
+          cat verification.txt
+
+          test "$(sed -n '1p' verification.txt)" = "12,91,0,0,15,37,20,4,106"
+          test "$(sed -n '3p' verification.txt)" = "t"
+          test "$(sed -n '4p' verification.txt)" = "t"
