@@ -42,13 +42,16 @@ test("backup workflow uses password-based Postgres environment variables", () =>
   assert.match(workflow, /https:\/\/s3\.\$\{region\}\.backblazeb2\.com/);
   assert.match(workflow, /B2_ENDPOINT=/);
   assert.match(workflow, /--endpoint-url "\$\{B2_ENDPOINT\}"/);
-  assert.doesNotMatch(workflow, /BOBAKS_B2_ENDPOINT: \$\{\{ secrets\.BOBAKS_B2_ENDPOINT \}\}/);
+  assert.doesNotMatch(workflow, /BOBAKS_B2_ENDPOINT/);
+  assert.match(workflow, /BOBAKS_B2_REGION/);
   assert.match(workflow, /psql .*select current_user, current_database/);
   assert.doesNotMatch(workflow, /--dbname="\$\{SUPABASE_DB_URL\}"/);
 });
 
 test("restore script targets B2 and accepts the B2 region", () => {
-  assert.match(restore, /BOBAKS_B2_ENDPOINT/);
+  assert.match(restore, /BOBAKS_B2_REGION/);
+  assert.match(restore, /BOBAKS_B2_ENDPOINT="https:\/\/s3\.\$\{BOBAKS_B2_REGION\}\.backblazeb2\.com"/);
+  assert.doesNotMatch(restore, /BOBAKS_B2_ENDPOINT:\?/);
   assert.match(restore, /BOBAKS_B2_BUCKET/);
   assert.match(restore, /BOBAKS_B2_ACCESS_KEY_ID/);
   assert.match(restore, /BOBAKS_B2_SECRET_ACCESS_KEY/);
