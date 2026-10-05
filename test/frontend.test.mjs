@@ -483,7 +483,7 @@ test("watchlist logout isolation cache-busts account and return-loop modules", (
   const app = readApp();
   const html = readHtml();
   assert.match(html, /<script src="\/app\.js\?v=20261001-account-9"><\/script>/);
-  assert.match(app, /\/account\.js\?v=20261001-auth-7/);
+  assert.match(app, /\/account\.js\?v=20261005-auth-8/);
   assert.match(app, /\/return-loops\.js\?v=20261001-watchlist-1/);
 });
 test("frontend API helper avoids duplicating the /api prefix", () => {
@@ -534,7 +534,7 @@ test("Phase 6.7 account foundation loads a browser auth module", () => {
 
   assert.doesNotMatch(html, /<script type="module" src="\/account\.js/);
   assert.match(readApp(), /import\(url\)/);
-  assert.match(readApp(), /\/account\.js\?v=20261001-auth-6/);
+  assert.match(readApp(), /\/account\.js\?v=20261005-auth-8/);
   assert.match(account, /createAuthClient/);
   assert.match(account, /window\.__BOBAKS_AUTH__/);
   assert.match(account, /bobaks:auth-ready/);
