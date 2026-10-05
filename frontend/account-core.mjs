@@ -432,6 +432,99 @@ export function createAuthClient({
     });
   }
 
+  async function getRobloxIdentityPreferences() {
+    const user = await getUser();
+    const result = await authenticatedFetch(
+      "/user_identity_preferences?select=user_id,show_roblox_identity,show_roblox_avatar,created_at,updated_at&user_id=eq." +
+      encodeURIComponent(String(user.id)) + "&limit=1"
+    );
+    return Array.isArray(result.data) ? (result.data[0] ?? null) : null;
+  }
+
+  async function updateRobloxIdentityPreferences(patch = {}) {
+    const user = await getUser();
+    const showIdentity = Object.prototype.hasOwnProperty.call(patch, "show_roblox_identity")
+      ? Boolean(patch.show_roblox_identity)
+      : true;
+    const showAvatar = Object.prototype.hasOwnProperty.call(patch, "show_roblox_avatar")
+      ? Boolean(patch.show_roblox_avatar)
+      : false;
+
+    if (showAvatar && !showIdentity) {
+      throw new Error("Roblox avatar visibility requires Roblox identity visibility.");
+    }
+
+    const result = await authenticatedFetch("/user_identity_preferences?on_conflict=user_id", {
+      method: "POST",
+      headers: {
+        prefer: "resolution=merge-duplicates,return=representation"
+      },
+      body: {
+        user_id: user.id,
+        show_roblox_identity: showIdentity,
+        show_roblox_avatar: showAvatar
+      }
+    });
+
+    return Array.isArray(result.data) ? (result.data[0] ?? null) : null;
+  }
+
+  async function startRobloxConnection() {
+    const session = await getSession();
+    if (!session) throw new Error("Authentication required.");
+
+    const response = await fetch("/api/identity/roblox/start", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        authorization: "Bearer " + session.access_token,
+        accept: "application/json"
+      }
+    });
+    const body = await readResponseBody(response);
+    if (!response.ok) throw createRequestError(response, body);
+    if (!body.json?.authorizeUrl) {
+      throw new Error("Roblox identity connection is not configured.");
+    }
+    return String(body.json.authorizeUrl);
+  }
+
+  async function exchangeRobloxConnection(code, state) {
+    const session = await getSession();
+    if (!session) throw new Error("Authentication required.");
+
+    const response = await fetch("/api/identity/roblox/exchange", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        authorization: "Bearer " + session.access_token,
+        "content-type": "application/json",
+        accept: "application/json"
+      },
+      body: JSON.stringify({ code: String(code ?? ""), state: String(state ?? "") })
+    });
+    const body = await readResponseBody(response);
+    if (!response.ok) throw createRequestError(response, body);
+    return body.json ?? null;
+  }
+
+  async function disconnectRoblox() {
+    const session = await getSession();
+    if (!session) throw new Error("Authentication required.");
+
+    const response = await fetch("/api/identity/roblox/disconnect", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        authorization: "Bearer " + session.access_token,
+        accept: "application/json"
+      }
+    });
+    const body = await readResponseBody(response);
+    if (!response.ok) throw createRequestError(response, body);
+    return body.json ?? null;
+  }
+
   async function getRobloxIdentity() {
     const result = await authenticatedFetch(
       "/roblox_identities?select=roblox_user_id,provider_subject,username,display_name,profile_url,avatar_url,status,connected_at,last_verified_at,updated_at&limit=1"
@@ -661,6 +754,11 @@ export function createAuthClient({
     resetPasswordForEmail,
     resendSignupConfirmation,
     getRobloxIdentity,
+    getRobloxIdentityPreferences,
+    updateRobloxIdentityPreferences,
+    startRobloxConnection,
+    exchangeRobloxConnection,
+    disconnectRoblox,
     authenticatedFetch,
     getProfile,
     updateProfile,
