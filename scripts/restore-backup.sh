@@ -42,30 +42,118 @@ trap 'rm -rf "${WORK_DIR}"' EXIT
 
 ENCRYPTED="${WORK_DIR}/backup.dump.enc"
 DUMP="${WORK_DIR}/backup.dump"
+DROP_FKS="${WORK_DIR}/drop-public-fks.sql"
+ADD_FKS="${WORK_DIR}/add-public-fks.sql"
+FKS_DROPPED=0
 
-if ! command -v aws >/dev/null 2>&1; then
-  echo "AWS CLI is required." >&2
-  exit 1
-fi
-if ! command -v openssl >/dev/null 2>&1; then
-  echo "OpenSSL is required." >&2
-  exit 1
-fi
-if ! command -v pg_restore >/dev/null 2>&1; then
-  echo "PostgreSQL client tools are required." >&2
-  exit 1
-fi
+restore_foreign_keys_on_exit() {
+  if [[ "${FKS_DROPPED}" -eq 1 && -s "${ADD_FKS}" ]]; then
+    psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f "${ADD_FKS}" >/dev/null 2>&1 || true
+  fi
+}
+
+trap 'restore_foreign_keys_on_exit; rm -rf "${WORK_DIR}"' EXIT
+
+for command in aws openssl pg_restore psql; do
+  if ! command -v "${command}" >/dev/null 2>&1; then
+    echo "Required command not found: ${command}" >&2
+    exit 1
+  fi
+done
 
 echo "Downloading encrypted backup..."
-aws s3 cp   "s3://${BOBAKS_B2_BUCKET}/${OBJECT_KEY}"   "${ENCRYPTED}"   --endpoint-url "${BOBAKS_B2_ENDPOINT}"   --no-progress
+aws s3 cp "s3://${BOBAKS_B2_BUCKET}/${OBJECT_KEY}" "${ENCRYPTED}" --endpoint-url "${BOBAKS_B2_ENDPOINT}" --no-progress
 
 echo "Decrypting backup..."
-openssl enc   -d   -aes-256-cbc   -pbkdf2   -iter 310000   -in "${ENCRYPTED}"   -out "${DUMP}"   -pass env:BACKUP_ENCRYPTION_KEY
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 310000 -in "${ENCRYPTED}" -out "${DUMP}" -pass env:BACKUP_ENCRYPTION_KEY
 
 echo "Checking backup structure..."
 pg_restore --list "${DUMP}" >/dev/null
 
+echo "Preparing public foreign-key definitions..."
+psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+  SELECT format(
+    'ALTER TABLE %I.%I DROP CONSTRAINT %I;',
+    n.nspname,
+    c.relname,
+    con.conname
+  )
+  FROM pg_constraint con
+  JOIN pg_class c ON c.oid = con.conrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE con.contype = 'f'
+    AND n.nspname = 'public'
+  ORDER BY n.nspname, c.relname, con.conname;
+" > "${DROP_FKS}"
+
+psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -Atqc "
+  SELECT format(
+    'ALTER TABLE %I.%I ADD CONSTRAINT %I %s;',
+    n.nspname,
+    c.relname,
+    con.conname,
+    pg_get_constraintdef(con.oid)
+  )
+  FROM pg_constraint con
+  JOIN pg_class c ON c.oid = con.conrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE con.contype = 'f'
+    AND n.nspname = 'public'
+  ORDER BY n.nspname, c.relname, con.conname;
+" > "${ADD_FKS}"
+
+echo "Temporarily removing public foreign-key constraints..."
+if [[ -s "${DROP_FKS}" ]]; then
+  psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f "${DROP_FKS}"
+  FKS_DROPPED=1
+fi
+
 echo "Restoring public schema data into the recovery target..."
-pg_restore   --data-only   --disable-triggers   --no-owner   --no-acl   --exit-on-error   --single-transaction   --dbname="${RESTORE_DB_URL}"   "${DUMP}"
+pg_restore --data-only --no-owner --no-acl --exit-on-error --single-transaction --dbname="${RESTORE_DB_URL}" "${DUMP}"
+
+echo "Creating isolated auth placeholders for public user references..."
+psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO auth.users (
+  id,
+  aud,
+  role,
+  created_at,
+  updated_at,
+  is_anonymous,
+  raw_app_meta_data,
+  raw_user_meta_data
+)
+SELECT
+  user_id,
+  'authenticated',
+  'authenticated',
+  now(),
+  now(),
+  false,
+  '{}'::jsonb,
+  '{"bobaks_recovery_placeholder": true}'::jsonb
+FROM (
+  SELECT id AS user_id FROM public.profiles
+  UNION
+  SELECT user_id FROM public.roblox_identities
+  UNION
+  SELECT user_id FROM public.saved_comparisons
+  UNION
+  SELECT user_id FROM public.user_alert_preferences
+  UNION
+  SELECT user_id FROM public.user_identity_preferences
+  UNION
+  SELECT user_id FROM public.user_watchlist
+) referenced_users
+WHERE NOT EXISTS (
+  SELECT 1 FROM auth.users existing WHERE existing.id = referenced_users.user_id
+);
+SQL
+
+echo "Recreating public foreign-key constraints..."
+if [[ -s "${ADD_FKS}" ]]; then
+  psql "${RESTORE_DB_URL}" -v ON_ERROR_STOP=1 -f "${ADD_FKS}"
+  FKS_DROPPED=0
+fi
 
 echo "Restore completed successfully."
