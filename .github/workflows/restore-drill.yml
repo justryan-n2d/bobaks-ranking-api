@@ -70,7 +70,7 @@ jobs:
           done
           psql -h 127.0.0.1 -p 5432 -U postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE restore_validation;'
 
-- name: Validate restore configuration
+      - name: Validate restore configuration
         shell: bash
         env:
           OBJECT_KEY: ${{ inputs.object_key || env.RESTORE_OBJECT_KEY }}
