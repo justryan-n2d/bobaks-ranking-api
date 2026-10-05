@@ -1,13 +1,11 @@
 import { summarizeObservability } from "./observability";
+import { handleRobloxIdentityRequest, type RobloxIdentityEnv } from "./roblox-identity";
 
 interface AnalyticsBinding {
   writeDataPoint(data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void;
 }
 
-interface Env {
-  SUPABASE_URL: string;
-  SUPABASE_SECRET_KEY?: string;
-  SUPABASE_SERVICE_ROLE_KEY?: string;
+interface Env extends RobloxIdentityEnv {
   ANALYTICS?: AnalyticsBinding;
 }
 
@@ -116,8 +114,8 @@ function json(body: unknown, status = 200, extraHeaders: HeadersInit = {}): Resp
 function corsHeaders(): HeadersInit {
   return {
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, OPTIONS",
-    "access-control-allow-headers": "content-type"
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "authorization, content-type"
   };
 }
 
@@ -1199,6 +1197,10 @@ async function handleApi(
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
 
+  if (path.startsWith("/api/identity/roblox/")) {
+    return (await handleRobloxIdentityRequest(request, env, fetchImpl)) ?? json({ error: "Not found" }, 404);
+  }
+
   if (path === "/api/health") {
     return health(env, fetchImpl);
   }
@@ -1425,10 +1427,12 @@ async function handleApi(
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const startedAt = performance.now();
+    const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
+    const isRobloxIdentityRequest = path.startsWith("/api/identity/roblox/");
     const response = request.method === "OPTIONS"
       ? new Response(null, { status: 204, headers: { ...corsHeaders() } })
-      : request.method !== "GET"
-        ? json({ error: "Method not allowed" }, 405, { allow: "GET, OPTIONS" })
+      : request.method !== "GET" && !(isRobloxIdentityRequest && request.method === "POST")
+        ? json({ error: "Method not allowed" }, 405, { allow: "GET, POST, OPTIONS" })
         : await handleApi(request, env);
 
     const headers = new Headers(response.headers);
