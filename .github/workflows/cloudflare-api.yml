@@ -5,9 +5,12 @@ on:
     branches: [main]
     paths:
       - "src/api-worker.ts"
+      - "src/roblox-identity.ts"
       - "test/api-worker.test.ts"
+      - "test/roblox-identity-api.test.ts"
       - "wrangler.api.jsonc"
       - "docs/ranking-methodology.md"
+      - "docs/phase-6-7-roblox-identity.md"
       - ".github/workflows/cloudflare-api.yml"
   workflow_dispatch:
 
