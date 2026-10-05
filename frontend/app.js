@@ -195,7 +195,7 @@ function accountUI(){return window.__BOBAKS_ACCOUNT_UI__||null}
 let accountModulePromise;
 function ensureAccountModule(){
   if(window.__BOBAKS_ACCOUNT_UI__)return Promise.resolve(window.__BOBAKS_ACCOUNT_UI__);
-  const url='/account.js?v=20261001-auth-7';
+  const url='/account.js?v=20261005-auth-8';
   accountModulePromise=import(url).catch(error=>{
     accountModulePromise=null;
     if(location.pathname==='/account'){
