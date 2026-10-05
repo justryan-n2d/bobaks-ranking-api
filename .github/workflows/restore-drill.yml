@@ -120,7 +120,26 @@ jobs:
             -in "${encrypted}" \
             -out "${dump}" \
             -pass env:BACKUP_ENCRYPTION_KEY
-          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA private; CREATE SCHEMA auth; CREATE TABLE auth.users (id uuid PRIMARY KEY);"
+          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 <<'SQL'
+          DO $
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+              CREATE ROLE anon NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+              CREATE ROLE authenticated NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+              CREATE ROLE service_role NOLOGIN;
+            END IF;
+          END
+          $;
+          DROP SCHEMA public CASCADE;
+          CREATE SCHEMA private;
+          CREATE SCHEMA auth;
+          CREATE TABLE auth.users (id uuid PRIMARY KEY);
+          CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $function$ SELECT NULL::uuid $function$;
+          SQL
           psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 <<'SQL'
           CREATE OR REPLACE FUNCTION private.set_updated_at()
           RETURNS trigger
