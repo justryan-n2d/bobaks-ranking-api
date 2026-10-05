@@ -74,7 +74,14 @@ test("restore script targets B2 and accepts the B2 region", () => {
   assert.match(restore, /BOBAKS_B2_REGION/);
   assert.match(restore, /BOBAKS_B2_ENDPOINT="https:\/\/s3\.\$\{BOBAKS_B2_REGION\}\.backblazeb2\.com"/);
   assert.doesNotMatch(restore, /BOBAKS_B2_ENDPOINT:\?/);
-  assert.match(restore, /--disable-triggers/);
+  assert.match(restore, /Temporarily removing public foreign-key constraints/);
+  assert.match(restore, /Preparing public foreign-key definitions/);
+  assert.match(restore, /pg_constraint/);
+  assert.match(restore, /Creating isolated auth placeholders/);
+  assert.match(restore, /bobaks_recovery_placeholder/);
+  assert.match(restore, /Recreating public foreign-key constraints/);
+  assert.match(restore, /\bpsql\b/);
+  assert.doesNotMatch(restore, /--disable-triggers/);
   assert.match(restore, /BOBAKS_B2_BUCKET/);
   assert.match(restore, /BOBAKS_B2_ACCESS_KEY_ID/);
   assert.match(restore, /BOBAKS_B2_SECRET_ACCESS_KEY/);
