@@ -62,6 +62,38 @@ function makeFetch(overrides: Partial<Record<string, (url: URL, init: RequestIni
   };
 }
 
+test("start enforces authentication before checking optional Roblox configuration", async () => {
+  const calls: string[] = [];
+  const envWithoutRoblox: typeof ENV = {
+    ...ENV,
+    ROBLOX_CLIENT_ID: "",
+    ROBLOX_CLIENT_SECRET: "",
+    ROBLOX_REDIRECT_URI: "",
+    ROBLOX_OAUTH_COOKIE_SECRET: ""
+  };
+
+  const fetchImpl = async (input: RequestInfo | URL) => {
+    calls.push(new URL(String(input)).pathname);
+    if (new URL(String(input)).pathname === "/auth/v1/user") {
+      return response(null, 401);
+    }
+    throw new Error("unexpected external call");
+  };
+
+  const result = await handleRobloxIdentityRequest(
+    new Request("https://api.example/api/identity/roblox/start", {
+      method: "POST",
+    }),
+    envWithoutRoblox,
+    fetchImpl,
+  );
+
+  assert.ok(result);
+  assert.equal(result.status, 401);
+  assert.equal(await result.json().then((body) => body.error), "Authentication required.");
+  assert.deepEqual(calls, []);
+});
+
 test("start returns a PKCE Roblox authorization URL and a short-lived HttpOnly transaction cookie", async () => {
   const result = await handleRobloxIdentityRequest(
     new Request("https://api.example/api/identity/roblox/start", {
