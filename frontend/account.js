@@ -108,6 +108,40 @@ function loadGuestSaved(){
     return Array.isArray(value)?[...new Set(value.map(String).filter(id=>/^\d+$/.test(id)))].slice(0,25):[];
   }catch{return []}
 }
+async function completeRobloxCallback(){
+  const params=new URLSearchParams(location.search);
+  const code=String(params.get("code")||"").trim();
+  const callbackState=String(params.get("state")||"").trim();
+  const providerError=String(params.get("error")||"").trim();
+  if(!code&&!callbackState&&!providerError)return null;
+  try{history.replaceState({view:"account"},"","/account")}catch{}
+  if(providerError){
+    state.error="Roblox authorization was cancelled or rejected.";
+    return null;
+  }
+  if(!code||!callbackState){
+    state.error="Roblox callback is missing its authorization state.";
+    return null;
+  }
+  if(!isSignedIn()){
+    state.error="Log in to Bobaks before completing the Roblox connection.";
+    return null;
+  }
+  state.busy=true;
+  try{
+    const identity=await client.exchangeRobloxConnection(code,callbackState);
+    state.robloxIdentity=identity;
+    state.robloxPreferences=await client.getRobloxIdentityPreferences().catch(()=>({show_roblox_identity:false,show_roblox_avatar:false}));
+    state.error="";
+    return identity;
+  }catch(error){
+    state.error=String(error?.message||"Could not complete the Roblox connection.");
+    return null;
+  }finally{
+    state.busy=false;
+  }
+}
+
 async function hydrate({migrateGuest=true,rerender=true}={}){
   let session=await client.getSession().catch(()=>null);
   if(!session){
@@ -133,6 +167,8 @@ async function hydrate({migrateGuest=true,rerender=true}={}){
   state.user=session.user;
   state.verification={emailConfirmed:isEmailVerified(session.user),lastCheckedAt:new Date().toISOString()};
   state.busy=false;
+
+  await completeRobloxCallback();
 
   let failed=[];
   const guestBeforeMigration=migrateGuest?getSaved():[];
