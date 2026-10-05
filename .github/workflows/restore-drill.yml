@@ -14,6 +14,10 @@ on:
 env:
   VALIDATION_OBJECT_KEY: weekly/2026/10/2026-10-05/bobaks-public-20261005T104214Z.dump.enc
 
+concurrency:
+  group: bobaks-recovery-restore-validation
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
