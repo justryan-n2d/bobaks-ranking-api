@@ -121,7 +121,7 @@ jobs:
             -out "${dump}" \
             -pass env:BACKUP_ENCRYPTION_KEY
           psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA private;"
-          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "CREATE OR REPLACE FUNCTION private.set_updated_at() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '';" -c "CREATE OR REPLACE FUNCTION private.set_updated_at() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS \\$function\\$ BEGIN NEW.updated_at := now(); RETURN NEW; END; \\$function\\$;"
+          psql -h 127.0.0.1 -p 5432 -U postgres -d restore_validation -v ON_ERROR_STOP=1 -c "CREATE OR REPLACE FUNCTION private.set_updated_at() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS \\$function\\$ BEGIN NEW.updated_at := now(); RETURN NEW; END; \\$function\\$;"
           pg_restore \
             --schema-only \
             --no-owner \
