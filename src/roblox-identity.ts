@@ -184,6 +184,12 @@ function requiredConfig(env: RobloxIdentityEnv) {
   const redirectUri = String(env.ROBLOX_REDIRECT_URI || "").trim();
   const cookieSecret = String(env.ROBLOX_OAUTH_COOKIE_SECRET || "").trim();
   if (!clientId || !clientSecret || !redirectUri || cookieSecret.length < 32) return null;
+  try {
+    const redirect = new URL(redirectUri);
+    if (redirect.protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
   return { clientId, clientSecret, redirectUri, cookieSecret };
 }
 
@@ -335,7 +341,7 @@ async function exchangeConnection(
   const identity = Array.isArray(rows) ? rows[0] : null;
   return json(identity && typeof identity === "object" ? identity : {
     user_id: user.id,
-    roblox_user_id: Number(subject),
+    roblox_user_id: subject,
     provider_subject: subject,
     status: "connected"
   }, 200, { "set-cookie": clearCookie() });
