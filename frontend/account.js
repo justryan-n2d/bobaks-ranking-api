@@ -154,6 +154,7 @@ async function hydrate({migrateGuest=true,rerender=true}={}){
     state.session=state.user=state.profile=state.alerts=null;
     state.verification={emailConfirmed:null,lastCheckedAt:null};
     state.robloxIdentity=null;
+    state.robloxPreferences={show_roblox_identity:false,show_roblox_avatar:false};
     state.error="";
     window.__BOBAKS_ACCOUNT_ALERT_PREFS__=null;
     const guest=getSaved();
@@ -174,15 +175,17 @@ async function hydrate({migrateGuest=true,rerender=true}={}){
   const guestBeforeMigration=migrateGuest?getSaved():[];
   if(migrateGuest&&guestBeforeMigration.length)failed=await migrateGuestGames(guestBeforeMigration);
 
-  const [profile,alerts,watchlist,robloxIdentity]=await Promise.all([
+  const [profile,alerts,watchlist,robloxIdentity,robloxPreferences]=await Promise.all([
     client.getProfile().catch(()=>null),
     client.getAlertPreferences().catch(()=>null),
     client.listWatchlist().catch(()=>[]),
-    client.getRobloxIdentity().catch(()=>null)
+    client.getRobloxIdentity().catch(()=>null),
+    client.getRobloxIdentityPreferences().catch(()=>({show_roblox_identity:false,show_roblox_avatar:false}))
   ]);
   state.profile=profile;
   state.alerts=alerts;
   state.robloxIdentity=robloxIdentity;
+  state.robloxPreferences=robloxPreferences||{show_roblox_identity:false,show_roblox_avatar:false};
   const remoteIds=[...new Set((watchlist||[]).map(row=>String(row.game_id)).filter(id=>/^\d+$/.test(id)))].slice(0,25);
   const ids=[...new Set([...remoteIds,...failed])].slice(0,25);
   setSaved(ids);
