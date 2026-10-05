@@ -30,3 +30,16 @@ The API already has its Supabase server key configuration. No Roblox access toke
 The Roblox client secret exists only on the API Worker. PKCE verifier and transaction state are not stored in localStorage. The browser never receives a Roblox access token or refresh token.
 
 Roblox documents that authorization codes are short-lived and single-use, and that `sub` is the stable user identity while usernames/display names can change. Bobaks therefore treats the Roblox subject as the permanent external key.
+
+## Migration reconciliation
+
+The production Supabase project was already migrated before this API PR was finalized. The repository therefore tracks the migration versions that production reports as applied instead of attempting to re-run them.
+
+- `20261001012216_accounts_identity_foundation` is already applied and is now tracked in this repository.
+- `20261001012335_normalize_saved_comparison_identity` is already applied and is now tracked in this repository.
+- `20261001012510_account_foreign_key_indexes` is already applied and is now tracked in this repository.
+- The applied Roblox identity migration is `20261001015236_roblox_identity_foundation`. The PR's former `20261001030000_roblox_identity_foundation` filename was a duplicate timestamp and has been removed.
+- `20261005032805_identity_visibility_preferences` is already applied and is now tracked in this repository.
+- Production also already has the watchlist UPDATE policy represented by `20261001050000_watchlist_upsert_permissions`, but that version is not present in the reported production migration history. The migration remains in source control so fresh environments reproduce the verified production behavior; it must not be blindly re-applied to production as a second schema migration.
+
+This reconciliation is repository/history alignment only. No already-applied identity migration is re-executed as part of PR #123.
