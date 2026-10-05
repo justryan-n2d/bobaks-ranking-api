@@ -66,6 +66,6 @@ echo "Checking backup structure..."
 pg_restore --list "${DUMP}" >/dev/null
 
 echo "Restoring public schema data into the recovery target..."
-pg_restore   --data-only   --no-owner   --no-acl   --exit-on-error   --single-transaction   --dbname="${RESTORE_DB_URL}"   "${DUMP}"
+pg_restore   --data-only   --disable-triggers   --no-owner   --no-acl   --exit-on-error   --single-transaction   --dbname="${RESTORE_DB_URL}"   "${DUMP}"
 
 echo "Restore completed successfully."
