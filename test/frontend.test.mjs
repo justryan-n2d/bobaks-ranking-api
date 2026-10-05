@@ -510,8 +510,17 @@ test("Phase 6.7 account UX includes guest migration recovery and Roblox identity
   assert.match(account, /resendConfirmation/);
   assert.match(account, /Refresh verification status/);
   assert.match(account, /ROBLOX IDENTITY/);
+  assert.match(account, /startRobloxConnection/);
+  assert.match(account, /exchangeRobloxConnection/);
+  assert.match(account, /showRobloxIdentity/);
+  assert.match(account, /showRobloxAvatar/);
+  assert.match(account, /disconnectRoblox/);
   assert.match(core, /auth\/v1\/resend/);
   assert.match(core, /roblox_identities/);
+  assert.match(core, /user_identity_preferences/);
+  assert.match(core, /\/api\/identity\/roblox\/start/);
+  assert.match(core, /\/api\/identity\/roblox\/exchange/);
+  assert.match(core, /\/api\/identity\/roblox\/disconnect/);
   assert.match(robloxCore, /apis\.roblox\.com\/oauth\/v1\/authorize/);
   assert.match(robloxCore, /code_challenge_method/);
   assert.match(robloxCore, /SHA-256/);
