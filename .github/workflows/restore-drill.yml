@@ -1,11 +1,14 @@
 name: Bobaks Restore Drill
 
 on:
+  push:
+    branches:
+      - validate/restore-weekly-20261005
   workflow_dispatch:
     inputs:
       object_key:
         description: "Encrypted B2 backup object key to restore"
-        required: true
+        required: false
         type: string
 
 permissions:
@@ -16,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      RESTORE_OBJECT_KEY: weekly/2026/10/2026-10-05/bobaks-public-20261005T104214Z.dump.enc
       BOBAKS_B2_REGION: ${{ secrets.BOBAKS_B2_REGION }}
       AWS_DEFAULT_REGION: ${{ secrets.BOBAKS_B2_REGION }}
       BOBAKS_B2_BUCKET: ${{ secrets.BOBAKS_B2_BUCKET }}
@@ -49,7 +53,7 @@ jobs:
       - name: Validate restore configuration
         shell: bash
         env:
-          OBJECT_KEY: ${{ inputs.object_key }}
+          OBJECT_KEY: ${{ inputs.object_key || env.RESTORE_OBJECT_KEY }}
         run: |
           set -euo pipefail
           test -n "${OBJECT_KEY}"
