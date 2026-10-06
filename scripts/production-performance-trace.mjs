@@ -2,8 +2,8 @@
 
 import fs from "node:fs/promises";
 
-const FRONTEND_ORIGIN=(process.env.BOBAKS_FRONTEND_ORIGIN||"https://bobaks-ranking-api.ryan-oledan0.workers.dev").replace(/\/$/,"");
-const API_ORIGIN=(process.env.BOBAKS_API_ORIGIN||"https://bobaks-ranking-api-service.ryan-oledan0.workers.dev").replace(/\/$/,"");
+const FRONTEND_ORIGIN=(process.env.BOBAKS_FRONTEND_ORIGIN||"https://bobaks-ranking-api.bobaksranking.workers.dev").replace(/\/$/,"");
+const API_ORIGIN=(process.env.BOBAKS_API_ORIGIN||"https://bobaks-ranking-api-service.bobaksranking.workers.dev").replace(/\/$/,"");
 const SAMPLES=Math.max(20,Math.min(30,Number(process.env.BOBAKS_PERF_SAMPLES||20)));
 const BUDGETS={htmlBytes:70000,appJsBytes:80000,qrcodeBytes:60000,p95TtfbMs:1500,p95TotalMs:3000};
 
