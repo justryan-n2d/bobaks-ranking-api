@@ -13,7 +13,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.bobaksranking.workers.dev"
 
           for i in $(seq 1 24); do
             health=$(curl -fsS "$API/api/health" || true)

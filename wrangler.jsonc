@@ -21,7 +21,7 @@
     ]
   },
   "vars": {
-    "API_ORIGIN": "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+    "API_ORIGIN": "https://bobaks-ranking-api-service.bobaksranking.workers.dev"
   },
   "services": [
     {

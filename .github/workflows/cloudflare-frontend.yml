@@ -68,8 +68,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          FRONTEND="https://bobaks-ranking-api.ryan-oledan0.workers.dev"
-          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          FRONTEND="https://bobaks-ranking-api.bobaksranking.workers.dev"
+          API="https://bobaks-ranking-api-service.bobaksranking.workers.dev"
 
           html=$(curl -fsS "$FRONTEND")
           app_path=$(printf "%s\n" "$html" | sed -n 's|.*<script src="\([^"]*app\.js[^"]*\)"></script>.*|\1|p' | head -n 1)
@@ -99,7 +99,7 @@ jobs:
 
           weekly=$(curl -fsS "$FRONTEND/rankings/weekly")
           echo "$weekly" | grep -F "This Week's Roblox Game Rankings | Bobaks Ranking"
-          echo "$weekly" | grep -F 'rel="canonical" href="https://bobaks-ranking-api.ryan-oledan0.workers.dev/rankings/weekly"'
+          echo "$weekly" | grep -F 'rel="canonical" href="https://bobaks-ranking-api.bobaksranking.workers.dev/rankings/weekly"'
 
           game_html=$(curl -fsS "$FRONTEND/game/$game_id")
           echo "$game_html" | grep -F "| Bobaks Ranking"
