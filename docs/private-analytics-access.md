@@ -11,7 +11,7 @@ The route is fail-closed and validates Cloudflare Access JWTs. Final access cont
 
 Create a self-hosted Access application for the production Worker and protect:
 
-`https://bobaks-ranking-api.ryan-oledan0.workers.dev/admin/*`
+`https://bobaks-ranking-api.bobaksranking.workers.dev/admin/*`
 
 Create an Allow policy whose Include rule contains only the owner email and approved administrator email addresses. Do not use Everyone or all valid email login methods.
 
