@@ -24,7 +24,7 @@ jobs:
 
       - name: Generate social posts
         env:
-          BOBAKS_API_ORIGIN: https://bobaks-ranking-api-service.ryan-oledan0.workers.dev
+          BOBAKS_API_ORIGIN: https://bobaks-ranking-api-service.bobaksranking.workers.dev
           SOCIAL_OUTPUT_DIR: social-output
         run: node scripts/generate-social-posts.mjs
 
