@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          API="https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+          API="https://bobaks-ranking-api-service.bobaksranking.workers.dev"
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true and .database == "connected"' >/dev/null
