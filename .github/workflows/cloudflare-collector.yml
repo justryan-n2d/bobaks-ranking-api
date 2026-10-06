@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          COLLECTOR="https://bobaks-ranking-collector.ryan-oledan0.workers.dev"
+          COLLECTOR="https://bobaks-ranking-collector.bobaksranking.workers.dev"
           health=$(curl -fsS "$COLLECTOR/health")
 
           echo "$health" | jq -e '.ok == true and .databaseConfigured == true and .supabaseAuthOk == true' >/dev/null
