@@ -1,4 +1,4 @@
-const DEFAULT_API_ORIGIN = "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev";
+const DEFAULT_API_ORIGIN = "https://bobaks-ranking-api-service.bobaksranking.workers.dev";
 const PERIODS = ["live", "week", "month", "year"];
 
 function assertPost(text, label) {
