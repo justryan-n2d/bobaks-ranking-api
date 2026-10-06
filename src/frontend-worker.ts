@@ -19,6 +19,8 @@ interface Env {
   ASSETS: AssetBinding;
   API_ORIGIN: string;
   API?: ServiceBinding;
+  SUPABASE_URL?: string;
+  SUPABASE_PUBLISHABLE_KEY?: string;
   DISCORD_INVITE_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_ANALYTICS_API_TOKEN?: string;
@@ -118,7 +120,7 @@ function canonicalGameUrl(origin: string, id: string): string {
 }
 
 function normalizeRoute(pathname: string): string {
-  if (pathname === "/" || pathname === "/saved" || pathname === "/compare" || pathname === "/community") return pathname;
+  if (pathname === "/" || pathname === "/saved" || pathname === "/compare" || pathname === "/community" || pathname === "/sign-in" || pathname === "/create-account") return pathname;
   if (/^\/game\/\d+$/.test(pathname)) return "/game/:id";
   return pathname.startsWith("/info") ? "/info" : "/other";
 }
@@ -150,10 +152,40 @@ function recordAnalytics(env: Env, event: string, data: {
   }
 }
 
+const PUBLIC_SUPABASE_URL = "https://zhrfozouzvxhpkylmpwh.supabase.co";
+const PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_m5sYdsVZpWMOVRxyMSwblw_dIesP93F";
+
+function authConfigScript(env: Env): string {
+  const supabaseUrl = String(env.SUPABASE_URL ?? "").trim() || PUBLIC_SUPABASE_URL;
+  const publishableKey = String(env.SUPABASE_PUBLISHABLE_KEY ?? "").trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const config = { supabaseUrl, publishableKey };
+
+  return "<script>window.__BOBAKS_AUTH_CONFIG__=" +
+    safeJsonLd(config) +
+    ";</script>";
+}
+
 async function assetShell(env: Env, request: Request): Promise<Response> {
-  return env.ASSETS.fetch(
+  const response = await env.ASSETS.fetch(
     new Request(new URL("/index.html", request.url).toString())
   );
+
+  if (!response.ok) return response;
+
+  const html = await response.text();
+  const injected = html.includes("</head>")
+    ? html.replace("</head>", authConfigScript(env) + "</head>")
+    : html;
+
+  const headers = new Headers(response.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+
+  return new Response(injected, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
 }
 
 async function assetResponse(env: Env, request: Request): Promise<Response> {
@@ -735,6 +767,10 @@ export async function handleFrontendRequest(
 
   if (url.pathname.startsWith("/api/")) {
     return apiFetch(env, url.pathname + url.search, fetchImpl);
+  }
+
+  if (url.pathname === "/" || url.pathname === "/saved" || url.pathname === "/compare" || url.pathname === "/account" || url.pathname === "/sign-in" || url.pathname === "/create-account") {
+    return assetShell(env, request);
   }
 
   if (url.pathname === "/robots.txt") {

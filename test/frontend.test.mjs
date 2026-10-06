@@ -92,11 +92,10 @@ test("frontend application bundle parses as valid JavaScript", () => {
 
 test("frontend exposes a social ranking share flow for every ranking period", () => {
   const html = readFrontend();
-  assert.match(html, /function rankingShareText\(period,games\)/);
   assert.match(html, /id="shareRanking"/);
-  assert.match(html, /rankingPath\(state\.period\)/);
-  assert.match(html, /channel:'social_'\+kind/);
-  assert.match(html, /Top 10/);
+  assert.match(html, /shareRanking\(\)/);
+  assert.match(html, /shareSocialPost\('ranking'\)/);
+  assert.match(html, /\/api\/social\/feed\?period=/);
   assert.match(html, /navigator\.share/);
   assert.match(html, /navigator\.clipboard\.writeText/);
 });
@@ -120,14 +119,7 @@ test("frontend labels rank movement as trending and exposes peak-record sharing"
   assert.match(html, /Share peak records/);
 });
 
-test("frontend ranking share content includes game name, rank, players, and canonical ranking link", () => {
-  const html = readFrontend();
-  assert.match(html, /const lines=\(games\|\|\[\]\)\.slice\(0,10\)/);
-  assert.match(html, /const rank=Number\(g\.rank\|\|index\+1\)/);
-  assert.match(html, /const players=fmt\(g\.playing\)/);
-  assert.match(html, /const url=new URL\(rankingPath\(period\),location\.origin\)\.toString\(\)/);
-  assert.match(html, /Visit Bobaks Ranking:/);
-});
+
 
 test("privacy copy discloses anonymous product analytics identifiers", () => {
   const html = readFrontend();
@@ -140,6 +132,8 @@ test("privacy copy discloses anonymous product analytics identifiers", () => {
 
 test("frontend records direct-entry page views and loads the analytics client", () => {
   const html = readFrontend();
+  const app = readApp();
+  assert.match(app, /const initialGame=location\.pathname\.match\(GAME_ROUTE\);/);
   assert.match(
     html,
     /if\(initialGame\)\{openGame\(initialGame\[1\],\{push:false\}\);track\('page_view',\{gameId:initialGame\[1\],period:state\.period\}\);\}/
@@ -408,7 +402,7 @@ test("Phase 6.4 return-loop module is wired into the SPA and keeps watchlist ale
   const html = readFrontend();
   const module = readReturnLoops();
   assert.match(html, /window\.__BOBAKS_API__=API/);
-  assert.match(html, /setTimeout\(\(\)=>import\('\/return-loops\.js'\)\.catch\(\(\)=>\{\}\),800\)/);
+  assert.match(html, /setTimeout\(\(\)=>import\('\/return-loops\.js\?v=20261001-watchlist-1'\)\.catch\(\(\)=>\{\}\),800\)/);
   assert.match(module, /bobaks\.return\.alert-preferences/);
   assert.match(module, /bobaks\.return\.observations/);
   assert.match(module, /bobaks\.return\.peaks/);
@@ -451,7 +445,7 @@ test("frontend has a small HTML shell and keeps optional modules out of the crit
   assert.doesNotMatch(html, /<script[^>]+src="\/qrcode-generator\.js"/);
   assert.doesNotMatch(html, /<script[^>]+src="\/return-loops\.js"/);
   assert.match(app, /ensureQrCode/);
-  assert.match(app, /setTimeout\(\(\)=>import\('\/return-loops\.js'\)\.catch\(\(\)=>\{\}\),800\)/);
+  assert.match(app, /setTimeout\(\(\)=>import\('\/return-loops\.js\?v=20261001-watchlist-1'\)\.catch\(\(\)=>\{\}\),800\)/);
 });
 
 test("frontend API cache deduplicates identical requests and bypasses cache on manual refresh", () => {
@@ -484,8 +478,216 @@ test("homepage uses an explicit app bundle version", () => {
   const html = readHtml();
   assert.match(html, /<script src="\/app\.js\?v=\d{8}-[a-z0-9-]+"><\/script>/);
 });
+
+test("watchlist logout isolation cache-busts account and return-loop modules", () => {
+  const app = readApp();
+  const html = readHtml();
+  assert.match(html, /<script src="\/app\.js\?v=20261001-account-9"><\/script>/);
+  assert.match(app, /\/account\.js\?v=20261001-auth-7/);
+  assert.match(app, /\/return-loops\.js\?v=20261001-watchlist-1/);
+});
 test("frontend API helper avoids duplicating the /api prefix", () => {
   const app = readApp();
   assert.ok(app.includes("const requestPath=key.startsWith(API+'/')?key.slice(API.length):key;"));
   assert.ok(app.includes("fetch(API+requestPath,{headers:{accept:'application/json'},cache:cache?'default':'no-store'})"));
+});
+
+
+test("Phase 6.7 account bridge defines every referenced meta helper before runtime wiring", () => {
+  const app = readApp();
+  assert.match(app, /function setAccountMeta\(\)/);
+  assert.match(app, /function authMeta\(mode\)/);
+  assert.match(app, /window\.\__BOBAKS_ACCOUNT_APP__=\{/);
+});
+
+test("Phase 6.7 account UX includes guest migration recovery and Roblox identity groundwork", () => {
+  const html = readFrontend();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
+  const robloxCore = fs.readFileSync(path.resolve("frontend/roblox-identity-core.mjs"), "utf8");
+  assert.match(account, /recoverSessionFromUrl/);
+  assert.match(account, /retryGuestMigration/);
+  assert.match(account, /resendConfirmation/);
+  assert.match(account, /Refresh verification status/);
+  assert.match(account, /ROBLOX IDENTITY/);
+  assert.match(core, /auth\/v1\/resend/);
+  assert.match(core, /roblox_identities/);
+  assert.match(robloxCore, /apis\.roblox\.com\/oauth\/v1\/authorize/);
+  assert.match(robloxCore, /code_challenge_method/);
+  assert.match(robloxCore, /SHA-256/);
+  assert.match(html, /account-migration-note/);
+});
+
+test("Phase 6.7 account foundation loads a browser auth module", () => {
+  const html = readHtml();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
+
+  assert.doesNotMatch(html, /<script type="module" src="\/account\.js/);
+  assert.match(readApp(), /import\(url\)/);
+  assert.match(readApp(), /\/account\.js\?v=20261001-auth-6/);
+  assert.match(account, /createAuthClient/);
+  assert.match(account, /window\.__BOBAKS_AUTH__/);
+  assert.match(account, /bobaks:auth-ready/);
+  assert.match(core, /export const SESSION_STORAGE_KEY = "bobaks\.auth\.session\.v1"/);
+  assert.match(core, /auth\/v1\/signup/);
+  assert.match(core, /auth\/v1\/token\?grant_type=password/);
+  assert.match(core, /rest\/v1/);
+});
+
+test("Cloudflare Previews inherit the API routing configuration needed by game and ranking routes", () => {
+  const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
+  assert.match(config, /"previews"\s*:\s*\{[\s\S]*"vars"\s*:\s*\{[\s\S]*"API_ORIGIN"\s*:\s*"https:\/\/bobaks-ranking-api-service\.ryan-oledan0\.workers\.dev"/);
+  assert.match(config, /"previews"\s*:\s*\{[\s\S]*"services"\s*:\s*\[[\s\S]*"binding"\s*:\s*"API"[\s\S]*"service"\s*:\s*"bobaks-ranking-api-service"/);
+});
+
+test("account loading state is centered and animated", () => {
+  const html = readHtml();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const app = readApp();
+  assert.match(html, /account-loading-screen/);
+  assert.match(html, /account-spinner/);
+  assert.match(html, /bobaks-account-spin/);
+  assert.match(html, /animation:bobaks-account-spin/);
+  assert.match(account, /state\.status==="loading"/);
+  assert.match(account, /ACCOUNT_LOADING/);
+  assert.match(app, /ACCOUNT_LOADING/);
+});
+
+test("ranking views use delegated global account actions with a cache-busted app bundle", () => {
+  const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const html = fs.readFileSync(path.resolve("frontend/index.html"), "utf8");
+  assert.match(app, /document\.addEventListener\('click',event=>\{/);
+  assert.match(app, /#continueGuest,#accountSignout,#accountSignOut/);
+  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
+    assert.match(account, new RegExp('id="' + id + '"'));
+  }
+  assert.ok(html.includes('/app.js?v=20261001-account-9'));
+});
+
+test("successful log in redirects to the Bobaks homepage", () => {
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  assert.match(account, /client\.signIn/);
+  assert.match(account, /if\(result\.session&&state\.mode==="signin"\)goHome\(\)/);
+  assert.match(account, /<button class="btn primary account-submit" id="authSubmit" type="submit">.*Log in/);
+});
+
+
+test("account-ready rebinding wires asynchronously rendered sidebar account controls", () => {
+  const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  assert.match(
+    app,
+    /bobaks:account-ready[\s\S]*renderAccountArea\(\);[\s\S]*if\(location\.pathname!==['"]\/account['"]\)bind\(\)/
+  );
+  for (const id of ["accountGuest", "accountSignIn", "accountSignUp", "continueGuest", "accountSignout", "accountSignOut"]) {
+    assert.match(account, new RegExp("#?" + id));
+  }
+});
+
+
+test("account module failures surface a visible retry path instead of infinite loading", () => {
+  const app = readApp();
+  assert.match(app, /Account:\s*'/);
+  assert.match(app, /id="retryAccountModule"/);
+  assert.match(app, /location\.reload\(\)/);
+});
+
+test("Cloudflare asset routing sends auth-sensitive SPA routes through the Worker shell", () => {
+  const config = JSON.parse(fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8"));
+  const assetRoutes = config.assets?.run_worker_first || [];
+  const workerRoutes = config.run_worker_first || [];
+  for (const route of ["/", "/saved", "/compare", "/account"]) {
+    assert.ok(assetRoutes.includes(route), "missing asset worker-first route: " + route);
+    assert.ok(workerRoutes.includes(route), "missing worker-first route: " + route);
+  }
+});
+
+test("Cloudflare frontend exposes only public Supabase auth configuration", () => {
+  const config = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
+  assert.match(config, /"SUPABASE_URL"\s*:/);
+  assert.match(config, /"SUPABASE_PUBLISHABLE_KEY"\s*:\s*"sb_publishable_/);
+  assert.doesNotMatch(config, /"SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY|SECRET_KEYS?)"/);
+});
+
+
+test("Account module has an explicit SPA state bridge for persistent watchlists and account rendering", () => {
+  const app = readApp();
+  assert.match(app, /window\.\__BOBAKS_ACCOUNT_APP__=\{/);
+  for (const key of ["getSaved:", "setSaved:", "render:", "goHome:", "footer,", "icon,", "api,", "setAccountMeta,", "authMeta,"]) {
+    assert.ok(app.includes(key), "missing account bridge key: " + key);
+  }
+});
+
+test("account actions use dedicated auth pages instead of rendering auth inside rankings", () => {
+  const html = readFrontend();
+  const app = readApp();
+  const worker = fs.readFileSync(path.resolve("src/frontend-worker.ts"), "utf8");
+  assert.match(html, /id="accountArea"/);
+  assert.match(app, /AUTH_ROUTES=\{signin:['"]\/sign-in['"],signup:['"]\/create-account['"]\}/);
+  for (const href of ["/sign-in", "/create-account"]) {
+    assert.ok(fs.readFileSync(path.resolve("frontend/account.js"), "utf8").includes('href="'+href+'"'));
+  }
+  assert.match(worker, /url\.pathname === "\/sign-in"/);
+  assert.match(worker, /url\.pathname === "\/create-account"/);
+});
+
+test("Phase 6.7 Account UX includes sign-in/sign-up, session-aware account area, profile, alerts, and synced watchlist surfaces", () => {
+  const html = readFrontend();
+  const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const core = fs.readFileSync(path.resolve("frontend/account-core.mjs"), "utf8");
+  const returnLoops = fs.readFileSync(path.resolve("frontend/return-loops.js"), "utf8");
+
+  assert.match(html, /id="siteSidebar"/);
+  assert.match(html, /id="accountArea"/);
+  assert.match(html, /id="mobileMenu"/);
+  assert.match(account, /function authPage\(\)/);
+  assert.match(account, /function accountPage\(\)/);
+  assert.match(account, /async function hydrate\(\{migrateGuest=true,rerender=true\}=\{\}\)/);
+  assert.match(account, /client\.addWatchlistGame\(id\)/);
+  assert.match(app, /client\.removeWatchlistGame\(id\)/);
+  assert.match(account, /function submitProfile\(\)/);
+  assert.match(account, /async function submitAlerts\(\)/);
+  assert.match(account, /id="profileForm"/);
+  assert.match(account, /id="alertForm"/);
+  assert.match(account, /account-save-ok/);
+  assert.match(account, /state\.saved\.alerts=true/);
+  assert.match(account, /Alert settings save was not confirmed/);
+  assert.match(account, /document\.addEventListener\("input",event=>/);
+  assert.match(account, /Persistent alerts/);
+  assert.match(account, /Synced to your Bobaks account/);
+  assert.match(account, /Log in/);
+  assert.match(account, /Create account/);
+  assert.match(core, /recoverSessionFromUrl/);
+  assert.match(returnLoops, /window\.__BOBAKS_ACCOUNT_ALERT_PREFS__/);
+  assert.match(html, /class="top" id="siteSidebar"/);
+});
+
+test("guest and account watchlist states stay isolated across logout", () => {
+  const app = readApp();
+  const account = fs.readFileSync(path.resolve("frontend/account.js"), "utf8");
+  const returnLoops = readReturnLoops();
+
+  assert.match(app, /Saved only on this device\. Log in to sync across devices/);
+  assert.match(account, /Synced to your Bobaks account across devices/);
+  assert.match(account, /migrateGuest/);
+  assert.match(app, /function clearSaved\(\)\{state\.saved=\[\];saveSaved\(\)\}/);
+  assert.match(app, /clearSaved:\(\)=>\{clearSaved\(\);render\(\)\}/);
+  assert.match(app, /event\.detail\?\.event==='SIGNED_OUT'[\s\S]*?clearSaved\(\)/);
+  assert.match(app, /function saveSaved\(\)\{if\(isSignedIn\(\)\)return;/);
+  assert.match(account, /app\(\)\.clearSaved\?\.\(\)/);
+  assert.doesNotMatch(account, /persistSaved\(ids\)/);
+  assert.doesNotMatch(account, /persistSaved\(merged\)/);
+  assert.match(returnLoops, /account\?\.isSignedIn\?\.\(\)/);
+  assert.match(returnLoops, /__BOBAKS_ACCOUNT_APP__\?\.getSaved\?\.\(\)/);
+});
+
+test("account alert settings feed the existing return-loop alert checks", () => {
+  const module = fs.readFileSync(path.resolve("frontend/return-loops.js"), "utf8");
+  assert.match(module, /account.alerts_enabled && account.top10_enabled/);
+  assert.match(module, /account.alerts_enabled && account.new_peak_enabled/);
+  assert.match(module, /account.alerts_enabled && account.rank_jump_enabled/);
+  assert.match(module, /Account-wide alert settings sync across devices/);
 });

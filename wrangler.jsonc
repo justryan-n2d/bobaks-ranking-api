@@ -17,11 +17,19 @@
       "/sitemap.xml",
       "/robots.txt",
       "/community",
-      "/analytics"
+      "/analytics",
+      "/",
+      "/saved",
+      "/compare",
+      "/account",
+      "/sign-in",
+      "/create-account"
     ]
   },
   "vars": {
-    "API_ORIGIN": "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev"
+    "API_ORIGIN": "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev",
+    "SUPABASE_URL": "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_m5sYdsVZpWMOVRxyMSwblw_dIesP93F"
   },
   "services": [
     {
@@ -35,7 +43,19 @@
       "dataset": "bobaks_product_web"
     }
   ],
-  "previews": {},
+  "previews": {
+    "vars": {
+      "API_ORIGIN": "https://bobaks-ranking-api-service.ryan-oledan0.workers.dev",
+      "SUPABASE_URL": "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_m5sYdsVZpWMOVRxyMSwblw_dIesP93F"
+    },
+    "services": [
+      {
+        "binding": "API",
+        "service": "bobaks-ranking-api-service"
+      }
+    ]
+  },
   "run_worker_first": [
     "/game/*",
     "/rankings/*",
@@ -43,6 +63,12 @@
     "/robots.txt",
     "/community",
     "/analytics",
-    "/admin/*"
+    "/admin/*",
+    "/",
+    "/saved",
+    "/compare",
+    "/account",
+    "/sign-in",
+    "/create-account"
   ]
 }
