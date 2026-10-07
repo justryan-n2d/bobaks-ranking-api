@@ -188,7 +188,7 @@ async function enforceRateLimit(
   env: Env,
   path: string
 ): Promise<Response | null> {
-  if (request.method !== "GET") return null;
+  if (request.method !== "GET" && request.method !== "POST") return null;
   if (path === "/api/health" || path === "/api/health/deep") return null;
 
   const binding = path === "/api/rankings/audit" || path === "/api/observability"
