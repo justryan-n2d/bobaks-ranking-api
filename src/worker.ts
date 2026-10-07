@@ -228,8 +228,8 @@ async function getUniverseInfo(
   for (let i = 0; i < universeIds.length; i += 10) {
     const batch = universeIds.slice(i, i + 10);
     const query = batch.join(',');
-    const official = \`\${ROBLOX_OFFICIAL_GAMES}?universeIds=\${query}\`;
-    const proxy = \`\${ROBLOX_PROXY_GAMES}?universeIds=\${query}\`;
+    const official = `${ROBLOX_OFFICIAL_GAMES}?universeIds=${query}`;
+    const proxy = `${ROBLOX_PROXY_GAMES}?universeIds=${query}`;
 
     try {
       const response = await robloxJsonWithFallback(official, proxy, fetchImpl, env);
@@ -248,7 +248,7 @@ async function getUniverseInfo(
     } catch (error) {
       failedBatches++;
       console.warn(
-        \`Roblox universe info batch failed (batch \${Math.floor(i / 10) + 1}/\${Math.ceil(universeIds.length / 10)}); continuing with remaining batches:\`,
+        `Roblox universe info batch failed (batch ${Math.floor(i / 10) + 1}/${Math.ceil(universeIds.length / 10)}); continuing with remaining batches:`,
         error
       );
     }
@@ -396,7 +396,7 @@ async function upsertGames(env: Env, rows: Array<Record<string, unknown>>, fetch
 
       const retryable = response.status === 429 || response.status >= 500;
       if (!retryable || attempt === maxAttempts) {
-        throw new Error(\`Game upsert HTTP \${response.status}: \${body.slice(0, 500)}\`);
+        throw new Error(`Game upsert HTTP ${response.status}: ${body.slice(0, 500)}`);
       }
 
       const retryAfter = response.headers.get('Retry-After');
@@ -406,13 +406,13 @@ async function upsertGames(env: Env, rows: Array<Record<string, unknown>>, fetch
         : attempt === 1 ? 1000 : 3000;
 
       console.warn(
-        \`Game upsert transient HTTP \${response.status} (attempt \${attempt}/\${maxAttempts}), retrying in \${delay}ms\`
+        `Game upsert transient HTTP ${response.status} (attempt ${attempt}/${maxAttempts}), retrying in ${delay}ms`
       );
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 
     if (lastStatus < 200 || lastStatus >= 300) {
-      throw new Error(\`Game upsert HTTP \${lastStatus}: \${body.slice(0, 500)}\`);
+      throw new Error(`Game upsert HTTP ${lastStatus}: ${body.slice(0, 500)}`);
     }
 
     const data = JSON.parse(body) as Array<Record<string, unknown>>;
