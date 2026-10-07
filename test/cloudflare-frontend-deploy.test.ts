@@ -28,8 +28,8 @@ test("frontend deployment uses the authoritative web repository and stable produ
   );
   assert.match(
     workflow,
-    /npx wrangler deploy --config wrangler\.jsonc/,
-    "frontend deployment must use the web repo Wrangler config",
+    /- name: Deploy authoritative web Worker[\s\S]*?working-directory:\s*bobaks-ranking-web[\s\S]*?run: npx @vinext\/cloudflare deploy --skip-build/,
+    "authoritative frontend must use the Vinext Cloudflare deploy command for the generated build",
   );
   assert.match(
     workflow,
