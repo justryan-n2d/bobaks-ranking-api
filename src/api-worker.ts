@@ -5,8 +5,14 @@ interface AnalyticsBinding {
   writeDataPoint(data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void;
 }
 
+interface RateLimitBinding {
+  limit(args: { key: string }): Promise<{ success: boolean }>;
+}
+
 interface Env extends RobloxIdentityEnv {
   ANALYTICS?: AnalyticsBinding;
+  API_RATE_LIMITER?: RateLimitBinding;
+  API_HEAVY_RATE_LIMITER?: RateLimitBinding;
 }
 
 type FetchLike = typeof fetch;
@@ -165,8 +171,45 @@ function parseHistoryDays(value: string | null): number {
 function parseSearch(value: string | null): string {
   const q = (value ?? "").trim();
   if (!q) throw new Error("Missing q");
+  if (q.length < 2) throw new Error("Search query too short");
   if (q.length > 100) throw new Error("Search query too long");
   return q;
+}
+
+function rateLimitClientKey(request: Request): string {
+  const ip = request.headers.get("cf-connecting-ip")
+    || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || "unknown";
+  return ip;
+}
+
+async function enforceRateLimit(
+  request: Request,
+  env: Env,
+  path: string
+): Promise<Response | null> {
+  if (request.method !== "GET") return null;
+  if (path === "/api/health" || path === "/api/health/deep") return null;
+
+  const binding = path === "/api/rankings/audit" || path === "/api/observability"
+    ? env.API_HEAVY_RATE_LIMITER
+    : env.API_RATE_LIMITER;
+  if (!binding) return null;
+
+  try {
+    const result = await binding.limit({ key: rateLimitClientKey(request) });
+    if (!result.success) {
+      return json(
+        { error: "Rate limit exceeded. Please retry shortly." },
+        429,
+        { "cache-control": "no-store", "retry-after": "60" }
+      );
+    }
+  } catch (error) {
+    console.warn("API rate limiter unavailable; allowing request:", error);
+  }
+
+  return null;
 }
 
 
@@ -312,6 +355,8 @@ function rankingGameSelect(): string {
   return "id,universeId,placeId,name,creatorName,iconUrl,isActive";
 }
 
+const MAX_GAMES_OFFSET = 5_000;
+
 function parseGamesPagination(url: URL): { limit: number; offset: number } {
   const rawLimit = url.searchParams.get("limit");
   const rawOffset = url.searchParams.get("offset");
@@ -321,7 +366,7 @@ function parseGamesPagination(url: URL): { limit: number; offset: number } {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
     throw new Error("Invalid limit");
   }
-  if (!Number.isSafeInteger(offset) || offset < 0) {
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > MAX_GAMES_OFFSET) {
     throw new Error("Invalid offset");
   }
 
@@ -1197,6 +1242,9 @@ async function handleApi(
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
 
+  const rateLimitResponse = await enforceRateLimit(request, env, path);
+  if (rateLimitResponse) return rateLimitResponse;
+
   if (path.startsWith("/api/identity/roblox/")) {
     return (await handleRobloxIdentityRequest(request, env, fetchImpl)) ?? json({ error: "Not found" }, 404);
   }
@@ -1216,7 +1264,8 @@ async function handleApi(
   if (path === "/api/rankings/audit") {
     try {
       return json(await getRankingAudit(env, fetchImpl), 200, {
-        "cache-control": "public, max-age=60, s-maxage=60"
+        "cache-control": "public, max-age=60, s-maxage=60",
+        "cloudflare-cdn-cache-control": "public, max-age=60, stale-while-revalidate=300, stale-if-error=600"
       });
     } catch (error) {
       console.error("GET /api/rankings/audit failed:", error);
@@ -1407,7 +1456,9 @@ async function handleApi(
       return json({
         error: error instanceof Error && error.message === "Search query too long"
           ? "Invalid q parameter. Maximum length is 100 characters."
-          : "Missing q parameter"
+          : error instanceof Error && error.message === "Search query too short"
+            ? "Invalid q parameter. Use at least 2 characters."
+            : "Missing q parameter"
       }, 400);
     }
 
