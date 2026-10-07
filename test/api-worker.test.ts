@@ -1077,6 +1077,27 @@ test("public API rate limiting returns 429 without touching Supabase", async () 
   assert.equal(calls, 0);
 });
 
+
+test("public API rate limiting also protects authenticated POST endpoints", async () => {
+  const limiter = {
+    limit: async ({ key }: { key: string }) => {
+      assert.match(key, /^203\\.0\\.113\\.11$/);
+      return { success: false };
+    }
+  };
+
+  const result = await handleApi(
+    new Request("https://api.example/api/identity/roblox/start", {
+      method: "POST",
+      headers: { "cf-connecting-ip": "203.0.113.11" }
+    }),
+    { ...env, API_RATE_LIMITER: limiter }
+  );
+
+  assert.equal(result.status, 429);
+  assert.equal(result.headers.get("retry-after"), "60");
+});
+
 test("public API rate limiting does not block health monitoring", async () => {
   const limiter = {
     limit: async () => ({ success: false })
