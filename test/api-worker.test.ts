@@ -200,6 +200,13 @@ test("GET /api/games supports bounded pagination while keeping the 100-row defau
     fetchImpl
   );
   assert.equal(invalidOffset.status, 400);
+
+  const excessiveOffset = await handleApi(
+    new Request("https://api.example/api/games?offset=5001"),
+    env,
+    fetchImpl
+  );
+  assert.equal(excessiveOffset.status, 400);
 });
 
 test("health checks Supabase and returns connected", async () => {
@@ -1046,6 +1053,41 @@ test("operational observability summarizes recent collection and ranking-refresh
   assert.equal(new URL(calls[0].url).searchParams.get("limit"), "500");
 });
 
+
+test("public API rate limiting returns 429 without touching Supabase", async () => {
+  let calls = 0;
+  const limiter = {
+    limit: async ({ key }: { key: string }) => {
+      assert.match(key, /^203\.0\.113\.10$/);
+      return { success: false };
+    }
+  };
+  const result = await handleApi(
+    new Request("https://api.example/api/observability?hours=24", {
+      headers: { "cf-connecting-ip": "203.0.113.10" }
+    }),
+    { ...env, API_HEAVY_RATE_LIMITER: limiter },
+    async () => {
+      calls++;
+      return response([]);
+    }
+  );
+  assert.equal(result.status, 429);
+  assert.equal(result.headers.get("retry-after"), "60");
+  assert.equal(calls, 0);
+});
+
+test("public API rate limiting does not block health monitoring", async () => {
+  const limiter = {
+    limit: async () => ({ success: false })
+  };
+  const result = await handleApi(
+    new Request("https://api.example/api/health"),
+    { ...env, API_RATE_LIMITER: limiter },
+    makeFetch([])
+  );
+  assert.equal(result.status, 200);
+});
 
 test("operational observability rejects invalid window lengths", async () => {
   const calls: { url: string; headers: Headers }[] = [];
