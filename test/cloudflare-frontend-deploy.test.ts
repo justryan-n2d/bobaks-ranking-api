@@ -5,7 +5,7 @@ import test from "node:test";
 const workflowPath = new URL("../.github/workflows/cloudflare-frontend.yml", import.meta.url);
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
-test("frontend deployment uses the authoritative web repository and stable production hostname", () => {
+test("frontend deployment uses the authoritative web repository and Vinext Cloudflare deploy", () => {
   assert.match(
     workflow,
     /repository:\s*justryan-n2d\/bobaks-ranking-web/,
@@ -28,8 +28,8 @@ test("frontend deployment uses the authoritative web repository and stable produ
   );
   assert.match(
     workflow,
-    /npx wrangler deploy --config wrangler\.jsonc/,
-    "frontend deployment must use the web repo Wrangler config",
+    /- name: Deploy authoritative web Worker[\s\S]*?working-directory:\s*bobaks-ranking-web[\s\S]*?run: npx @vinext\/cloudflare deploy --skip-build/,
+    "authoritative frontend must use the Vinext Cloudflare deploy command for the generated build",
   );
   assert.match(
     workflow,
