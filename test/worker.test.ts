@@ -139,7 +139,7 @@ test("collector falls back to the known active game catalog when Roblox discover
   }, fakeFetch);
 
   assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
-  assert.equal(discoveryAttempts, 2);
+  assert.equal(discoveryAttempts, 3);
   assert.equal(fallbackLookups, 1);
   assert.equal(loggedStatus, "success");
 
@@ -148,6 +148,199 @@ test("collector falls back to the known active game catalog when Roblox discover
   assert.equal(upserted[0].universeId, "1001");
   assert.equal("lastObservedAt" in upserted[0], false);
   assert.equal("verificationMisses" in upserted[0], false);
+});
+
+
+test("collector retries discovery 429 without Retry-After and preserves a healthy run", async () => {
+  let attempts = 0;
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) {
+      attempts++;
+      if (attempts < 3) return new Response("rate limited", { status: 429 });
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+    if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) return response({
+      data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+    });
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) return response([{ id: "11", universeId: "1001" }]);
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
+    if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.equal(attempts, 3);
+});
+
+test("collector continues when one Roblox universe-info batch has invalid data", async () => {
+  let refreshCalled = false;
+  let logStatus = "";
+  let gameUpserts = 0;
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const parsed = url.startsWith("http") ? new URL(url) : null;
+
+    if (url.includes("/get-sorts?")) {
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+
+    if (url.includes("/get-sort-content?")) {
+      return response({
+        data: Array.from({ length: 11 }, (_, i) => ({ universeId: String(1001 + i) }))
+      });
+    }
+
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+
+    if (url.includes("games.roblox.com/v1/games")) {
+      const ids = parsed?.searchParams.get("universeIds") ?? "";
+      if (ids.startsWith("1001,")) return response({ data: {} });
+
+      return response({
+        data: [{
+          id: 1011,
+          rootPlaceId: 2011,
+          name: "Survivor",
+          creator: { id: 3011, name: "Creator" },
+          playing: 44
+        }]
+      });
+    }
+
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      gameUpserts++;
+      return response([{ id: "11", universeId: "1011" }]);
+    }
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      const method = init?.method ?? "GET";
+      if (method === "POST") {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        logStatus = String(body.status);
+      }
+      return new Response("", { status: 201 });
+    }
+
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) {
+      refreshCalled = true;
+      return response(null);
+    }
+
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 1 });
+  assert.equal(gameUpserts, 1);
+  assert.equal(logStatus, "partial");
+  assert.equal(refreshCalled, true);
+});
+
+test("collector fails safely when every Roblox universe-info batch is unusable", async () => {
+  let refreshCalled = false;
+  let logBody = "";
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) {
+      return response({ sorts: [{ sortId: "top-playing-now" }] });
+    }
+    if (url.includes("/get-sort-content?")) {
+      return response({ data: [{ universeId: "1001" }, { universeId: "1002" }] });
+    }
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) return response({ data: {} });
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      throw new Error("Game upsert should not run when universe info is empty");
+    }
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) {
+      refreshCalled = true;
+      return response(null);
+    }
+    if (url.includes("/rest/v1/DataCollectionLog")) {
+      logBody = String(init?.body);
+      return new Response("", { status: 201 });
+    }
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  await assert.rejects(
+    () => collectOnce({
+      SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+      SUPABASE_SECRET_KEY: "sb_secret_test",
+      ROBLOX_THROTTLE_MS: "0"
+    }, fakeFetch),
+    /no usable games/
+  );
+
+  assert.equal(refreshCalled, false);
+  const failedLog = JSON.parse(logBody) as Record<string, unknown>;
+  assert.equal(failedLog.status, "failed");
+  assert.equal(failedLog.gamesChecked, 0);
+});
+
+test("collector retries an idempotent Game upsert after a transient 520", async () => {
+  let upsertAttempts = 0;
+  let refreshCalled = false;
+
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+
+    if (url.includes("/get-sorts?")) return response({ sorts: [{ sortId: "top-playing-now" }] });
+    if (url.includes("/get-sort-content?")) return response({ data: [{ universeId: "1001" }] });
+    if (url.includes("thumbnails.roblox.com")) return response({ data: [] });
+    if (url.includes("games.roblox.com/v1/games")) return response({
+      data: [{ id: 1001, rootPlaceId: 2001, name: "One", creator: { id: 3001, name: "A" }, playing: 12 }]
+    });
+    if (url.includes("/rest/v1/rpc/list_stale_active_games")) return response([]);
+    if (url.includes("/rest/v1/Game?on_conflict=universeId")) {
+      upsertAttempts++;
+      if (upsertAttempts === 1) return new Response("upstream 520", { status: 520 });
+      return response([{ id: "11", universeId: "1001" }]);
+    }
+    if (url.includes("/rest/v1/GameSnapshot")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
+    if (url.includes("/rest/v1/DataCollectionLog")) return new Response("", { status: 201 });
+    if (url.includes("/rest/v1/rpc/refresh_rankings")) {
+      refreshCalled = true;
+      return response(null);
+    }
+
+    throw new Error("Unhandled URL: " + url);
+  };
+
+  const result = await collectOnce({
+    SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test",
+    ROBLOX_THROTTLE_MS: "0"
+  }, fakeFetch);
+
+  assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
+  assert.equal(upsertAttempts, 2);
+  assert.equal(refreshCalled, true);
 });
 
 test("scheduled collector performs the complete collection cycle", async () => {
