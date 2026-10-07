@@ -97,6 +97,7 @@ test("stale collection run watchdog is scheduled and service-role protected", ()
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.mark_stale_collection_runs/);
   assert.match(sql, /status = 'failed'/);
   assert.match(sql, /startedAt" < p_cutoff/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.mark_stale_collection_runs\(timestamp with time zone\) FROM PUBLIC, anon, authenticated/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.mark_stale_collection_runs\(timestamp with time zone\) TO service_role/);
   assert.match(sql, /bobaks-collection-run-watchdog/);
   assert.match(sql, /'\*\/15 \* \* \* \*'/);
