@@ -16,23 +16,30 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout
+      - name: Checkout API repository
         uses: actions/checkout@v4
+
+      - name: Checkout authoritative web frontend
+        uses: actions/checkout@v4
+        with:
+          repository: justryan-n2d/bobaks-ranking-web
+          ref: main
+          path: bobaks-ranking-web
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Install API dependencies
         run: npm install
 
-      - name: Run frontend verification
+      - name: Run legacy frontend verification
         run: npm run test:frontend
 
-      - name: Sync Worker analytics secrets
+      - name: Sync legacy Worker analytics secrets
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -51,37 +58,61 @@ jobs:
             printf '%s' "$CF_ACCESS_AUD" | npx wrangler versions secret put CF_ACCESS_AUD --config wrangler.jsonc
           fi
 
-      - name: Version frontend assets
+      - name: Version legacy frontend assets
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${GITHUB_SHA::12}"
           sed -i "s|/app.js?v=20261001-2</script>|/app.js?v=${VERSION}</script>|" frontend/index.html
 
-      - name: Deploy frontend Worker
+      - name: Deploy legacy frontend Worker
         run: npx wrangler deploy --config wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Smoke test published frontend
+
+      - name: Install authoritative web dependencies
+        working-directory: bobaks-ranking-web
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Run authoritative web tests
+        working-directory: bobaks-ranking-web
+        run: npm test
+
+      - name: Build authoritative Cloudflare frontend
+        working-directory: bobaks-ranking-web
+        env:
+          BOBAKS_DEPLOYMENT_ENV: production
+          BOBAKS_UI_DEMO_MODE: "false"
+        run: npm run build:vinext
+
+      - name: Deploy authoritative web Worker
+        working-directory: bobaks-ranking-web
+        run: npx wrangler deploy --config wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Smoke test published frontends
         shell: bash
         run: |
           set -euo pipefail
 
-          FRONTEND="https://bobaks-ranking-api.bobaksranking.workers.dev"
+          LEGACY_FRONTEND="https://bobaks-ranking-api.bobaksranking.workers.dev"
+          FRONTEND="https://web.bobaksranking.workers.dev"
           API="https://bobaks-ranking-api-service.bobaksranking.workers.dev"
 
-          html=$(curl -fsS "$FRONTEND")
-          app_path=$(printf "%s\n" "$html" | sed -n 's|.*<script src="\([^"]*app\.js[^"]*\)"></script>.*|\1|p' | head -n 1)
-          test -n "$app_path"
-          app_js=$(curl -fsS "$FRONTEND$app_path")
-          echo "$app_js" | grep -F "const API='/api'"
-          echo "$app_js" | grep -F "function loadRankings"
-          echo "$app_js" | grep -F "ensureQrCode"
-          echo "$app_js" | grep -F "__BOBAKS_RANKING_SNAPSHOT__"
-          ! echo "$html" | grep -F "bobaks-api-production.up.railway.app"
-          echo "$html" | grep -F "<title>Bobaks Ranking |"
-          echo "$html" | grep -F 'id="app"'
+          legacy_html=$(curl -fsS "$LEGACY_FRONTEND")
+          legacy_app_path=$(printf "%s\n" "$legacy_html" | sed -n 's|.*<script src="\([^"]*app\.js[^"]*\)"></script>.*|\1|p' | head -n 1)
+          test -n "$legacy_app_path"
+          legacy_app_js=$(curl -fsS "$LEGACY_FRONTEND$legacy_app_path")
+          echo "$legacy_app_js" | grep -F "const API='/api'"
+          echo "$legacy_app_js" | grep -F "function loadRankings"
+          echo "$legacy_app_js" | grep -F "ensureQrCode"
+          echo "$legacy_app_js" | grep -F "__BOBAKS_RANKING_SNAPSHOT__"
+          ! echo "$legacy_html" | grep -F "bobaks-api-production.up.railway.app"
+          echo "$legacy_html" | grep -F "<title>Bobaks Ranking |"
+          echo "$legacy_html" | grep -F 'id="app"'
 
           health=$(curl -fsS "$API/api/health")
           echo "$health" | jq -e '.ok == true' >/dev/null
@@ -94,20 +125,35 @@ jobs:
           rankings=$(curl -fsS "$API/api/rankings?period=live")
           echo "$rankings" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
 
-          proxied_rankings=$(curl -fsS "$FRONTEND/api/rankings?period=live")
+          web_html=$(curl -fsS "$FRONTEND/")
+          echo "$web_html" | grep -F "<title>"
+          ! echo "$web_html" | grep -Eiq 'BOBAKS_UI_DEMO_MODE|preview-demo|Filipino Hangout'
+
+          for path in / /rankings/live /rankings/weekly /rankings/monthly /rankings/yearly /search /saved /compare /community /about /methodology /privacy /terms /account; do
+            code=$(curl --silent --output /dev/null --write-out '%{http_code}' "$FRONTEND$path")
+            test "$code" = "200"
+          done
+
+          proxied_rankings=$(curl -fsS "$FRONTEND/api/rankings/live")
           echo "$proxied_rankings" | jq -e '.period == "live" and (.data | length > 0)' >/dev/null
 
-          weekly=$(curl -fsS "$FRONTEND/rankings/weekly")
-          echo "$weekly" | grep -F "This Week's Roblox Game Rankings | Bobaks Ranking"
-          echo "$weekly" | grep -F 'rel="canonical" href="https://bobaks-ranking-api.bobaksranking.workers.dev/rankings/weekly"'
+          social=$(curl -fsS "$FRONTEND/api/social/feed?period=live")
+          echo "$social" | jq -e '(.ranking.items | length >= 0) and (.trending.items | length >= 0) and (.peaks.items | length >= 0)' >/dev/null
+
+          google_start=$(curl -fsS -D - -o /dev/null "$FRONTEND/api/auth/google/start")
+          echo "$google_start" | grep -F 'HTTP/2 302'
+          google_location=$(printf '%s\n' "$google_start" | sed -n 's/^location: //p' | tr -d '\r' | head -n 1)
+          test -n "$google_location"
+          echo "$google_location" | grep -F 'provider=google'
+          echo "$google_location" | grep -F 'redirect_to=https%3A%2F%2Fweb.bobaksranking.workers.dev%2Faccount%2Fgoogle-callback'
 
           game_html=$(curl -fsS "$FRONTEND/game/$game_id")
           echo "$game_html" | grep -F "| Bobaks Ranking"
           ! echo "$game_html" | grep -F "Game not found"
 
-          sitemap=$(curl -fsS "$FRONTEND/sitemap.xml?smoke=1")
+          sitemap=$(curl -fsS "$FRONTEND/sitemap.xml")
           sitemap_urls=$(echo "$sitemap" | grep -o "<loc>" | wc -l)
           test "$sitemap_urls" -gt 0
           echo "$sitemap" | grep -F "$FRONTEND/game/$game_id"
 
-          echo "Published frontend and Cloudflare API smoke test passed."
+          echo "Authoritative Bobaks web frontend and Cloudflare API smoke test passed."
