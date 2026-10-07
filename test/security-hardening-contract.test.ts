@@ -76,7 +76,8 @@ test("future snapshots require collection-run provenance", () => {
     ),
     "utf8"
   );
-  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS data_collection_log_collection_run_id_key/);
+  assert.match(sql, /ADD CONSTRAINT data_collection_log_collection_run_id_key/);
+  assert.match(sql, /UNIQUE \("collectionRunId"\)/);
   assert.match(sql, /ALTER TABLE public\."GameSnapshot"/);
   assert.match(sql, /FOREIGN KEY \("collectionRunId"\)/);
   assert.match(sql, /REFERENCES public\."DataCollectionLog" \("collectionRunId"\)/);
