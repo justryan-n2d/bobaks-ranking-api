@@ -127,7 +127,9 @@ test("collector falls back to the known active game catalog when Roblox discover
     if (url.includes("/rest/v1/DataCollectionLog")) {
       const method = init?.method ?? "GET";
       const body = JSON.parse(String(init?.body));
-      if (method === "POST" || method === "PATCH") loggedStatus = String(body.status);
+      if ((method === "POST" || method === "PATCH") && typeof body.status === "string") {
+        loggedStatus = String(body.status);
+      }
       return new Response("", { status: 201 });
     }
 
