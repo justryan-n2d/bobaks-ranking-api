@@ -125,8 +125,9 @@ test("collector falls back to the known active game catalog when Roblox discover
     if (url.includes("/rest/v1/rpc/refresh_rankings")) return response(null);
 
     if (url.includes("/rest/v1/DataCollectionLog")) {
+      const method = init?.method ?? "GET";
       const body = JSON.parse(String(init?.body));
-      if ((init?.method ?? "GET") === "POST") loggedStatus = String(body.status);
+      if (method === "POST" || method === "PATCH") loggedStatus = String(body.status);
       return new Response("", { status: 201 });
     }
 
@@ -842,13 +843,18 @@ test("collector records ranking refresh failure without invalidating the collect
 test("collector records failure when Roblox is unavailable", async () => {
   let startLogBody = "";
   let failureLogBody = "";
+  let failureLogRunId = "";
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url.includes("/get-sorts?")) throw new Error("network down");
     if (url.includes("/rest/v1/DataCollectionLog")) {
       const method = init?.method ?? "GET";
       if (method === "POST") startLogBody = String(init?.body);
-      if (method === "PATCH") failureLogBody = String(init?.body);
+      if (method === "PATCH") {
+        failureLogBody = String(init?.body);
+        const match = url.match(/collectionRunId=eq\.([^&]+)/);
+        failureLogRunId = match ? decodeURIComponent(match[1]) : "";
+      }
       return new Response("", { status: 201 });
     }
     throw new Error(`Unhandled URL: ${url}`);
@@ -866,7 +872,8 @@ test("collector records failure when Roblox is unavailable", async () => {
   const startedLog = JSON.parse(startLogBody) as Record<string, unknown>;
   const failedLog = JSON.parse(failureLogBody) as Record<string, unknown>;
   assert.equal(typeof startedLog.collectionRunId, "string");
-  assert.equal(startedLog.collectionRunId, failedLog.collectionRunId);
+  assert.equal(startedLog.collectionRunId, failureLogRunId);
+  assert.equal(typeof failedLog.status, "string");
 });
 
 test("collector health reports fresh collection and database status", async () => {
