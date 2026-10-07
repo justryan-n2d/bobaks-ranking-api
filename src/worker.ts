@@ -28,7 +28,7 @@ const ROBLOX_PROXY_ICONS = 'https://thumbnails.roproxy.com/v1/games/icons';
 const DEFAULT_TIMEOUT_MS = 15000;
 const DEFAULT_THROTTLE_MS = 150;
 const ROBLOX_RETRY_ATTEMPTS = 3;
-const ROBLOX_RETRY_DELAYS_MS = [500, 1000];
+const ROBLOX_RETRY_DELAYS_MS = [1000, 3000];
 const ROBLOX_MAX_RETRY_AFTER_MS = 15000;
 const STALE_GAME_VERIFICATION_BATCH = 25;
 
@@ -184,7 +184,7 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
   const sessionId = crypto.randomUUID();
   const sortsUrl = `${ROBLOX_OFFICIAL_BASE}/explore-api/v1/get-sorts?sessionId=${sessionId}&device=computer&country=all`;
   const proxySortsUrl = `${ROBLOX_PROXY_BASE}/explore-api/v1/get-sorts?sessionId=${sessionId}&device=computer&country=all`;
-  const sorts = await robloxJsonWithFallback(sortsUrl, proxySortsUrl, fetchImpl, env, { retry429WithoutHeader: false });
+  const sorts = await robloxJsonWithFallback(sortsUrl, proxySortsUrl, fetchImpl, env);
   const sortList = Array.isArray(sorts.sorts) ? sorts.sorts : [];
   const preferred = new Set(['top-playing-now', 'top-rated', 'top-grossing', 'up-and-coming']);
   const ids = new Set<string>();
@@ -200,7 +200,7 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
     const official = `${ROBLOX_OFFICIAL_BASE}/explore-api/v1/get-sort-content?sessionId=${sessionId}&sortId=${encodeURIComponent(sortId)}&device=computer&country=all&maxRows=100`;
     const proxy = `${ROBLOX_PROXY_BASE}/explore-api/v1/get-sort-content?sessionId=${sessionId}&sortId=${encodeURIComponent(sortId)}&device=computer&country=all&maxRows=100`;
     try {
-      const content = await robloxJsonWithFallback(official, proxy, fetchImpl, env, { retry429WithoutHeader: false });
+      const content = await robloxJsonWithFallback(official, proxy, fetchImpl, env);
       for (const id of extractUniverseIds(content)) ids.add(id);
     } catch (error) {
       console.warn(`Could not read Roblox sort ${sortId}:`, error);
@@ -211,28 +211,53 @@ async function discoverUniverseIds(fetchImpl: FetchLike, env: Env): Promise<stri
   return [...ids].slice(0, 300);
 }
 
-async function getUniverseInfo(universeIds: string[], fetchImpl: FetchLike, env: Env): Promise<Array<Record<string, unknown>>> {
+interface UniverseInfoResult {
+  rows: Array<Record<string, unknown>>;
+  failedBatches: number;
+}
+
+async function getUniverseInfo(
+  universeIds: string[],
+  fetchImpl: FetchLike,
+  env: Env
+): Promise<UniverseInfoResult> {
   const result: Array<Record<string, unknown>> = [];
   const seen = new Set<string>();
+  let failedBatches = 0;
+
   for (let i = 0; i < universeIds.length; i += 10) {
     const batch = universeIds.slice(i, i + 10);
     const query = batch.join(',');
-    const official = `${ROBLOX_OFFICIAL_GAMES}?universeIds=${query}`;
-    const proxy = `${ROBLOX_PROXY_GAMES}?universeIds=${query}`;
-    const response = await robloxJsonWithFallback(official, proxy, fetchImpl, env);
-    if (!Array.isArray(response.data)) throw new Error('Roblox universe info response had invalid data');
-    for (const item of response.data) {
-      if (!item || typeof item !== 'object') continue;
-      const row = item as Record<string, unknown>;
-      const id = String(row.id ?? row.universeId ?? '');
-      if (!/^\d+$/.test(id) || id === '0' || seen.has(id)) continue;
-      seen.add(id);
-      result.push(row);
+    const official = \`\${ROBLOX_OFFICIAL_GAMES}?universeIds=\${query}\`;
+    const proxy = \`\${ROBLOX_PROXY_GAMES}?universeIds=\${query}\`;
+
+    try {
+      const response = await robloxJsonWithFallback(official, proxy, fetchImpl, env);
+      if (!Array.isArray(response.data)) {
+        throw new Error('Roblox universe info response had invalid data');
+      }
+
+      for (const item of response.data) {
+        if (!item || typeof item !== 'object') continue;
+        const row = item as Record<string, unknown>;
+        const id = String(row.id ?? row.universeId ?? '');
+        if (!/^\\d+$/.test(id) || id === '0' || seen.has(id)) continue;
+        seen.add(id);
+        result.push(row);
+      }
+    } catch (error) {
+      failedBatches++;
+      console.warn(
+        \`Roblox universe info batch failed (batch \${Math.floor(i / 10) + 1}/\${Math.ceil(universeIds.length / 10)}); continuing with remaining batches:\`,
+        error
+      );
     }
+
     const throttle = intEnv(env.ROBLOX_THROTTLE_MS, DEFAULT_THROTTLE_MS);
     if (throttle) await new Promise(resolve => setTimeout(resolve, throttle));
   }
-  return result;
+
+  return { rows: result, failedBatches };
 }
 
 async function getUniverseThumbnails(
@@ -349,17 +374,53 @@ async function expectOk(response: Response, label: string): Promise<string> {
 
 async function upsertGames(env: Env, rows: Array<Record<string, unknown>>, fetchImpl: FetchLike): Promise<Array<{ id: string; universeId: string }>> {
   const result: Array<{ id: string; universeId: string }> = [];
+  const maxAttempts = 3;
+
   for (let i = 0; i < rows.length; i += 100) {
     const batch = rows.slice(i, i + 100);
-    const response = await supabaseRequest(env, 'Game?on_conflict=universeId', fetchImpl, {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify(batch)
-    });
-    const body = await expectOk(response, 'Game upsert');
+    const requestBody = JSON.stringify(batch);
+    let body = '';
+    let lastStatus = 0;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const response = await supabaseRequest(env, 'Game?on_conflict=universeId', fetchImpl, {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+        body: requestBody
+      });
+
+      body = await response.text();
+      lastStatus = response.status;
+
+      if (response.ok) break;
+
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === maxAttempts) {
+        throw new Error(\`Game upsert HTTP \${response.status}: \${body.slice(0, 500)}\`);
+      }
+
+      const retryAfter = response.headers.get('Retry-After');
+      const retryAfterSeconds = Number(retryAfter);
+      const delay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0
+        ? Math.min(Math.floor(retryAfterSeconds * 1000), 15_000)
+        : attempt === 1 ? 1000 : 3000;
+
+      console.warn(
+        \`Game upsert transient HTTP \${response.status} (attempt \${attempt}/\${maxAttempts}), retrying in \${delay}ms\`
+      );
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    if (lastStatus < 200 || lastStatus >= 300) {
+      throw new Error(\`Game upsert HTTP \${lastStatus}: \${body.slice(0, 500)}\`);
+    }
+
     const data = JSON.parse(body) as Array<Record<string, unknown>>;
-    for (const row of data) result.push({ id: String(row.id), universeId: String(row.universeId) });
+    for (const row of data) {
+      result.push({ id: String(row.id), universeId: String(row.universeId) });
+    }
   }
+
   return result;
 }
 
@@ -741,7 +802,14 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
       }
     }
 
-    const infos = await getUniverseInfo(universeIds, fetchImpl, env);
+    const universeInfoResult = await getUniverseInfo(universeIds, fetchImpl, env);
+    const infos = universeInfoResult.rows;
+    errors += universeInfoResult.failedBatches;
+
+    if (!infos.length && universeIds.length) {
+      throw new Error('Roblox universe info collection returned no usable games');
+    }
+
     const iconMap = await getUniverseThumbnails(
       infos
         .map(info => ({
