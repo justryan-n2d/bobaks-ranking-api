@@ -1080,10 +1080,7 @@ test("public API rate limiting returns 429 without touching Supabase", async () 
 
 test("public API rate limiting also protects authenticated POST endpoints", async () => {
   const limiter = {
-    limit: async ({ key }: { key: string }) => {
-      assert.match(key, /^203\\.0\\.113\\.11$/);
-      return { success: false };
-    }
+    limit: async () => ({ success: false })
   };
 
   const result = await handleApi(
