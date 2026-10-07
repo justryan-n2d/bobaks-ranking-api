@@ -11,5 +11,23 @@
       "binding": "ANALYTICS",
       "dataset": "bobaks_product_api"
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "API_RATE_LIMITER",
+      "namespace_id": "2026100701",
+      "simple": {
+        "limit": 240,
+        "period": 60
+      }
+    },
+    {
+      "name": "API_HEAVY_RATE_LIMITER",
+      "namespace_id": "2026100702",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
   ]
 }

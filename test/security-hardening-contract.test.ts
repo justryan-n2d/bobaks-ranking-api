@@ -50,3 +50,53 @@ test("Supabase security hardening blocks direct anon/authenticated table access"
     ));
   }
 });
+
+test("legal acceptance function is execution-restricted", () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20261007120423_harden_accept_current_legal_execution.sql"
+    ),
+    "utf8"
+  );
+  assert.match(sql, /REVOKE EXECUTE ON FUNCTION public\.accept_current_legal\(\) FROM PUBLIC, anon;/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.accept_current_legal\(\) TO authenticated, service_role;/);
+  assert.match(sql, /ALTER FUNCTION public\.accept_current_legal\(\) SET search_path = '';/);
+});
+
+test("future snapshots require collection-run provenance", () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20261007123000_enforce_snapshot_collection_run_provenance.sql"
+    ),
+    "utf8"
+  );
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS data_collection_log_collection_run_id_key/);
+  assert.match(sql, /ALTER TABLE public\."GameSnapshot"/);
+  assert.match(sql, /FOREIGN KEY \("collectionRunId"\)/);
+  assert.match(sql, /REFERENCES public\."DataCollectionLog" \("collectionRunId"\)/);
+  assert.match(sql, /NOT VALID/);
+});
+
+test("stale collection run watchdog is scheduled and service-role protected", () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20261007124500_watchdog_stuck_collection_runs.sql"
+    ),
+    "utf8"
+  );
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.mark_stale_collection_runs/);
+  assert.match(sql, /status = 'failed'/);
+  assert.match(sql, /startedAt" < p_cutoff/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.mark_stale_collection_runs\(timestamp with time zone\) TO service_role/);
+  assert.match(sql, /bobaks-collection-run-watchdog/);
+  assert.match(sql, /'\*\/15 \* \* \* \*'/);
+});
