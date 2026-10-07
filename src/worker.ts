@@ -727,7 +727,7 @@ async function writeLog(env: Env, row: Record<string, unknown>, fetchImpl: Fetch
   await expectOk(response, 'DataCollectionLog insert');
 }
 
-async function updateRankingRefreshLog(
+async function updateCollectionLog(
   env: Env,
   collectionRunId: string,
   fields: Record<string, unknown>,
@@ -744,7 +744,16 @@ async function updateRankingRefreshLog(
       body: JSON.stringify(fields)
     }
   );
-  await expectOk(response, 'DataCollectionLog ranking refresh update');
+  await expectOk(response, 'DataCollectionLog update');
+}
+
+async function updateRankingRefreshLog(
+  env: Env,
+  collectionRunId: string,
+  fields: Record<string, unknown>,
+  fetchImpl: FetchLike
+): Promise<void> {
+  await updateCollectionLog(env, collectionRunId, fields, fetchImpl);
 }
 
 async function listKnownActiveUniverseIds(
@@ -781,8 +790,20 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
   let gamesUpdated = 0;
   let errors = 0;
   let collectionLogWritten = false;
+  let collectionLogFinalized = false;
+  let rankingRefreshFailed = false;
 
   try {
+    await writeLog(env, {
+      collectionRunId,
+      startedAt: startedAt.toISOString(),
+      gamesChecked: 0,
+      gamesUpdated: 0,
+      errors: 0,
+      status: 'running'
+    }, fetchImpl);
+    collectionLogWritten = true;
+
     let universeIds: string[];
     let discoverySucceeded = true;
 
@@ -906,21 +927,20 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
       }
     }
 
-    // Finalize the collection log before refreshing rankings so the current
-    // run is visible in both the coverage denominator and snapshot validation.
+    // Finalize the pre-created collection log before refreshing rankings so
+    // the current run is visible in both the coverage denominator and snapshot validation.
     const rankingRefreshStartedAt = new Date().toISOString();
-    await writeLog(env, {
-      collectionRunId,
-      startedAt: startedAt.toISOString(),
+    await updateCollectionLog(env, collectionRunId, {
       finishedAt: rankingRefreshStartedAt,
       gamesChecked,
       gamesUpdated,
       errors,
       status: errors ? 'partial' : 'success',
       rankingRefreshStatus: 'pending',
-      rankingRefreshStartedAt
+      rankingRefreshStartedAt,
+      errorMessage: null
     }, fetchImpl);
-    collectionLogWritten = true;
+    collectionLogFinalized = true;
 
     // Ranking refresh is downstream of data collection. If it fails, the
     // collected snapshots remain valid and the collection run stays usable.
@@ -939,6 +959,7 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
         fetchImpl
       );
     } catch (refreshError) {
+      rankingRefreshFailed = true;
       try {
         await updateRankingRefreshLog(
           env,
@@ -962,7 +983,24 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
     errors++;
     console.error('Collector failed:', error);
 
-    if (!collectionLogWritten) {
+    if (collectionLogWritten && !collectionLogFinalized && !rankingRefreshFailed) {
+      try {
+        await updateCollectionLog(env, collectionRunId, {
+          finishedAt: new Date().toISOString(),
+          gamesChecked,
+          gamesUpdated,
+          errors,
+          status: 'failed',
+          errorMessage: formatError(error).slice(0, 1000),
+          rankingRefreshStatus: null,
+          rankingRefreshStartedAt: null,
+          rankingRefreshFinishedAt: null,
+          rankingRefreshErrorMessage: null
+        }, fetchImpl);
+      } catch (logError) {
+        console.error('Failed to finalize collector failure log:', logError);
+      }
+    } else if (!collectionLogWritten) {
       try {
         await writeLog(env, {
           collectionRunId,
@@ -972,7 +1010,7 @@ export async function collectOnce(env: Env, fetchImpl: FetchLike = fetch): Promi
           gamesUpdated,
           errors,
           status: 'failed',
-          errorMessage: formatError(error)
+          errorMessage: formatError(error).slice(0, 1000)
         }, fetchImpl);
       } catch (logError) {
         console.error('Failed to record collector failure:', logError);
