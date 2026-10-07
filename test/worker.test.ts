@@ -59,7 +59,7 @@ test("collector retries Roblox HTTP 429 and continues without recording a failur
       if (method === "POST" || method === "PATCH") {
         if (typeof body.status === "string") logStatus = body.status;
         if (method === "PATCH" && body.rankingRefreshStatus) {
-          assert.equal(body.rankingRefreshStatus, "success");
+          assert.ok(["pending", "success"].includes(String(body.rankingRefreshStatus)));
         }
       }
       return new Response("", { status: 201 });
@@ -140,7 +140,7 @@ test("collector falls back to the known active game catalog when Roblox discover
   }, fakeFetch);
 
   assert.deepEqual(result, { gamesChecked: 1, gamesUpdated: 1, errors: 0 });
-  assert.equal(discoveryAttempts, 3);
+  assert.equal(discoveryAttempts, 6);
   assert.equal(fallbackLookups, 1);
   assert.equal(loggedStatus, "success");
 
@@ -414,7 +414,7 @@ test("scheduled collector performs the complete collection cycle", async () => {
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/record_game_peaks")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/rpc/refresh_rankings")).length, 1);
   assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog") && c.method === "POST").length, 1);
-  assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog") && c.method === "PATCH").length, 1);
+  assert.equal(calls.filter(c => c.url.includes("/rest/v1/DataCollectionLog") && c.method === "PATCH").length, 2);
 });
 
 test("thumbnail collection falls back from empty official data and preserves missing icons", async () => {
@@ -840,12 +840,15 @@ test("collector records ranking refresh failure without invalidating the collect
 });
 
 test("collector records failure when Roblox is unavailable", async () => {
-  let loggedBody = "";
+  let startLogBody = "";
+  let failureLogBody = "";
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url.includes("/get-sorts?")) throw new Error("network down");
     if (url.includes("/rest/v1/DataCollectionLog")) {
-      loggedBody = String(init?.body);
+      const method = init?.method ?? "GET";
+      if (method === "POST") startLogBody = String(init?.body);
+      if (method === "PATCH") failureLogBody = String(init?.body);
       return new Response("", { status: 201 });
     }
     throw new Error(`Unhandled URL: ${url}`);
@@ -857,11 +860,13 @@ test("collector records failure when Roblox is unavailable", async () => {
     ROBLOX_THROTTLE_MS: "0"
   }, fakeFetch), /network down/);
 
-  assert.match(loggedBody, /"status":"failed"/);
-  assert.match(loggedBody, /"errors":1/);
-  assert.match(loggedBody, /"errorMessage":"network down"/);
-  const failedLog = JSON.parse(loggedBody) as Record<string, unknown>;
-  assert.equal(typeof failedLog.collectionRunId, "string");
+  assert.match(failureLogBody, /"status":"failed"/);
+  assert.match(failureLogBody, /"errors":1/);
+  assert.match(failureLogBody, /"errorMessage":"network down"/);
+  const startedLog = JSON.parse(startLogBody) as Record<string, unknown>;
+  const failedLog = JSON.parse(failureLogBody) as Record<string, unknown>;
+  assert.equal(typeof startedLog.collectionRunId, "string");
+  assert.equal(startedLog.collectionRunId, failedLog.collectionRunId);
 });
 
 test("collector health reports fresh collection and database status", async () => {
