@@ -50,11 +50,11 @@ test("ranking refresh contract covers all four period boundaries and partial-run
 
   assert.match(sql, /date_trunc\('week', calculated_at AT TIME ZONE 'UTC'\)/);
   assert.match(sql, /date_trunc\('month', calculated_at AT TIME ZONE 'UTC'\)/);
-  assert.match(sql, /v_day_start := date_trunc\('day', calculated_at AT TIME ZONE 'UTC'\)/);
-  assert.match(sql, /v_summary_start := \(v_day_start::date - 364\)/);
+  assert.match(sql, /current_day_start := date_trunc\('day', calculated_at AT TIME ZONE 'UTC'\)/);
+  assert.match(sql, /summary_start_date := \(\(calculated_at AT TIME ZONE 'UTC'\)::date - 364\)/);
   assert.match(sql, /COALESCE\(l\."startedAt", s\."timestamp"\)/);
   assert.match(sql, /l\."status" IN \('success', 'partial'\)/);
-  assert.match(sql, /opportunities[^;]*count\(\*\)[^;]*'success', 'partial'/s);
+  assert.match(sql, /SELECT count\(\*\) INTO (weekly_collection_opportunities|monthly_collection_opportunities)[\s\S]*?status" IN \('success', 'partial'\)/);
   assert.match(sql, /DELETE FROM public\."Ranking"/);
   assert.match(sql, /PERFORM public\.assert_rankings_integrity\(\)/);
   assert.match(sql, /RAISE EXCEPTION 'Ranking refresh aborted:/);
