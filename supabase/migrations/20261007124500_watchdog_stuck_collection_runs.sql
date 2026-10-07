@@ -24,7 +24,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.mark_stale_collection_runs(timestamp with time zone) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.mark_stale_collection_runs(timestamp with time zone) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mark_stale_collection_runs(timestamp with time zone) TO service_role;
 ALTER FUNCTION public.mark_stale_collection_runs(timestamp with time zone) SET search_path = public, pg_temp;
 
