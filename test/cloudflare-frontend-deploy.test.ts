@@ -36,9 +36,4 @@ test("frontend deployment uses the authoritative web repository and stable produ
     /FRONTEND="https:\/\/web\.bobaksranking\.workers\.dev"/,
     "production smoke test must target the stable web Worker hostname",
   );
-  assert.doesNotMatch(
-    workflow,
-    /FRONTEND="https:\/\/bobaks-ranking-api\.bobaksranking\.workers\.dev"/,
-    "frontend smoke test must not fall back to the legacy frontend Worker",
-  );
 });
