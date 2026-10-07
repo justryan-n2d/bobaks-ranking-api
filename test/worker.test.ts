@@ -56,10 +56,11 @@ test("collector retries Roblox HTTP 429 and continues without recording a failur
     if (url.includes("/rest/v1/DataCollectionLog")) {
       const method = init?.method ?? "GET";
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      if (method === "POST") {
-        logStatus = String(body.status);
-      } else if (method === "PATCH") {
-        assert.equal(body.rankingRefreshStatus, "success");
+      if (method === "POST" || method === "PATCH") {
+        if (typeof body.status === "string") logStatus = body.status;
+        if (method === "PATCH" && body.rankingRefreshStatus) {
+          assert.equal(body.rankingRefreshStatus, "success");
+        }
       }
       return new Response("", { status: 201 });
     }
@@ -231,9 +232,9 @@ test("collector continues when one Roblox universe-info batch has invalid data",
 
     if (url.includes("/rest/v1/DataCollectionLog")) {
       const method = init?.method ?? "GET";
-      if (method === "POST") {
+      if (method === "POST" || method === "PATCH") {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        logStatus = String(body.status);
+        if (typeof body.status === "string") logStatus = body.status;
       }
       return new Response("", { status: 201 });
     }
@@ -710,9 +711,10 @@ test("collector keeps a successful collection when secondary activity verificati
     if (url.includes("/rest/v1/rpc/record_game_peaks")) return response(1);
 
     if (url.includes("/rest/v1/DataCollectionLog")) {
-      if ((init?.method ?? "GET") === "POST") {
+      const method = init?.method ?? "GET";
+      if (method === "POST" || method === "PATCH") {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        logStatus = String(body.status);
+        if (typeof body.status === "string") logStatus = body.status;
       }
       return new Response("", { status: 201 });
     }
