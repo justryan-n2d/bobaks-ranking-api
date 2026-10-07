@@ -82,3 +82,21 @@ test("future snapshots require collection-run provenance", () => {
   assert.match(sql, /REFERENCES public\."DataCollectionLog" \("collectionRunId"\)/);
   assert.match(sql, /NOT VALID/);
 });
+
+test("stale collection run watchdog is scheduled and service-role protected", () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20261007124500_watchdog_stuck_collection_runs.sql"
+    ),
+    "utf8"
+  );
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.mark_stale_collection_runs/);
+  assert.match(sql, /status = 'failed'/);
+  assert.match(sql, /startedAt" < p_cutoff/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.mark_stale_collection_runs\(timestamp with time zone\) TO service_role/);
+  assert.match(sql, /bobaks-collection-run-watchdog/);
+  assert.match(sql, /'\*\/15 \* \* \* \*'/);
+});
