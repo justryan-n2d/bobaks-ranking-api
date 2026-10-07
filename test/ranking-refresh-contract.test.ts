@@ -56,8 +56,8 @@ test("ranking refresh contract covers all four period boundaries and partial-run
   assert.match(sql, /l\."status" IN \('success', 'partial'\)/);
   assert.match(sql, /SELECT count\(\*\) INTO weekly_collection_opportunities/);
   assert.match(sql, /SELECT count\(\*\) INTO monthly_collection_opportunities/);
-  assert.match(sql, /weekly_collection_opportunities[\s\S]*?"status" IN \('success', 'partial'\)/);
-  assert.match(sql, /monthly_collection_opportunities[\s\S]*?"status" IN \('success', 'partial'\)/);
+  assert.match(sql, /"status" IN \('success', 'partial'\)[\s\S]*?"startedAt" >= current_week_start/);
+  assert.match(sql, /"status" IN \('success', 'partial'\)[\s\S]*?"startedAt" >= current_month_start/);
   assert.match(sql, /DELETE FROM public\."Ranking"/);
   assert.match(sql, /PERFORM public\.assert_rankings_integrity\(\)/);
   assert.match(sql, /RAISE EXCEPTION 'Ranking refresh aborted:/);
