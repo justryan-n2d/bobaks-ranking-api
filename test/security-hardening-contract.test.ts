@@ -50,3 +50,18 @@ test("Supabase security hardening blocks direct anon/authenticated table access"
     ));
   }
 });
+
+test("legal acceptance function is execution-restricted", () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20261007120423_harden_accept_current_legal_execution.sql"
+    ),
+    "utf8"
+  );
+  assert.match(sql, /REVOKE EXECUTE ON FUNCTION public\.accept_current_legal\(\) FROM PUBLIC, anon;/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.accept_current_legal\(\) TO authenticated, service_role;/);
+  assert.match(sql, /ALTER FUNCTION public\.accept_current_legal\(\) SET search_path = '';/);
+});
