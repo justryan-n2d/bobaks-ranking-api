@@ -761,11 +761,11 @@ test("collector finalizes the run before refreshing rankings", async () => {
     if (url.includes("/rest/v1/DataCollectionLog")) {
       const payload = JSON.parse(String(init?.body)) as Record<string, unknown>;
       if (method === "POST") {
-        order.push("log");
-        assert.equal(payload.status, "success");
+        order.push("log-start");
+        assert.equal(payload.status, "running");
+        assert.equal(payload.collectionRunId, payload.collectionRunId);
       } else if (method === "PATCH") {
-        order.push("log-update");
-        assert.equal(payload.rankingRefreshStatus, "success");
+        order.push(payload.status === "success" || payload.status === "partial" ? "log-finalize" : "log-update");
       }
       return new Response("", { status: 201 });
     }
@@ -782,7 +782,7 @@ test("collector finalizes the run before refreshing rankings", async () => {
     ROBLOX_THROTTLE_MS: "0"
   }, fakeFetch);
 
-  assert.deepEqual(order, ["snapshot", "peaks", "log", "refresh", "log-update"]);
+  assert.deepEqual(order, ["log-start", "snapshot", "peaks", "log-finalize", "refresh", "log-update"]);
 });
 
 test("collector records ranking refresh failure without invalidating the collection run", async () => {
@@ -807,13 +807,17 @@ test("collector records ranking refresh failure without invalidating the collect
       const payload = JSON.parse(String(init?.body)) as Record<string, unknown>;
       if (method === "POST") {
         insertLogCount++;
-        assert.equal(payload.status, "success");
-        assert.equal(payload.rankingRefreshStatus, "pending");
+        assert.equal(payload.status, "running");
+        assert.equal(payload.rankingRefreshStatus, undefined);
       } else if (method === "PATCH") {
-        refreshUpdateCount++;
-        refreshStatus = String(payload.rankingRefreshStatus);
-        refreshError = String(payload.rankingRefreshErrorMessage);
-        assert.equal(payload.rankingRefreshStatus, "failed");
+        if (payload.status === "success" || payload.status === "partial") {
+          assert.equal(payload.rankingRefreshStatus, "pending");
+        } else {
+          refreshUpdateCount++;
+          refreshStatus = String(payload.rankingRefreshStatus);
+          refreshError = String(payload.rankingRefreshErrorMessage);
+          assert.equal(payload.rankingRefreshStatus, "failed");
+        }
       }
       return new Response("", { status: 201 });
     }
