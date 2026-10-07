@@ -241,7 +241,7 @@ async function getUniverseInfo(
         if (!item || typeof item !== 'object') continue;
         const row = item as Record<string, unknown>;
         const id = String(row.id ?? row.universeId ?? '');
-        if (!/^\\d+$/.test(id) || id === '0' || seen.has(id)) continue;
+        if (!/^\d+$/.test(id) || id === '0' || seen.has(id)) continue;
         seen.add(id);
         result.push(row);
       }
