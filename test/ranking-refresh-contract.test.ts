@@ -60,5 +60,5 @@ test("ranking refresh contract covers all four period boundaries and partial-run
   assert.match(sql, /"status" IN \('success', 'partial'\)[\s\S]*?"startedAt" >= current_month_start/);
   assert.match(sql, /DELETE FROM public\."Ranking"/);
   assert.match(sql, /PERFORM public\.assert_rankings_integrity\(\)/);
-  assert.match(sql, /RAISE EXCEPTION 'Ranking refresh aborted:/);
+  assert.match(sql, /RAISE EXCEPTION[\s\S]*?Ranking refresh aborted: live candidate has/);
 });
