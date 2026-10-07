@@ -65,3 +65,20 @@ test("legal acceptance function is execution-restricted", () => {
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.accept_current_legal\(\) TO authenticated, service_role;/);
   assert.match(sql, /ALTER FUNCTION public\.accept_current_legal\(\) SET search_path = '';/);
 });
+
+test("future snapshots require collection-run provenance", () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20261007123000_enforce_snapshot_collection_run_provenance.sql"
+    ),
+    "utf8"
+  );
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS data_collection_log_collection_run_id_key/);
+  assert.match(sql, /ALTER TABLE public\."GameSnapshot"/);
+  assert.match(sql, /FOREIGN KEY \("collectionRunId"\)/);
+  assert.match(sql, /REFERENCES public\."DataCollectionLog" \("collectionRunId"\)/);
+  assert.match(sql, /NOT VALID/);
+});
