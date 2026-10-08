@@ -4,7 +4,8 @@ import apiWorker, { handleApi } from "../src/api-worker";
 
 const env = {
   SUPABASE_URL: "https://zhrfozouzvxhpkylmpwh.supabase.co",
-  SUPABASE_SECRET_KEY: "sb_secret_test"
+  SUPABASE_SECRET_KEY: "sb_secret_test",
+  BOBAKS_ALLOWED_ORIGINS: "https://web.bobaksranking.workers.dev"
 };
 
 function response(body: unknown, init: ResponseInit = {}): Response {
@@ -807,14 +808,32 @@ test("invalid inputs are rejected before database access", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("public worker adds CORS headers and rejects unsupported methods", async () => {
-  const cors = await apiWorker.fetch(new Request("https://api.example/api/health", { method: "OPTIONS" }), env);
+test("public worker restricts CORS to the configured web origin and adds security headers", async () => {
+  const cors = await apiWorker.fetch(new Request("https://api.example/api/health", {
+    method: "OPTIONS",
+    headers: { origin: "https://web.bobaksranking.workers.dev" }
+  }), env);
   assert.equal(cors.status, 204);
-  assert.equal(cors.headers.get("access-control-allow-origin"), "*");
+  assert.equal(cors.headers.get("access-control-allow-origin"), "https://web.bobaksranking.workers.dev");
+  assert.equal(cors.headers.get("vary"), "Origin");
+  assert.equal(cors.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(cors.headers.get("x-frame-options"), "DENY");
+  assert.equal(cors.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+  assert.match(cors.headers.get("strict-transport-security") ?? "", /max-age=31536000/);
 
-  const method = await apiWorker.fetch(new Request("https://api.example/api/health", { method: "POST" }), env);
+  const method = await apiWorker.fetch(new Request("https://api.example/api/health", {
+    method: "POST",
+    headers: { origin: "https://web.bobaksranking.workers.dev" }
+  }), env);
   assert.equal(method.status, 405);
-  assert.equal(method.headers.get("access-control-allow-origin"), "*");
+  assert.equal(method.headers.get("access-control-allow-origin"), "https://web.bobaksranking.workers.dev");
+
+  const disallowed = await apiWorker.fetch(new Request("https://api.example/api/health", {
+    method: "OPTIONS",
+    headers: { origin: "https://evil.example" }
+  }), env);
+  assert.equal(disallowed.status, 204);
+  assert.equal(disallowed.headers.get("access-control-allow-origin"), null);
 });
 
 test("ranking rules endpoint exposes the canonical public methodology", async () => {

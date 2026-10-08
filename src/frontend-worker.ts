@@ -714,6 +714,20 @@ async function handleAnalytics(request: Request, env: Env): Promise<Response> {
   }
 }
 
+function withFrontendSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-frame-options", "DENY");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  headers.set("strict-transport-security", "max-age=31536000; includeSubDomains");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
 export async function handleFrontendRequest(
   request: Request,
   env: Env,
@@ -777,6 +791,7 @@ export async function handleFrontendRequest(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return handleFrontendRequest(request, env);
+    const response = await handleFrontendRequest(request, env);
+    return withFrontendSecurityHeaders(response);
   }
 };

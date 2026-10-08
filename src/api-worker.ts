@@ -13,6 +13,7 @@ interface Env extends RobloxIdentityEnv {
   ANALYTICS?: AnalyticsBinding;
   API_RATE_LIMITER?: RateLimitBinding;
   API_HEAVY_RATE_LIMITER?: RateLimitBinding;
+  BOBAKS_ALLOWED_ORIGINS?: string;
 }
 
 type FetchLike = typeof fetch;
@@ -117,11 +118,36 @@ function json(body: unknown, status = 200, extraHeaders: HeadersInit = {}): Resp
   });
 }
 
-function corsHeaders(): HeadersInit {
-  return {
-    "access-control-allow-origin": "*",
+function allowedOrigins(env: Env): Set<string> {
+  const configured = (env.BOBAKS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean);
+  return new Set(configured.length ? configured : ["https://web.bobaksranking.workers.dev"]);
+}
+
+function corsHeaders(request: Request, env: Env): HeadersInit {
+  const origin = request.headers.get("origin");
+  const headers: HeadersInit = {
     "access-control-allow-methods": "GET, POST, OPTIONS",
-    "access-control-allow-headers": "authorization, content-type"
+    "access-control-allow-headers": "authorization, content-type",
+    "vary": "Origin"
+  };
+
+  if (origin && allowedOrigins(env).has(origin)) {
+    headers["access-control-allow-origin"] = origin;
+  }
+
+  return headers;
+}
+
+function securityHeaders(): HeadersInit {
+  return {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "strict-transport-security": "max-age=31536000; includeSubDomains"
   };
 }
 
@@ -147,9 +173,9 @@ function recordApiAnalytics(env: Env, request: Request, response: Response): voi
   }
 }
 
-function withCors(response: Response): Response {
+function withSecurity(response: Response): Response {
   const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(corsHeaders())) {
+  for (const [key, value] of Object.entries(securityHeaders())) {
     headers.set(key, value);
   }
   return new Response(response.body, {
@@ -1481,7 +1507,7 @@ export default {
     const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
     const isRobloxIdentityRequest = path.startsWith("/api/identity/roblox/");
     const response = request.method === "OPTIONS"
-      ? new Response(null, { status: 204, headers: { ...corsHeaders() } })
+      ? new Response(null, { status: 204, headers: { ...corsHeaders(request, env) } })
       : request.method !== "GET" && !(isRobloxIdentityRequest && request.method === "POST")
         ? json({ error: "Method not allowed" }, 405, { allow: "GET, POST, OPTIONS" })
         : await handleApi(request, env);
@@ -1495,7 +1521,16 @@ export default {
     });
 
     recordApiAnalytics(env, request, timedResponse);
-    return withCors(timedResponse);
+    const securedResponse = withSecurity(timedResponse);
+    const responseHeaders = new Headers(securedResponse.headers);
+    for (const [key, value] of Object.entries(corsHeaders(request, env))) {
+      responseHeaders.set(key, value);
+    }
+    return new Response(securedResponse.body, {
+      status: securedResponse.status,
+      statusText: securedResponse.statusText,
+      headers: responseHeaders
+    });
   }
 };
 
